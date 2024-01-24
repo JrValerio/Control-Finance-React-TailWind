@@ -19,7 +19,6 @@ const Modal = ({
   const handleTypeChange = (newCategory) => {
     setCategory(newCategory);
     setActiveButton(newCategory);
-    // console.log("Active Button após mudança:", newCategory);
   };
 
   const handleSave = () => {
