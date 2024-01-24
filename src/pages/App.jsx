@@ -77,7 +77,6 @@ const App = () => {
     setTransactions(savedTransactions);
   }, []);
 
-  
   const deleteTransaction = (id) => {
     const updatedTransactions = transactions.filter((trans) => trans.id !== id);
     setTransactions(updatedTransactions);
@@ -186,8 +185,6 @@ const App = () => {
         insertedValues={transactions}
         setInsertedValues={setTransactions}
         updateTransactionType={updateTransactionType}
-        activeButton={activeButton}
-  setActiveButton={setActiveButton}
       />
     </div>
   );

@@ -88,10 +88,9 @@ const Modal = ({
             <button
               className={`px-3.5 py-1 bg-white rounded border border-gray-200 text-gray-600 text-sm font-semibold w-full sm:w-auto ... 
               ${
-                activeButton === "Entrada"
-                  ? "text-brand-1 bg-brand-3 border-brand-1"
-                  : "text-grey-2 bg-white border-grey-3"
-                  
+                category === "Entrada"
+                  ? "ring-1 ring-offset-1 ring-brand-1"
+                  : ""
               }`}
               onClick={() => handleTypeChange("Entrada")}
             >
@@ -100,9 +99,9 @@ const Modal = ({
             <button
               className={`px-3.5 py-1 bg-white rounded border border-gray-200 text-gray-600 text-sm font-semibold w-full sm:w-auto ... 
               ${
-                activeButton === "Saída"
-                  ? "text-brand-1 bg-brand-3 border-brand-1"
-                  : "text-grey-2 bg-white border-grey-3"
+                category === "Saída"
+                  ? "ring-1 ring-offset-1 ring-brand-1"
+                  : ""
               }`}
               onClick={() => handleTypeChange("Saída")}
             >
