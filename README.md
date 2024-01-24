@@ -1,22 +1,39 @@
-# ControlFinance
+# Control Finance
 
-## Descrição
+![Control Finance](https://raw.githubusercontent.com/JrValerio/Control-Finance-React-TailWind/main/src/assets/Control%20Finance.png)
 
-ControlFinance é um aplicativo de controle financeiro pessoal que permite aos usuários rastrear suas transações de entrada e saída de dinheiro. Com uma interface de usuário simples e intuitiva, os usuários podem facilmente adicionar, visualizar e remover transações, bem como filtrar por entradas ou saídas.
+## Sobre o Projeto
 
-## Funcionalidades
+Control Finance é uma aplicação web para controle financeiro pessoal. Com ela, os usuários podem registrar e visualizar suas entradas e saídas financeiras de maneira simples e intuitiva. Este projeto foi proposto pela Kenzie Academy Brasil sob a orientação do professor Fernando Feliciano, a quem agradeço muito. 
 
-- Adicionar novas transações financeiras como entradas ou saídas.
-- Visualizar uma lista de todas as transações registradas.
-- Filtrar transações por tipo: todas, entradas ou saídas.
-- Exibir a soma total das transações financeiras com base no filtro aplicado.
-- Design responsivo que se adapta a diferentes tamanhos de tela.
-- Persistência dos dados no LocalStorage do navegador.
+### Recursos
+
+- **Registro de Transações**: Registre suas entradas e saídas financeiras.
+- **Visualização de Transações**: Veja todas as suas transações em uma lista.
+- **Filtragem por Categoria**: Filtre suas transações por entradas ou saídas.
+- **Cálculo de Soma Total**: Veja o total de suas transações com base na filtragem aplicada.
 
 ## Tecnologias Utilizadas
 
 - React
 - Tailwind CSS
-- LocalStorage API
+- JavaScript (ES6+)
+- HTML5
+- CSS3
+- Local Storage para persistência de dados
 
+## Demonstração Online
 
+Você pode testar a aplicação através do seguinte link: [Control Finance Demo](https://control-finance-react-tail-wind.vercel.app/).
+
+## Repositório do Projeto
+
+O código fonte do projeto está disponível no seguinte link: [Repositório GitHub](https://github.com/JrValerio/Control-Finance-React-TailWind).
+
+## Contribuições
+
+Contribuições são sempre bem-vindas! Para contribuir, por favor, abra uma issue ou um pull request.
+
+## Licença
+
+Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LINK_PARA_LICENÇA) para mais detalhes.
