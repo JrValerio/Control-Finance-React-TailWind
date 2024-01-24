@@ -77,9 +77,7 @@ const App = () => {
     setTransactions(savedTransactions);
   }, []);
 
-  // const deleteTransaction = (id) => {
-  //   setTransactions(transactions.filter((trans) => trans.id !== id));
-  // };
+  
   const deleteTransaction = (id) => {
     const updatedTransactions = transactions.filter((trans) => trans.id !== id);
     setTransactions(updatedTransactions);
