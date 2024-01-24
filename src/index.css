@@ -1,0 +1,25 @@
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap');
+
+
+.btn-primary {
+  @apply bg-brand-1 text-white font-medium py-2 px-4 rounded;
+}
+
+.btn-primary:hover {
+  @apply bg-brand-2;
+}
+
+.btn-outline {
+  @apply border-2 border-brand-1 text-brand-1 font-medium py-2 px-4 rounded;
+}
+
+.btn-outline:hover {
+  @apply border-brand-2 text-brand-2;
+}
+
+
