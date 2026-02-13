@@ -1,15 +1,14 @@
 # Control Finance
 
 [![CI](https://github.com/JrValerio/Control-Finance-React-TailWind/actions/workflows/ci.yml/badge.svg)](https://github.com/JrValerio/Control-Finance-React-TailWind/actions/workflows/ci.yml)
-[![Deploy](https://img.shields.io/badge/deploy-vercel-000?logo=vercel)](https://control-finance-react-tail-wind.vercel.app/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 Aplicacao web para controle financeiro pessoal (entradas e saidas), com filtro por categoria, saldo em tempo real e persistencia via `localStorage`.
 
-## Demo
+## Links
 
-- Producao (Vercel): https://control-finance-react-tail-wind.vercel.app/
-- CI: https://github.com/JrValerio/Control-Finance-React-TailWind/actions/workflows/ci.yml
+- Producao (Vercel): [control-finance-react-tail-wind.vercel.app](https://control-finance-react-tail-wind.vercel.app/)
+- CI: [GitHub Actions - CI](https://github.com/JrValerio/Control-Finance-React-TailWind/actions/workflows/ci.yml)
 
 ## Preview
 
