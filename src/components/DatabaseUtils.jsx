@@ -2,12 +2,114 @@ export const CATEGORY_ALL = "Todos";
 export const CATEGORY_ENTRY = "Entrada";
 export const CATEGORY_EXIT = "Saida";
 
+export const PERIOD_ALL = "Todo periodo";
+export const PERIOD_TODAY = "Hoje";
+export const PERIOD_LAST_7_DAYS = "Ultimos 7 dias";
+export const PERIOD_LAST_30_DAYS = "Ultimos 30 dias";
+export const PERIOD_CUSTOM = "Personalizado";
+
+const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
+const formatPart = (value) => String(value).padStart(2, "0");
+
+export const getTodayISODate = (referenceDate = new Date()) => {
+  const date = new Date(referenceDate);
+  return `${date.getFullYear()}-${formatPart(date.getMonth() + 1)}-${formatPart(
+    date.getDate(),
+  )}`;
+};
+
+const getDateWithOffsetISO = (referenceDate, offsetDays) => {
+  const date = new Date(referenceDate);
+  date.setDate(date.getDate() + offsetDays);
+  return getTodayISODate(date);
+};
+
+export const isValidISODate = (value) => {
+  if (typeof value !== "string" || !ISO_DATE_REGEX.test(value)) {
+    return false;
+  }
+
+  const parsedDate = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return false;
+  }
+
+  return getTodayISODate(parsedDate) === value;
+};
+
+export const normalizeTransactionDate = (
+  date,
+  fallbackDate = getTodayISODate(),
+) => {
+  return isValidISODate(date) ? date : fallbackDate;
+};
+
 export const filterByCategory = (transactions, category) => {
   if (category === CATEGORY_ALL) {
     return transactions;
   }
 
   return transactions.filter((transaction) => transaction.type === category);
+};
+
+export const filterByPeriod = (
+  transactions,
+  period,
+  customRange = {},
+  referenceDate = new Date(),
+) => {
+  if (period === PERIOD_ALL) {
+    return transactions;
+  }
+
+  const today = getTodayISODate(referenceDate);
+  let startDate = null;
+  let endDate = null;
+
+  if (period === PERIOD_TODAY) {
+    startDate = today;
+    endDate = today;
+  }
+
+  if (period === PERIOD_LAST_7_DAYS) {
+    startDate = getDateWithOffsetISO(referenceDate, -6);
+    endDate = today;
+  }
+
+  if (period === PERIOD_LAST_30_DAYS) {
+    startDate = getDateWithOffsetISO(referenceDate, -29);
+    endDate = today;
+  }
+
+  if (period === PERIOD_CUSTOM) {
+    startDate = isValidISODate(customRange.startDate)
+      ? customRange.startDate
+      : null;
+    endDate = isValidISODate(customRange.endDate) ? customRange.endDate : null;
+
+    if (!startDate && !endDate) {
+      return transactions;
+    }
+  }
+
+  if (startDate && endDate && startDate > endDate) {
+    [startDate, endDate] = [endDate, startDate];
+  }
+
+  return transactions.filter((transaction) => {
+    const transactionDate = normalizeTransactionDate(transaction.date, today);
+
+    if (startDate && transactionDate < startDate) {
+      return false;
+    }
+
+    if (endDate && transactionDate > endDate) {
+      return false;
+    }
+
+    return true;
+  });
 };
 
 export const calculateBalance = (transactions) => {
@@ -18,6 +120,23 @@ export const calculateBalance = (transactions) => {
 
     return total + transaction.value;
   }, 0);
+};
+
+export const getTotalsByType = (transactions) => {
+  return transactions.reduce(
+    (totals, transaction) => {
+      if (transaction.type === CATEGORY_ENTRY) {
+        totals.entry += transaction.value;
+      }
+
+      if (transaction.type === CATEGORY_EXIT) {
+        totals.exit += transaction.value;
+      }
+
+      return totals;
+    },
+    { entry: 0, exit: 0 },
+  );
 };
 
 export const parseCurrencyInput = (rawValue) => {

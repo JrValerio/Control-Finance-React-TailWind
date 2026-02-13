@@ -3,12 +3,15 @@ import PropTypes from "prop-types";
 import {
   CATEGORY_ENTRY,
   CATEGORY_EXIT,
+  getTodayISODate,
+  isValidISODate,
   parseCurrencyInput,
 } from "./DatabaseUtils";
 
 const Modal = ({ isOpen, onClose, onSave }) => {
   const [value, setValue] = useState("");
   const [category, setCategory] = useState(CATEGORY_ENTRY);
+  const [transactionDate, setTransactionDate] = useState(getTodayISODate());
   const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
@@ -18,6 +21,7 @@ const Modal = ({ isOpen, onClose, onSave }) => {
 
     setValue("");
     setCategory(CATEGORY_ENTRY);
+    setTransactionDate(getTodayISODate());
     setErrorMessage("");
   }, [isOpen]);
 
@@ -47,7 +51,12 @@ const Modal = ({ isOpen, onClose, onSave }) => {
       return;
     }
 
-    onSave({ value: parsedValue, type: category });
+    if (!isValidISODate(transactionDate)) {
+      setErrorMessage("Selecione uma data valida.");
+      return;
+    }
+
+    onSave({ value: parsedValue, type: category, date: transactionDate });
   };
 
   const handleBackdropClick = (event) => {
@@ -80,7 +89,7 @@ const Modal = ({ isOpen, onClose, onSave }) => {
         </div>
 
         <p className="mb-4 text-sm text-gray-200">
-          Digite o valor e selecione o tipo da transacao.
+          Digite o valor, selecione o tipo e a data da transacao.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -104,6 +113,22 @@ const Modal = ({ isOpen, onClose, onSave }) => {
                 }}
               />
             </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label htmlFor="data" className="text-sm font-medium text-gray-100">
+              Data
+            </label>
+            <input
+              id="data"
+              type="date"
+              className="rounded border border-gray-400 px-3 py-2 text-sm text-gray-200"
+              value={transactionDate}
+              onChange={(event) => {
+                setTransactionDate(event.target.value);
+                setErrorMessage("");
+              }}
+            />
           </div>
 
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">

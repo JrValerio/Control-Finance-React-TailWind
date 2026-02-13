@@ -3,7 +3,7 @@
 [![CI](https://github.com/JrValerio/Control-Finance-React-TailWind/actions/workflows/ci.yml/badge.svg)](https://github.com/JrValerio/Control-Finance-React-TailWind/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-Aplicacao web para controle financeiro pessoal (entradas e saidas), com filtro por categoria, saldo em tempo real e persistencia via `localStorage`.
+Aplicacao web para controle financeiro pessoal (entradas e saidas), com filtros por categoria e periodo, saldo em tempo real, grafico de receita x despesa e persistencia via `localStorage`.
 
 ## Links
 
@@ -17,9 +17,11 @@ Aplicacao web para controle financeiro pessoal (entradas e saidas), com filtro p
 
 ## Funcionalidades
 
-- Cadastro de transacoes do tipo `Entrada` e `Saida`
+- Cadastro de transacoes com tipo (`Entrada` e `Saida`) e data
 - Filtro por categoria: `Todos`, `Entrada`, `Saida`
-- Calculo de saldo com base no filtro ativo
+- Filtro por periodo: `Todo periodo`, `Hoje`, `Ultimos 7 dias`, `Ultimos 30 dias`, `Personalizado`
+- Calculo de saldo com base nos filtros ativos
+- Resumo visual com grafico de receita x despesa (Recharts)
 - Persistencia local com `localStorage`
 - Modal com fechamento por `ESC` e clique no backdrop
 - Remocao de transacoes
@@ -29,15 +31,19 @@ Aplicacao web para controle financeiro pessoal (entradas e saidas), com filtro p
 - `src/pages/App.jsx`
   - Estado principal de transacoes
   - Persistencia no `localStorage`
-  - Regras de filtro e saldo
+  - Regras de filtro por categoria e periodo
+  - Totais por tipo e saldo
   - Estados de tela vazia
 - `src/components/Modal.jsx`
-  - Captura e validacao de entrada
-  - Seleciona tipo de transacao
-  - Emite `onSave({ value, type })`
+  - Captura e validacao de valor e data
+  - Emite `onSave({ value, type, date })`
+- `src/components/TransactionChart.jsx`
+  - Grafico de barras para comparar entradas e saidas no periodo
 - `src/components/DatabaseUtils.jsx`
   - `filterByCategory`
+  - `filterByPeriod`
   - `calculateBalance`
+  - `getTotalsByType`
   - `parseCurrencyInput`
 
 ## Decisoes tecnicas
@@ -91,10 +97,9 @@ Templates de PR e Issue estao em `.github/pull_request_template.md` e `.github/I
 ## Roadmap
 
 - [ ] Categorias personalizadas (alimentacao, transporte etc.)
-- [ ] Data da transacao e filtro por periodo
 - [ ] Exportar e importar dados (CSV e JSON)
 - [ ] Persistencia em backend com autenticacao
-- [ ] Dashboard com graficos de receita x despesa
+- [ ] Dashboard com graficos adicionais (evolucao mensal e por categoria)
 
 ## Licenca
 
