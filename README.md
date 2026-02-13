@@ -96,6 +96,11 @@ Templates de PR e Issue estao em `.github/pull_request_template.md` e `.github/I
 - [ ] Persistencia em backend com autenticacao
 - [ ] Dashboard com graficos de receita x despesa
 
+## Changelog
+
+Consulte as releases oficiais do projeto:
+https://github.com/JrValerio/Control-Finance-React-TailWind/releases
+
 ## Licenca
 
 MIT. Consulte `LICENSE`.
