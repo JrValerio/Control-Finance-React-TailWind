@@ -20,8 +20,8 @@ const CustomTooltip = ({ active, payload, label }) => {
 
   return (
     <div className="rounded border border-gray-300 bg-white px-3 py-2 text-xs shadow-sm">
-      <p className="font-semibold text-gray-100">{label}</p>
-      <p className="text-gray-200">{formatCurrency(value)}</p>
+      <p className="font-semibold text-gray-900">{label}</p>
+      <p className="text-gray-700">{formatCurrency(value)}</p>
     </div>
   );
 };
