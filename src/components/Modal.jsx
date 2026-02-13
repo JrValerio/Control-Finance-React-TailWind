@@ -1,131 +1,170 @@
-import React, { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import PropTypes from "prop-types";
+import {
+  CATEGORY_ENTRY,
+  CATEGORY_EXIT,
+  parseCurrencyInput,
+} from "./DatabaseUtils";
 
-const Modal = ({
-    isOpen, 
-    onClose, 
-    onSave, 
-    transaction, 
-    onValueChange, 
-    onTypeChange, 
-    insertedValues,
-    setInsertedValues,
-    activeButton,
-    setActiveButton,
-    
-}) => {
+const Modal = ({ isOpen, onClose, onSave }) => {
   const [value, setValue] = useState("");
-  const [category, setCategory] = useState("Entrada");
+  const [category, setCategory] = useState(CATEGORY_ENTRY);
+  const [errorMessage, setErrorMessage] = useState("");
 
-  const handleTypeChange = (newCategory) => {
-    setCategory(newCategory);
-    setActiveButton(newCategory);
-  };
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
 
-  const handleSave = () => {
-    const formattedValue = parseFloat(value.replace(',', '.'));
-    const newEntry = {
-      id: insertedValues.length > 0 ? Math.max(...insertedValues.map((item) => item.id)) + 1 : 1,
-      value: isNaN(formattedValue) ? 0 : formattedValue,
-      type: category,
-    };
-  
-    setInsertedValues((prevValues) => [...prevValues, newEntry]);
-    onSave(newEntry);  
     setValue("");
-    setCategory("Entrada");
-    onClose();
+    setCategory(CATEGORY_ENTRY);
+    setErrorMessage("");
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+
+    const parsedValue = parseCurrencyInput(value);
+    if (!Number.isFinite(parsedValue) || parsedValue <= 0) {
+      setErrorMessage("Digite um valor valido maior que zero.");
+      return;
+    }
+
+    onSave({ value: parsedValue, type: category });
   };
 
-  const handleOutsideClick = (event) => {
-    if (event.target.id === "modal-backdrop") {
+  const handleBackdropClick = (event) => {
+    if (event.target === event.currentTarget) {
       onClose();
     }
   };
 
-  useEffect(() => {
-    setCategory(transaction.type || "Entrada"); 
-  }, [transaction.type]);
+  if (!isOpen) {
+    return null;
+  }
 
-  return isOpen ? (
-    <div className="fixed min-h-screen inset-0 bg-gray-100 bg-opacity-50 overflow-y-auto w-full flex justify-center items-start sm:items-center p-6">
-      <div className="bg-white rounded-lg max-w-md p-4 sm:p-6 space-y-4">
-        <div className="flex justify-between items-center">
-          <h3 className="text-lg font-semibold text-gray-900">
-            Registro de valor
-          </h3>
+  return (
+    <div
+      className="fixed inset-0 z-50 flex min-h-screen items-start justify-center bg-gray-100 bg-opacity-50 p-6 sm:items-center"
+      onClick={handleBackdropClick}
+      role="presentation"
+    >
+      <div className="w-full max-w-md rounded-lg bg-white p-4 sm:p-6">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-100">Registro de valor</h2>
           <button
+            type="button"
             onClick={onClose}
-            className="text-gray-600 hover:text-gray-800"
+            className="text-gray-200 transition-colors hover:text-gray-100"
+            aria-label="Fechar modal"
           >
-            <i className="fas fa-times"></i>
+            X
           </button>
         </div>
-        <p className="text-sm text-gray-200">
-          Digite o valor e em seguida aperte no botão referente ao tipo do valor
+
+        <p className="mb-4 text-sm text-gray-200">
+          Digite o valor e selecione o tipo da transacao.
         </p>
-        <div className="flex flex-col justify-center items-start gap-2">
-          <label htmlFor="valor" className="text-gray-900 text-sm font-medium">
-            Valor
-          </label>
-          <div className="flex items-center border border-gray-400 rounded px-4 py-2 w-full">
-            <span className="text-gray-600 text-sm font-medium">R$</span>
-            <input
-              id="valor"
-              className="outline-none pl-2 w-full text-gray-600 text-sm font-normal"
-              name="valor"
-              placeholder="0,00"
-              type="text"
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-            />
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="flex flex-col gap-2">
+            <label htmlFor="valor" className="text-sm font-medium text-gray-100">
+              Valor
+            </label>
+            <div className="flex items-center rounded border border-gray-400 px-4 py-2">
+              <span className="text-sm font-medium text-gray-200">R$</span>
+              <input
+                id="valor"
+                className="w-full pl-2 text-sm text-gray-200 outline-none"
+                name="valor"
+                placeholder="0,00"
+                type="text"
+                inputMode="decimal"
+                value={value}
+                onChange={(event) => {
+                  setValue(event.target.value);
+                  setErrorMessage("");
+                }}
+              />
+            </div>
           </div>
-        </div>
-        <div className="flex flex-col sm:flex-row items-center gap-4">
-          <span className="text-gray-900 text-sm font-medium">
-            Tipo de valor
-          </span>
-          <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <span className="text-sm font-medium text-gray-100">Tipo de valor</span>
+            <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+              <button
+                type="button"
+                className={`rounded border px-3.5 py-1 text-sm font-semibold transition-colors ${
+                  category === CATEGORY_ENTRY
+                    ? "border-brand-1 bg-brand-3 text-brand-1"
+                    : "border-gray-300 bg-white text-gray-200"
+                }`}
+                onClick={() => setCategory(CATEGORY_ENTRY)}
+              >
+                Entrada
+              </button>
+              <button
+                type="button"
+                className={`rounded border px-3.5 py-1 text-sm font-semibold transition-colors ${
+                  category === CATEGORY_EXIT
+                    ? "border-brand-1 bg-brand-3 text-brand-1"
+                    : "border-gray-300 bg-white text-gray-200"
+                }`}
+                onClick={() => setCategory(CATEGORY_EXIT)}
+              >
+                Saida
+              </button>
+            </div>
+          </div>
+
+          {errorMessage ? (
+            <p className="text-sm text-red-600" role="alert">
+              {errorMessage}
+            </p>
+          ) : null}
+
+          <div className="flex items-center justify-end gap-3">
             <button
-              className={`px-3.5 py-1 bg-white rounded border border-gray-200 text-gray-600 text-sm font-semibold w-full sm:w-auto ... 
-              ${
-                category === "Entrada"
-                  ? "ring-1 ring-offset-1 ring-brand-1"
-                  : ""
-              }`}
-              onClick={() => handleTypeChange("Entrada")}
+              type="button"
+              className="rounded border border-gray-300 bg-gray-400 px-3.5 py-1.5 text-sm font-semibold text-gray-200"
+              onClick={onClose}
             >
-              Entrada
+              Cancelar
             </button>
             <button
-              className={`px-3.5 py-1 bg-white rounded border border-gray-200 text-gray-600 text-sm font-semibold w-full sm:w-auto ... 
-              ${
-                category === "Saída"
-                  ? "ring-1 ring-offset-1 ring-brand-1"
-                  : ""
-              }`}
-              onClick={() => handleTypeChange("Saída")}
+              type="submit"
+              className="rounded border border-brand-1 bg-brand-1 px-3.5 py-1.5 text-sm font-semibold text-white hover:bg-brand-2"
             >
-              Saída
+              Inserir valor
             </button>
           </div>
-        </div>
-        <div className="flex justify-end items-end gap-4">
-          <button
-            className="w-1/2 sm:w-auto px-3.5 py-1.5 bg-gray-300 rounded border border-gray-300 text-gray-600 text-sm font-semibold "
-            onClick={onClose}
-          >
-            Cancelar
-          </button>
-          <button
-            className="w-1/2 sm:w-auto px-3.5 py-1.5 bg-purple-700 rounded border border-purple-700 text-white text-sm whitespace-nowrap font-semibold"
-            onClick={handleSave}
-          >
-            Inserir valor
-          </button>
-        </div>
+        </form>
       </div>
     </div>
-  ) : null;
+  );
+};
+
+Modal.propTypes = {
+  isOpen: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  onSave: PropTypes.func.isRequired,
 };
 
 export default Modal;

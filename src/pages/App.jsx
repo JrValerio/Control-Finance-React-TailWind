@@ -1,171 +1,166 @@
-import React, { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Modal from "../components/Modal";
 import TransactionList from "../components/TransactionList";
-import { sumValues, filterByCategory } from "../components/DatabaseUtils";
+import {
+  CATEGORY_ALL,
+  CATEGORY_ENTRY,
+  CATEGORY_EXIT,
+  calculateBalance,
+  filterByCategory,
+} from "../components/DatabaseUtils";
+
+const STORAGE_KEY = "transactions";
+
+const normalizeTransactions = (transactions) => {
+  if (!Array.isArray(transactions)) {
+    return [];
+  }
+
+  return transactions
+    .map((transaction) => ({
+      id: Number(transaction.id),
+      value: Number(transaction.value),
+      type: transaction.type,
+    }))
+    .filter(
+      (transaction) =>
+        Number.isFinite(transaction.id) &&
+        Number.isFinite(transaction.value) &&
+        [CATEGORY_ENTRY, CATEGORY_EXIT].includes(transaction.type),
+    );
+};
+
+const getInitialTransactions = () => {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  try {
+    const savedTransactions = window.localStorage.getItem(STORAGE_KEY);
+    if (!savedTransactions) {
+      return [];
+    }
+
+    const parsedTransactions = JSON.parse(savedTransactions);
+    return normalizeTransactions(parsedTransactions);
+  } catch {
+    return [];
+  }
+};
 
 const App = () => {
-  const [category, setCategory] = useState("Todos");
-  // const [transactions, setTransactions] = useState([]);
-  // const [currentCategory, setCurrentCategory] = useState('Todos');
-  const [activeButton, setActiveButton] = useState("Todos");
+  const [selectedCategory, setSelectedCategory] = useState(CATEGORY_ALL);
   const [isModalOpen, setModalOpen] = useState(false);
-  const [transaction, setTransaction] = useState({ value: "", type: "" });
-  const [transactions, setTransactions] = useState([
-    { id: 1, value: 100, type: "Entrada" },
-  ]);
-  // const filteredTransactions = filterByCategory(transactions, category);
-  const valuesCategory = ["Entrada", "Saída"];
-  const [somaTotal, setSomaTotal] = useState(0);
-  const [selectedCategory, setSelectedCategory] = useState("Todos");
-  const [filteredTransactions, setFilteredTransactions] = useState([]);
+  const [transactions, setTransactions] = useState(getInitialTransactions);
+
+  const filteredTransactions = useMemo(() => {
+    return filterByCategory(transactions, selectedCategory);
+  }, [transactions, selectedCategory]);
+
+  const balance = useMemo(() => {
+    return calculateBalance(filteredTransactions);
+  }, [filteredTransactions]);
 
   useEffect(() => {
-    const filtered = filterByCategory(transactions, selectedCategory);
-    setFilteredTransactions(filtered);
-    setSomaTotal(calculateSum(filtered));
-  }, [selectedCategory, transactions]);
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
+  }, [transactions]);
 
-  const openModal = () => setModalOpen(true);
-  const closeModal = () => setModalOpen(false);
-  const handleValueChange = (e) => {
-    setTransaction({ ...transaction, value: e.target.value });
+  const handleAddTransaction = ({ value, type }) => {
+    setTransactions((currentTransactions) => {
+      const nextId =
+        currentTransactions.reduce(
+          (highestId, transaction) => Math.max(highestId, transaction.id),
+          0,
+        ) + 1;
+
+      return [
+        ...currentTransactions,
+        {
+          id: nextId,
+          value,
+          type,
+        },
+      ];
+    });
+
+    setModalOpen(false);
   };
-
-  const handleTypeChange = (type) => {
-    setTransaction({ ...transaction, type });
-  };
-
-  const calculateSum = (transactions) => {
-    return transactions.reduce((acc, trans) => {
-      if (trans.type === "Entrada") {
-        return acc + trans.value;
-      } else if (trans.type === "Saída") {
-        return acc - trans.value;
-      }
-      return acc;
-    }, 0);
-  };
-
-  const updateTransactionType = (type) => {
-    setTransaction({ ...transaction, type });
-  };
-
-  const saveValue = () => {
-    const valueNumber = parseFloat(transaction.value.replace(",", "."));
-    if (isNaN(valueNumber)) {
-      console.log("Por favor, insira um valor válido.");
-      return;
-    }
-    const newEntry = {
-      id:
-        transactions.length > 0
-          ? Math.max(...transactions.map((t) => t.id)) + 1
-          : 1,
-      value: valueNumber,
-      type: transaction.type,
-    };
-
-    const updatedTransactions = [...transactions, newEntry];
-    setTransactions(updatedTransactions);
-    localStorage.setItem("transactions", JSON.stringify(updatedTransactions));
-    closeModal();
-  };
-
-  useEffect(() => {
-    const savedTransactions =
-      JSON.parse(localStorage.getItem("transactions")) || [];
-    setTransactions(savedTransactions);
-  }, []);
 
   const deleteTransaction = (id) => {
-    const updatedTransactions = transactions.filter((trans) => trans.id !== id);
-    setTransactions(updatedTransactions);
-    localStorage.setItem("transactions", JSON.stringify(updatedTransactions));
+    setTransactions((currentTransactions) =>
+      currentTransactions.filter((transaction) => transaction.id !== id),
+    );
   };
 
-  const handleCategoryChange = (newCategory) => {
-    setSelectedCategory(newCategory);
-    setActiveButton(newCategory);
-  };
+  const filterButtons = [CATEGORY_ALL, CATEGORY_ENTRY, CATEGORY_EXIT];
 
   return (
-    <div className="App">
-      <header className="bg-gray-500 p-2 sm:p-4 shadow-md w-full">
-        <div className="mx-auto max-w-700 flex flex-col sm:flex-row justify-between items-center">
+    <div className="App min-h-screen bg-white">
+      <header className="w-full bg-gray-500 p-2 shadow-md sm:p-4">
+        <div className="mx-auto flex max-w-700 flex-col items-center justify-between gap-3 sm:flex-row">
           <h1 className="text-4xl font-semibold">
             <span className="text-brand-1">Control</span>
-            <span className="text-grey-1">Finance</span>
+            <span className="text-gray-100">Finance</span>
           </h1>
           <button
-            onClick={openModal}
-            className="bg-brand-1 hover:bg-brand-2 text-white font-semibold py-2 px-4 rounded"
+            onClick={() => setModalOpen(true)}
+            className="rounded bg-brand-1 px-4 py-2 font-semibold text-white hover:bg-brand-2"
           >
             Registrar novo valor
           </button>
         </div>
       </header>
 
-      <section className="mt-8 sm:mt-14 p-4">
-        <div className="mx-auto bg-gray overflow-hidden flex flex-col sm:flex-row justify-between items-center max-w-full sm:max-w-700">
-          <h2 className="text-grey-1 text-lg font-medium">Resumo financeiro</h2>
+      <section className="mt-8 p-4 sm:mt-14">
+        <div className="mx-auto flex max-w-full flex-col items-center justify-between gap-3 sm:max-w-700 sm:flex-row">
+          <h2 className="text-lg font-medium text-gray-100">Resumo financeiro</h2>
           <div className="flex gap-2">
-            <button
-              onClick={() => handleCategoryChange("Todos")}
-              className={`bg-white py-2 px-4 rounded border border-grey-300 flex items-center justify-center gap-2.5 text-grey-600 text-sm font-semibold 
-  ${
-    activeButton === "Todos"
-      ? "text-brand-1 bg-brand-3 border-brand-1"
-      : "text-grey-2 bg-white border-grey-3"
-  }`}
-            >
-              Todos
-            </button>
-            <button
-              onClick={() => handleCategoryChange("Entrada")}
-              className={`bg-white py-2 px-4 rounded border border-grey-300 flex items-center justify-center gap-2.5 text-grey-600 text-sm font-semibold 
-  ${
-    activeButton === "Entrada"
-      ? "text-brand-1 bg-brand-3 border-brand-1"
-      : "text-grey-2 bg-white border-grey-3"
-  }`}
-            >
-              Entradas
-            </button>
-            <button
-              onClick={() => handleCategoryChange("Saída")}
-              className={`bg-white py-2 px-4 rounded border border-grey-300 flex items-center justify-center gap-2.5 text-grey-600 text-sm font-semibold 
-  ${
-    activeButton === "Saída"
-      ? "text-brand-1 bg-brand-3 border-brand-1"
-      : "text-grey-2 bg-white border-grey-3"
-  }`}
-            >
-              Saídas
-            </button>
+            {filterButtons.map((category) => {
+              const active = selectedCategory === category;
+
+              return (
+                <button
+                  key={category}
+                  onClick={() => setSelectedCategory(category)}
+                  className={`flex items-center justify-center gap-2.5 rounded border px-4 py-2 text-sm font-semibold transition-colors ${
+                    active
+                      ? "border-brand-1 bg-brand-3 text-brand-1"
+                      : "border-gray-300 bg-white text-gray-200"
+                  }`}
+                >
+                  {category}
+                </button>
+              );
+            })}
           </div>
         </div>
       </section>
-      <section className="mt-6 p-4 ">
-        <div className="mx-auto pt-3.5 pb-3.5 pl-3.5 pr-4 bg-gray-400 rounded border border-brand-1 flex justify-between items-center max-w-700">
-          <span className="font-medium text-base text-gray-100 break-words">
-            Soma dos valores:{" "}
+
+      <section className="mt-6 p-4">
+        <div className="mx-auto flex max-w-700 items-center justify-between rounded border border-brand-1 bg-gray-400 px-4 py-3.5">
+          <span className="break-words text-base font-medium text-gray-100">
+            Soma dos valores:
           </span>
-          <span className="font-medium text-base text-gray-100 break-words">
-            R$ {somaTotal.toFixed(2)}
+          <span className="break-words text-base font-medium text-gray-100">
+            R$ {balance.toFixed(2)}
           </span>
         </div>
       </section>
 
-      <section className="mx-auto pt-3.5 pb-3.5 pl-3.5 pr-4 bg-gray-500 rounded border border-brand-1  max-w-700">
+      <section className="mx-auto max-w-700 rounded border border-brand-1 bg-gray-500 px-4 py-3.5">
         {transactions.length === 0 ? (
-          <div className="text-center p-4">
-            <p>Nenhum valor cadastrado</p>
+          <div className="p-4 text-center">
+            <p className="text-gray-100">Nenhum valor cadastrado.</p>
             <button
-              onClick={openModal}
-              className="text-gray-100 hover:text-brand-1"
+              onClick={() => setModalOpen(true)}
+              className="font-medium text-brand-1 hover:text-brand-2"
             >
-              Registrar novo valor
+              Registrar valor
             </button>
+          </div>
+        ) : filteredTransactions.length === 0 ? (
+          <div className="p-4 text-center text-gray-100">
+            Nenhum valor encontrado para o filtro selecionado.
           </div>
         ) : (
           <TransactionList
@@ -177,14 +172,8 @@ const App = () => {
 
       <Modal
         isOpen={isModalOpen}
-        onClose={closeModal}
-        onSave={saveValue}
-        transaction={transaction}
-        onValueChange={handleValueChange}
-        onTypeChange={handleTypeChange}
-        insertedValues={transactions}
-        setInsertedValues={setTransactions}
-        updateTransactionType={updateTransactionType}
+        onClose={() => setModalOpen(false)}
+        onSave={handleAddTransaction}
       />
     </div>
   );
