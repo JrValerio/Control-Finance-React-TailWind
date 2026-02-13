@@ -3,6 +3,15 @@ import { CATEGORY_ENTRY } from "./DatabaseUtils";
 
 const formatValue = (value) => `R$ ${value.toFixed(2)}`;
 
+const formatDate = (value) => {
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleDateString("pt-BR");
+};
+
 const TransactionList = ({ transactions, onDelete }) => {
   return (
     <div className="mx-auto max-w-700 px-2 sm:px-0">
@@ -11,9 +20,12 @@ const TransactionList = ({ transactions, onDelete }) => {
           key={transaction.id}
           className="my-2 flex items-center justify-between rounded border border-brand-1 bg-gray-mode p-3.5"
         >
-          <span className="text-base font-medium text-gray-100">
-            {formatValue(transaction.value)}
-          </span>
+          <div className="flex flex-col">
+            <span className="text-base font-medium text-gray-100">
+              {formatValue(transaction.value)}
+            </span>
+            <span className="text-xs text-gray-200">{formatDate(transaction.date)}</span>
+          </div>
 
           <div className="flex items-center gap-2">
             <span
@@ -46,6 +58,7 @@ TransactionList.propTypes = {
       id: PropTypes.number.isRequired,
       value: PropTypes.number.isRequired,
       type: PropTypes.string.isRequired,
+      date: PropTypes.string.isRequired,
     }),
   ).isRequired,
   onDelete: PropTypes.func.isRequired,
