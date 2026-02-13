@@ -3,108 +3,91 @@
 [![CI](https://github.com/JrValerio/Control-Finance-React-TailWind/actions/workflows/ci.yml/badge.svg)](https://github.com/JrValerio/Control-Finance-React-TailWind/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-Aplicacao web para controle financeiro pessoal (entradas e saidas), com filtros por categoria e periodo, saldo em tempo real, grafico de receita x despesa e persistencia via `localStorage`.
+Aplicacao web para controle financeiro pessoal com entradas/saidas, filtros por categoria e periodo, grafico de receita x despesa e persistencia local.
 
 ## Links
 
 - Producao (Vercel): [control-finance-react-tail-wind.vercel.app](https://control-finance-react-tail-wind.vercel.app/)
 - CI: [GitHub Actions - CI](https://github.com/JrValerio/Control-Finance-React-TailWind/actions/workflows/ci.yml)
+- Releases: [GitHub Releases](https://github.com/JrValerio/Control-Finance-React-TailWind/releases)
 
 ## Preview
 
 ![Tela principal](docs/images/home.png)
 ![Modal de cadastro](docs/images/modal.png)
 
-## Funcionalidades
+## Monorepo (v1.3.0 Foundation)
+
+```text
+apps/
+  web/ -> Frontend React + Vite
+  api/ -> Backend Express (healthcheck + base para auth/transactions)
+```
+
+Detalhes tecnicos da fundacao estao em `docs/architecture/v1.3.0.md`.
+
+## Funcionalidades atuais (web)
 
 - Cadastro de transacoes com tipo (`Entrada` e `Saida`) e data
 - Filtro por categoria: `Todos`, `Entrada`, `Saida`
 - Filtro por periodo: `Todo periodo`, `Hoje`, `Ultimos 7 dias`, `Ultimos 30 dias`, `Personalizado`
-- Calculo de saldo com base nos filtros ativos
-- Resumo visual com grafico de receita x despesa (Recharts)
+- Saldo e totais por tipo em tempo real
+- Grafico de receita x despesa (Recharts, lazy-loaded)
 - Persistencia local com `localStorage`
 - Modal com fechamento por `ESC` e clique no backdrop
 - Remocao de transacoes
 
-## Arquitetura
+## API Foundation (apps/api)
 
-- `src/pages/App.jsx`
-  - Estado principal de transacoes
-  - Persistencia no `localStorage`
-  - Regras de filtro por categoria e periodo
-  - Totais por tipo e saldo
-  - Estados de tela vazia
-- `src/components/Modal.jsx`
-  - Captura e validacao de valor e data
-  - Emite `onSave({ value, type, date })`
-- `src/components/TransactionChart.jsx`
-  - Grafico de barras para comparar entradas e saidas no periodo
-- `src/components/DatabaseUtils.jsx`
-  - `filterByCategory`
-  - `filterByPeriod`
-  - `calculateBalance`
-  - `getTotalsByType`
-  - `parseCurrencyInput`
-
-## Decisoes tecnicas
-
-- Fonte unica de verdade para transacoes no `App`
-- Estado derivado calculado com `useMemo` (filtro e saldo)
-- Modal desacoplado da persistencia para evitar estado duplicado
-- Runtime fixado em Node `24.x` (`engines` + `.nvmrc`)
-
-## Qualidade
-
-- Lint: `npm run lint`
-- Testes: `npm run test:run`
-- Build: `npm run build`
-- Auditoria de seguranca: `npm audit`
-
-Este repositorio executa CI no GitHub Actions (`.github/workflows/ci.yml`) com validacao de lint, testes e build em todo PR para `main`.
+- `GET /health` retorna `{ ok: true, version: "1.3.0" }`
+- Estrutura pronta para evolucao de `auth` e `transactions`
+- Middleware global de erro e fallback `404`
 
 ## Como rodar localmente
 
+1. Instalar dependencias:
+
 ```bash
 npm ci
+```
+
+2. Subir web + api juntos:
+
+```bash
 npm run dev
 ```
 
-Build e preview:
+3. Endpoints locais:
 
-```bash
-npm run build
-npm run preview
-```
+- Web: `http://localhost:5173`
+- API: `http://localhost:3001/health`
 
-## Scripts
+## Variaveis de ambiente
 
-- `npm run dev` inicia ambiente de desenvolvimento
-- `npm run lint` executa verificacoes de qualidade
-- `npm run test` executa testes em modo watch
-- `npm run test:run` executa testes uma vez (CI)
-- `npm run build` gera build de producao
-- `npm run preview` serve build local
+- Referencia geral: `.env.example`
+- Web: `apps/web/.env.example`
+- API: `apps/api/.env.example`
 
-## Contribuindo
+## Scripts (root)
 
-1. Crie uma branch a partir da `main`
-2. Rode `npm run lint`, `npm run test:run` e `npm run build`
-3. Abra um PR com objetivo, escopo e passos de validacao
-4. Aguarde os checks obrigatorios e review
+- `npm run dev` inicia `apps/web` e `apps/api`
+- `npm run lint` roda lint nos dois apps
+- `npm run test` roda testes dos dois apps
+- `npm run build` builda web e valida build da api
+- `npm run preview` sobe preview do web
 
-Templates de PR e Issue estao em `.github/pull_request_template.md` e `.github/ISSUE_TEMPLATE/bug_report.md`.
+## Qualidade
+
+- CI com jobs separados para web e api em `.github/workflows/ci.yml`
+- Branch protection habilitada na `main`
+- Runtime padronizado em Node `24.x`
 
 ## Roadmap
 
-- [ ] Categorias personalizadas (alimentacao, transporte etc.)
-- [ ] Exportar e importar dados (CSV e JSON)
-- [ ] Persistencia em backend com autenticacao
-- [ ] Dashboard com graficos adicionais (evolucao mensal e por categoria)
-
-## Changelog
-
-Consulte as releases oficiais do projeto:
-https://github.com/JrValerio/Control-Finance-React-TailWind/releases
+- [ ] PR 2 (v1.3.0): autenticacao JWT + rotas protegidas
+- [ ] PR 3 (v1.3.0): transacoes por usuario no backend + migracao localStorage -> API
+- [ ] Persistencia em banco remoto (Postgres) para ambiente de producao
+- [ ] Exportacao/importacao CSV e JSON
 
 ## Licenca
 

@@ -11,6 +11,9 @@ node_modules
 dist
 dist-ssr
 *.local
+*.db
+*.sqlite
+*.sqlite3
 
 # Editor directories and files
 .vscode/*
