@@ -66,3 +66,9 @@ Settings -> General:
 - Build finaliza sem erros
 - Web carrega normalmente
 - Login/register chamando API via `VITE_API_URL` (sem fallback para localhost)
+
+---
+
+## Observacao importante (monorepo)
+
+Evite rodar `npm ci --omit=dev` no root se o pipeline tambem buildar o web junto. O web pode depender de devDependencies na etapa de build.
