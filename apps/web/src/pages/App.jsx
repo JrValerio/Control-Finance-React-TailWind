@@ -16,6 +16,7 @@ import {
   filterByCategory,
   filterByPeriod,
   getTodayISODate,
+  isValidISODate,
   getTotalsByType,
   normalizeTransactionDate,
   resolvePeriodRange,
@@ -30,6 +31,12 @@ const PERIOD_OPTIONS = [
   PERIOD_LAST_30_DAYS,
   PERIOD_CUSTOM,
 ];
+const EXPORT_TOAST_AUTO_HIDE_MS = 4000;
+const EXPORT_CATEGORY_FILENAME_MAP = {
+  [CATEGORY_ALL]: "todas",
+  [CATEGORY_ENTRY]: "entrada",
+  [CATEGORY_EXIT]: "saida",
+};
 
 const getApiErrorMessage = (error, fallbackMessage) => {
   return error?.response?.data?.message || error?.message || fallbackMessage;
@@ -59,6 +66,42 @@ const normalizeTransactions = (transactions) => {
     );
 };
 
+const resolveExportDateRangeForFileName = (periodRange, visibleTransactions) => {
+  const today = getTodayISODate();
+  const hasPeriodRange = Boolean(periodRange.startDate || periodRange.endDate);
+
+  if (hasPeriodRange) {
+    return {
+      startDate: periodRange.startDate || periodRange.endDate || today,
+      endDate: periodRange.endDate || periodRange.startDate || today,
+    };
+  }
+
+  const sortedDates = visibleTransactions
+    .map((transaction) => transaction.date)
+    .filter(isValidISODate)
+    .sort();
+
+  if (sortedDates.length === 0) {
+    return {
+      startDate: today,
+      endDate: today,
+    };
+  }
+
+  return {
+    startDate: sortedDates[0],
+    endDate: sortedDates[sortedDates.length - 1],
+  };
+};
+
+const buildExportFallbackFileName = ({ category, startDate, endDate }) => {
+  const categoryLabel =
+    EXPORT_CATEGORY_FILENAME_MAP[category] || EXPORT_CATEGORY_FILENAME_MAP[CATEGORY_ALL];
+
+  return `transacoes-${categoryLabel}-${startDate}-a-${endDate}.csv`;
+};
+
 const downloadBlobFile = (blob, fileName) => {
   const objectUrl = URL.createObjectURL(blob);
   const downloadLink = document.createElement("a");
@@ -79,11 +122,13 @@ const App = ({ onLogout = undefined }) => {
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [pendingDeleteTransactionId, setPendingDeleteTransactionId] = useState(null);
   const [undoState, setUndoState] = useState(null);
+  const [exportToast, setExportToast] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [isLoadingTransactions, setLoadingTransactions] = useState(false);
   const [isExportingCsv, setExportingCsv] = useState(false);
   const [requestError, setRequestError] = useState("");
   const undoTimeoutRef = useRef(null);
+  const exportToastTimeoutRef = useRef(null);
 
   const clearUndoState = useCallback(() => {
     if (undoTimeoutRef.current) {
@@ -93,6 +138,30 @@ const App = ({ onLogout = undefined }) => {
 
     setUndoState(null);
   }, []);
+
+  const clearExportToast = useCallback(() => {
+    if (exportToastTimeoutRef.current) {
+      clearTimeout(exportToastTimeoutRef.current);
+      exportToastTimeoutRef.current = null;
+    }
+
+    setExportToast(null);
+  }, []);
+
+  const showExportToast = useCallback(
+    (type, message) => {
+      clearExportToast();
+      setExportToast({
+        type,
+        message,
+      });
+      exportToastTimeoutRef.current = setTimeout(() => {
+        exportToastTimeoutRef.current = null;
+        setExportToast(null);
+      }, EXPORT_TOAST_AUTO_HIDE_MS);
+    },
+    [clearExportToast],
+  );
 
   const scheduleUndo = useCallback(
     (transactionId) => {
@@ -110,6 +179,10 @@ const App = ({ onLogout = undefined }) => {
     return () => {
       if (undoTimeoutRef.current) {
         clearTimeout(undoTimeoutRef.current);
+      }
+
+      if (exportToastTimeoutRef.current) {
+        clearTimeout(exportToastTimeoutRef.current);
       }
     };
   }, []);
@@ -281,7 +354,12 @@ const App = ({ onLogout = undefined }) => {
   };
 
   const handleExportCsv = async () => {
+    if (isExportingCsv) {
+      return;
+    }
+
     setRequestError("");
+    clearExportToast();
     setExportingCsv(true);
 
     const periodRange = resolvePeriodRange(selectedPeriod, {
@@ -294,6 +372,15 @@ const App = ({ onLogout = undefined }) => {
       type:
         selectedCategory !== CATEGORY_ALL ? selectedCategory : undefined,
     };
+    const fallbackRange = resolveExportDateRangeForFileName(
+      periodRange,
+      filteredTransactions,
+    );
+    const fallbackFileName = buildExportFallbackFileName({
+      category: selectedCategory,
+      startDate: fallbackRange.startDate,
+      endDate: fallbackRange.endDate,
+    });
 
     try {
       const exportResponse = await transactionsService.exportCsv(exportFilters);
@@ -301,13 +388,15 @@ const App = ({ onLogout = undefined }) => {
         exportResponse.blob instanceof Blob
           ? exportResponse.blob
           : new Blob([exportResponse.blob], { type: "text/csv;charset=utf-8" });
-      const fallbackFileName = `transacoes-${getTodayISODate()}.csv`;
 
       downloadBlobFile(csvBlob, exportResponse.fileName || fallbackFileName);
+      showExportToast("success", "CSV exportado com sucesso.");
     } catch (error) {
+      const errorMessage = getApiErrorMessage(error, "Nao foi possivel exportar o CSV.");
       setRequestError(
-        getApiErrorMessage(error, "Nao foi possivel exportar o CSV."),
+        errorMessage,
       );
+      showExportToast("error", errorMessage);
     } finally {
       setExportingCsv(false);
     }
@@ -336,9 +425,21 @@ const App = ({ onLogout = undefined }) => {
               type="button"
               onClick={handleExportCsv}
               disabled={isExportingCsv}
+              title="Exporta as transacoes filtradas em CSV"
+              aria-busy={isExportingCsv}
               className="rounded border border-gray-300 bg-white px-4 py-2 font-semibold text-gray-100 hover:bg-gray-400 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isExportingCsv ? "Exportando CSV..." : "Exportar CSV"}
+              {isExportingCsv ? (
+                <span className="flex items-center gap-2">
+                  <span
+                    className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-brand-1"
+                    aria-hidden="true"
+                  />
+                  Exportando CSV...
+                </span>
+              ) : (
+                "Exportar CSV"
+              )}
             </button>
             <button
               onClick={openCreateModal}
@@ -520,6 +621,30 @@ const App = ({ onLogout = undefined }) => {
               className="rounded border border-brand-1 px-3 py-1 text-xs font-semibold text-brand-1 hover:bg-brand-3"
             >
               Desfazer
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {exportToast ? (
+        <div className="fixed right-4 top-4 z-50 w-[calc(100%-2rem)] max-w-sm rounded border border-gray-300 bg-white px-4 py-3 shadow-lg">
+          <div className="flex items-start justify-between gap-3">
+            <p
+              role="status"
+              aria-live="polite"
+              className={`text-sm font-medium ${
+                exportToast.type === "error" ? "text-red-600" : "text-green-700"
+              }`}
+            >
+              {exportToast.message}
+            </p>
+            <button
+              type="button"
+              onClick={clearExportToast}
+              className="text-xs font-semibold text-gray-200 hover:text-gray-100"
+              aria-label="Fechar aviso de exportacao"
+            >
+              Fechar
             </button>
           </div>
         </div>

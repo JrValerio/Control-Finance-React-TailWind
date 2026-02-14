@@ -240,15 +240,26 @@ describe("App", () => {
     expect(await screen.findByText("Freela")).toBeInTheDocument();
   });
 
-  it("exporta CSV usando filtros ativos", async () => {
+  it("exporta CSV com feedback de sucesso e fallback de filename em pt-BR", async () => {
     const user = userEvent.setup();
     const originalCreateObjectURL = URL.createObjectURL;
     const originalRevokeObjectURL = URL.revokeObjectURL;
+    const originalCreateElement = document.createElement.bind(document);
     const createObjectURLMock = vi.fn(() => "blob:transacoes");
     const revokeObjectURLMock = vi.fn();
+    let createdDownloadLink = null;
     const clickMock = vi
       .spyOn(HTMLAnchorElement.prototype, "click")
       .mockImplementation(() => {});
+    const createElementMock = vi
+      .spyOn(document, "createElement")
+      .mockImplementation((tagName, options) => {
+        const element = originalCreateElement(tagName, options);
+        if (tagName === "a") {
+          createdDownloadLink = element;
+        }
+        return element;
+      });
 
     URL.createObjectURL = createObjectURLMock;
     URL.revokeObjectURL = revokeObjectURLMock;
@@ -258,6 +269,10 @@ describe("App", () => {
         { id: 1, value: 100, type: CATEGORY_ENTRY, date: "2026-02-10" },
         { id: 2, value: 50, type: CATEGORY_EXIT, date: "2026-02-12" },
       ]);
+      transactionsService.exportCsv.mockResolvedValueOnce({
+        blob: new Blob(["id,type\n2,Saida"], { type: "text/csv;charset=utf-8" }),
+        fileName: "",
+      });
 
       render(<App />);
 
@@ -282,10 +297,95 @@ describe("App", () => {
       expect(createObjectURLMock).toHaveBeenCalledTimes(1);
       expect(clickMock).toHaveBeenCalledTimes(1);
       expect(revokeObjectURLMock).toHaveBeenCalledWith("blob:transacoes");
+      expect(createdDownloadLink?.download).toBe(
+        "transacoes-saida-2026-02-01-a-2026-02-20.csv",
+      );
+      expect(await screen.findByText("CSV exportado com sucesso.")).toBeInTheDocument();
+    } finally {
+      createElementMock.mockRestore();
+      clickMock.mockRestore();
+      URL.createObjectURL = originalCreateObjectURL;
+      URL.revokeObjectURL = originalRevokeObjectURL;
+    }
+  });
+
+  it("evita duplo clique durante exportacao e mostra loading", async () => {
+    const user = userEvent.setup();
+    const originalCreateObjectURL = URL.createObjectURL;
+    const originalRevokeObjectURL = URL.revokeObjectURL;
+    const createObjectURLMock = vi.fn(() => "blob:loading");
+    const revokeObjectURLMock = vi.fn();
+    const clickMock = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => {});
+    let resolveExportPromise;
+
+    URL.createObjectURL = createObjectURLMock;
+    URL.revokeObjectURL = revokeObjectURLMock;
+
+    try {
+      transactionsService.list.mockResolvedValueOnce([
+        { id: 1, value: 100, type: CATEGORY_ENTRY, date: "2026-02-10" },
+      ]);
+      transactionsService.exportCsv.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveExportPromise = resolve;
+          }),
+      );
+
+      render(<App />);
+
+      await screen.findByText("Resumo financeiro");
+
+      const exportButton = screen.getByRole("button", { name: "Exportar CSV" });
+      await user.click(exportButton);
+
+      expect(transactionsService.exportCsv).toHaveBeenCalledTimes(1);
+      expect(
+        screen.getByRole("button", { name: "Exportando CSV..." }),
+      ).toBeDisabled();
+
+      await user.click(screen.getByRole("button", { name: "Exportando CSV..." }));
+      expect(transactionsService.exportCsv).toHaveBeenCalledTimes(1);
+
+      resolveExportPromise({
+        blob: new Blob(["id,type\n1,Entrada"], { type: "text/csv;charset=utf-8" }),
+        fileName: "transacoes-teste.csv",
+      });
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole("button", { name: "Exportar CSV" }),
+        ).toBeEnabled();
+      });
     } finally {
       clickMock.mockRestore();
       URL.createObjectURL = originalCreateObjectURL;
       URL.revokeObjectURL = originalRevokeObjectURL;
     }
+  });
+
+  it("mostra toast de erro quando exportacao falha", async () => {
+    const user = userEvent.setup();
+    transactionsService.list.mockResolvedValueOnce([
+      { id: 1, value: 100, type: CATEGORY_ENTRY, date: "2026-02-10" },
+    ]);
+    transactionsService.exportCsv.mockRejectedValueOnce({
+      response: {
+        data: {
+          message: "Falha ao exportar CSV.",
+        },
+      },
+    });
+
+    render(<App />);
+
+    await screen.findByText("Resumo financeiro");
+    await user.click(screen.getByRole("button", { name: "Exportar CSV" }));
+
+    const toastStatus = await screen.findByRole("status");
+    expect(toastStatus).toHaveTextContent("Falha ao exportar CSV.");
+    expect(screen.getByText("Tentar novamente")).toBeInTheDocument();
   });
 });
