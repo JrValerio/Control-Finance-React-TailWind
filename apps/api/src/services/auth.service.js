@@ -1,8 +1,6 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-
-const usersByEmail = new Map();
-let nextUserId = 1;
+import { dbQuery } from "../db/index.js";
 
 const DEFAULT_JWT_SECRET = "control-finance-dev-secret";
 const DEFAULT_JWT_EXPIRES_IN = "24h";
@@ -14,7 +12,7 @@ const createError = (status, message) => {
 };
 
 const sanitizeUser = (user) => ({
-  id: user.id,
+  id: Number(user.id),
   name: user.name,
   email: user.email,
 });
@@ -48,23 +46,27 @@ export const registerUser = async ({ name = "", email, password }) => {
     password,
   });
 
-  if (usersByEmail.has(normalizedEmail)) {
-    throw createError(409, "Usuario ja cadastrado.");
-  }
-
+  const normalizedName = typeof name === "string" ? name.trim() : "";
   const passwordHash = await bcrypt.hash(normalizedPassword, 10);
 
-  const user = {
-    id: nextUserId,
-    name: typeof name === "string" ? name.trim() : "",
-    email: normalizedEmail,
-    passwordHash,
-  };
+  try {
+    const result = await dbQuery(
+      `
+        INSERT INTO users (name, email, password_hash)
+        VALUES ($1, $2, $3)
+        RETURNING id, name, email
+      `,
+      [normalizedName, normalizedEmail, passwordHash],
+    );
 
-  usersByEmail.set(normalizedEmail, user);
-  nextUserId += 1;
+    return sanitizeUser(result.rows[0]);
+  } catch (error) {
+    if (error.code === "23505") {
+      throw createError(409, "Usuario ja cadastrado.");
+    }
 
-  return sanitizeUser(user);
+    throw error;
+  }
 };
 
 export const loginUser = async ({ email, password }) => {
@@ -75,15 +77,24 @@ export const loginUser = async ({ email, password }) => {
     throw createError(400, "Email e senha sao obrigatorios.");
   }
 
-  const user = usersByEmail.get(normalizedEmail);
+  const result = await dbQuery(
+    `
+      SELECT id, name, email, password_hash
+      FROM users
+      WHERE email = $1
+      LIMIT 1
+    `,
+    [normalizedEmail],
+  );
 
-  if (!user) {
+  if (result.rows.length === 0) {
     throw createError(401, "Credenciais invalidas.");
   }
 
+  const user = result.rows[0];
   const passwordMatches = await bcrypt.compare(
     normalizedPassword,
-    user.passwordHash,
+    user.password_hash,
   );
 
   if (!passwordMatches) {
@@ -106,8 +117,3 @@ export const loginUser = async ({ email, password }) => {
 };
 
 export const verifyAuthToken = (token) => jwt.verify(token, getJwtSecret());
-
-export const __resetAuthStoreForTests = () => {
-  usersByEmail.clear();
-  nextUserId = 1;
-};
