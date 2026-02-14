@@ -10,6 +10,32 @@ dotenv.config();
 
 const app = express();
 
+const resolveTrustProxyValue = () => {
+  const rawValue = (process.env.TRUST_PROXY || "").trim().toLowerCase();
+
+  if (!rawValue) {
+    return process.env.NODE_ENV === "production" ? 1 : false;
+  }
+
+  if (rawValue === "true") {
+    return true;
+  }
+
+  if (rawValue === "false") {
+    return false;
+  }
+
+  const parsedValue = Number(rawValue);
+
+  if (Number.isInteger(parsedValue) && parsedValue >= 0) {
+    return parsedValue;
+  }
+
+  return rawValue;
+};
+
+app.set("trust proxy", resolveTrustProxyValue());
+
 const allowedOrigins = (process.env.CORS_ORIGIN || "http://localhost:5173")
   .split(",")
   .map((origin) => origin.trim())

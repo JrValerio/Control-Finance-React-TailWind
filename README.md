@@ -29,6 +29,7 @@ Detalhes tecnicos:
 - Auth: `docs/architecture/v1.3.0-auth.md`
 - Transactions API: `docs/architecture/v1.3.1-transactions.md`
 - Postgres Persistence: `docs/architecture/v1.4.0-postgres.md`
+- Auth Hardening: `docs/architecture/v1.4.2-auth-hardening.md`
 
 ## Funcionalidades atuais (web)
 
@@ -43,12 +44,14 @@ Detalhes tecnicos:
 - Login e criacao de conta com JWT
 - Sessao JWT com token em `localStorage` (chave namespaced)
 - Logout e rota protegida para `/app`
+- Protecao de login com rate limiting e bloqueio temporario por `IP+email`
 
 ## API (apps/api)
 
 - `GET /health` retorna `{ ok: true, version }` com a versao atual do `apps/api/package.json`
 - `POST /auth/register` cria usuario no Postgres
 - `POST /auth/login` retorna `{ token, user }`
+- `/auth/login` aplica rate limit por IP e bloqueio temporario por brute force
 - `GET /transactions` lista transacoes do usuario autenticado
 - `POST /transactions` cria transacao para o usuario autenticado
 - `DELETE /transactions/:id` remove transacao do usuario autenticado
@@ -81,7 +84,9 @@ npm run dev
 - API: `apps/api/.env.example`
 - Em deploy (Vercel), `VITE_API_URL` e obrigatoria e deve apontar para a URL publica da API
 - Para Postgres gerenciado com SSL, configure `DB_SSL=true` na API
+- Em deploy com proxy (Render), use `TRUST_PROXY=1` na API
 - `CORS_ORIGIN` da API pode receber lista separada por virgula (local + dominios de deploy)
+- Hardening de login: `AUTH_RATE_LIMIT_*` e `AUTH_BRUTE_FORCE_*`
 
 ## Scripts (root)
 
