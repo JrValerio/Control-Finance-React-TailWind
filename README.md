@@ -3,7 +3,7 @@
 [![CI](https://github.com/JrValerio/Control-Finance-React-TailWind/actions/workflows/ci.yml/badge.svg)](https://github.com/JrValerio/Control-Finance-React-TailWind/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-Aplicacao web para controle financeiro pessoal com entradas/saidas, filtros por categoria e periodo, grafico de receita x despesa e persistencia local.
+Aplicacao web para controle financeiro pessoal com entradas/saidas, filtros por categoria e periodo, grafico de receita x despesa e autenticacao JWT.
 
 ## Links
 
@@ -35,10 +35,11 @@ Detalhes tecnicos:
 - Filtro por periodo: `Todo periodo`, `Hoje`, `Ultimos 7 dias`, `Ultimos 30 dias`, `Personalizado`
 - Saldo e totais por tipo em tempo real
 - Grafico de receita x despesa (Recharts, lazy-loaded)
-- Persistencia local com `localStorage`
+- Persistencia local de transacoes (temporaria nesta fase)
 - Modal com fechamento por `ESC` e clique no backdrop
 - Remocao de transacoes
 - Login e criacao de conta com JWT
+- Sessao JWT com token em `localStorage` (chave namespaced)
 - Logout e rota protegida para `/app`
 
 ## API (apps/api)

@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
-export const AUTH_TOKEN_STORAGE_KEY = "auth_token";
+export const AUTH_TOKEN_STORAGE_KEY = "control_finance.auth_token";
 let unauthorizedHandler = undefined;
 
 export const getStoredToken = () => {
