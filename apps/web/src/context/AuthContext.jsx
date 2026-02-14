@@ -1,9 +1,10 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import PropTypes from "prop-types";
 import { authService } from "../services/auth.service";
 import {
   clearStoredToken,
   getStoredToken,
+  setUnauthorizedHandler,
   setStoredToken,
 } from "../services/api";
 import { AuthContext } from "./auth-context";
@@ -62,6 +63,18 @@ export const AuthProvider = ({ children }) => {
 
   const clearError = useCallback(() => {
     setErrorMessage("");
+  }, []);
+
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      setToken("");
+      setUser(null);
+      setErrorMessage("");
+    });
+
+    return () => {
+      setUnauthorizedHandler(undefined);
+    };
   }, []);
 
   const value = useMemo(

@@ -2,6 +2,7 @@ import axios from "axios";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 export const AUTH_TOKEN_STORAGE_KEY = "auth_token";
+let unauthorizedHandler = undefined;
 
 export const getStoredToken = () => {
   if (typeof window === "undefined") {
@@ -25,6 +26,10 @@ export const clearStoredToken = () => {
   }
 
   window.localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+};
+
+export const setUnauthorizedHandler = (handler) => {
+  unauthorizedHandler = handler;
 };
 
 export const api = axios.create({
@@ -52,6 +57,21 @@ api.interceptors.request.use((config) => {
     },
   };
 });
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error?.response?.status === 401) {
+      clearStoredToken();
+
+      if (typeof unauthorizedHandler === "function") {
+        unauthorizedHandler();
+      }
+    }
+
+    return Promise.reject(error);
+  },
+);
 
 export const getApiHealth = async () => {
   const { data } = await api.get("/health");

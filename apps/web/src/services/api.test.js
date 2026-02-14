@@ -6,9 +6,11 @@ import {
   getApiHealth,
   getStoredToken,
   setStoredToken,
+  setUnauthorizedHandler,
 } from "./api";
 
 var requestInterceptor;
+var responseErrorInterceptor;
 
 vi.mock("axios", () => {
   const instance = {
@@ -17,6 +19,12 @@ vi.mock("axios", () => {
       request: {
         use: vi.fn((handler) => {
           requestInterceptor = handler;
+          return 0;
+        }),
+      },
+      response: {
+        use: vi.fn((_onSuccess, onError) => {
+          responseErrorInterceptor = onError;
           return 0;
         }),
       },
@@ -33,6 +41,7 @@ vi.mock("axios", () => {
 describe("api service", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    setUnauthorizedHandler(undefined);
   });
 
   it("consulta o healthcheck da API", async () => {
@@ -65,5 +74,20 @@ describe("api service", () => {
     });
 
     expect(nextConfig.headers.Authorization).toBe("Bearer jwt_token");
+  });
+
+  it("limpa token e executa handler quando API retorna 401", async () => {
+    const onUnauthorized = vi.fn();
+    setUnauthorizedHandler(onUnauthorized);
+    setStoredToken("jwt_token");
+
+    await expect(
+      responseErrorInterceptor({
+        response: { status: 401 },
+      }),
+    ).rejects.toBeTruthy();
+
+    expect(getStoredToken()).toBe("");
+    expect(onUnauthorized).toHaveBeenCalledTimes(1);
   });
 });
