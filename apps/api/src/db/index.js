@@ -9,6 +9,28 @@ const createDatabaseError = (message) => {
   return error;
 };
 
+const resolveSslConfig = (connectionString) => {
+  const dbSsl = (process.env.DB_SSL || "").trim().toLowerCase();
+
+  if (dbSsl === "false" || dbSsl === "0") {
+    return false;
+  }
+
+  if (dbSsl === "true" || dbSsl === "1") {
+    return { rejectUnauthorized: false };
+  }
+
+  const requiresSslByConnectionString = /(?:^|[?&])sslmode=require(?:&|$)/i.test(
+    connectionString,
+  );
+
+  if (requiresSslByConnectionString || process.env.NODE_ENV === "production") {
+    return { rejectUnauthorized: false };
+  }
+
+  return false;
+};
+
 const createPool = () => {
   const connectionString = process.env.DATABASE_URL;
 
@@ -20,6 +42,7 @@ const createPool = () => {
 
   return new Pool({
     connectionString,
+    ssl: resolveSslConfig(connectionString),
     max: 10,
   });
 };

@@ -46,7 +46,7 @@ Detalhes tecnicos:
 
 ## API (apps/api)
 
-- `GET /health` retorna `{ ok: true, version: "1.4.0" }`
+- `GET /health` retorna `{ ok: true, version }` com a versao atual do `apps/api/package.json`
 - `POST /auth/register` cria usuario no Postgres
 - `POST /auth/login` retorna `{ token, user }`
 - `GET /transactions` lista transacoes do usuario autenticado
@@ -80,6 +80,7 @@ npm run dev
 - Web: `apps/web/.env.example`
 - API: `apps/api/.env.example`
 - Em deploy (Vercel), `VITE_API_URL` e obrigatoria e deve apontar para a URL publica da API
+- Para Postgres gerenciado com SSL, configure `DB_SSL=true` na API
 - `CORS_ORIGIN` da API pode receber lista separada por virgula (local + dominios de deploy)
 
 ## Scripts (root)
