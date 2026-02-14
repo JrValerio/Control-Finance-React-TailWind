@@ -47,6 +47,48 @@ const createPool = () => {
   });
 };
 
+const parseConnectionStringDiagnostics = (connectionString) => {
+  if (!connectionString) {
+    return {
+      hasDatabaseUrl: false,
+      parseError: null,
+      protocol: null,
+      host: null,
+      port: null,
+      database: null,
+      user: null,
+      sslModeInUrl: null,
+    };
+  }
+
+  try {
+    const parsedUrl = new URL(connectionString);
+    const database = parsedUrl.pathname.replace(/^\//, "") || null;
+
+    return {
+      hasDatabaseUrl: true,
+      parseError: null,
+      protocol: parsedUrl.protocol?.replace(":", "") || null,
+      host: parsedUrl.hostname || null,
+      port: parsedUrl.port || null,
+      database,
+      user: parsedUrl.username || null,
+      sslModeInUrl: parsedUrl.searchParams.get("sslmode"),
+    };
+  } catch (error) {
+    return {
+      hasDatabaseUrl: true,
+      parseError: error?.message || "invalid_database_url",
+      protocol: null,
+      host: null,
+      port: null,
+      database: null,
+      user: null,
+      sslModeInUrl: null,
+    };
+  }
+};
+
 const getDbClient = () => {
   if (dbClientOverride) {
     return dbClientOverride;
@@ -83,4 +125,15 @@ export const closePool = async () => {
 
   await poolInstance.end();
   poolInstance = undefined;
+};
+
+export const getDatabaseConnectionDiagnostics = () => {
+  const connectionString = process.env.DATABASE_URL;
+  const parsedDiagnostics = parseConnectionStringDiagnostics(connectionString);
+
+  return {
+    ...parsedDiagnostics,
+    nodeEnv: process.env.NODE_ENV || null,
+    dbSsl: process.env.DB_SSL || null,
+  };
 };
