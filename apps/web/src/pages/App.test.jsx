@@ -16,6 +16,7 @@ vi.mock("../services/transactions.service", () => ({
     update: vi.fn(),
     remove: vi.fn(),
     restore: vi.fn(),
+    exportCsv: vi.fn(),
   },
 }));
 
@@ -35,6 +36,10 @@ describe("App", () => {
     transactionsService.list.mockResolvedValue([]);
     transactionsService.update.mockResolvedValue({});
     transactionsService.restore.mockResolvedValue({});
+    transactionsService.exportCsv.mockResolvedValue({
+      blob: new Blob(["id,type\n1,Entrada"], { type: "text/csv;charset=utf-8" }),
+      fileName: "transacoes.csv",
+    });
   });
 
   it("carrega transacoes da API ao iniciar", async () => {
@@ -233,5 +238,54 @@ describe("App", () => {
     });
 
     expect(await screen.findByText("Freela")).toBeInTheDocument();
+  });
+
+  it("exporta CSV usando filtros ativos", async () => {
+    const user = userEvent.setup();
+    const originalCreateObjectURL = URL.createObjectURL;
+    const originalRevokeObjectURL = URL.revokeObjectURL;
+    const createObjectURLMock = vi.fn(() => "blob:transacoes");
+    const revokeObjectURLMock = vi.fn();
+    const clickMock = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => {});
+
+    URL.createObjectURL = createObjectURLMock;
+    URL.revokeObjectURL = revokeObjectURLMock;
+
+    try {
+      transactionsService.list.mockResolvedValueOnce([
+        { id: 1, value: 100, type: CATEGORY_ENTRY, date: "2026-02-10" },
+        { id: 2, value: 50, type: CATEGORY_EXIT, date: "2026-02-12" },
+      ]);
+
+      render(<App />);
+
+      await screen.findByText("Resumo financeiro");
+      await user.selectOptions(screen.getByLabelText("Periodo"), "Personalizado");
+      fireEvent.change(screen.getByLabelText("Data inicial"), {
+        target: { value: "2026-02-01" },
+      });
+      fireEvent.change(screen.getByLabelText("Data final"), {
+        target: { value: "2026-02-20" },
+      });
+      await user.click(screen.getByRole("button", { name: CATEGORY_EXIT }));
+      await user.click(screen.getByRole("button", { name: "Exportar CSV" }));
+
+      await waitFor(() => {
+        expect(transactionsService.exportCsv).toHaveBeenCalledWith({
+          from: "2026-02-01",
+          to: "2026-02-20",
+          type: CATEGORY_EXIT,
+        });
+      });
+      expect(createObjectURLMock).toHaveBeenCalledTimes(1);
+      expect(clickMock).toHaveBeenCalledTimes(1);
+      expect(revokeObjectURLMock).toHaveBeenCalledWith("blob:transacoes");
+    } finally {
+      clickMock.mockRestore();
+      URL.createObjectURL = originalCreateObjectURL;
+      URL.revokeObjectURL = originalRevokeObjectURL;
+    }
   });
 });

@@ -18,6 +18,7 @@ import {
   getTodayISODate,
   getTotalsByType,
   normalizeTransactionDate,
+  resolvePeriodRange,
 } from "../components/DatabaseUtils";
 
 const TransactionChart = lazy(() => import("../components/TransactionChart"));
@@ -58,6 +59,17 @@ const normalizeTransactions = (transactions) => {
     );
 };
 
+const downloadBlobFile = (blob, fileName) => {
+  const objectUrl = URL.createObjectURL(blob);
+  const downloadLink = document.createElement("a");
+  downloadLink.href = objectUrl;
+  downloadLink.download = fileName;
+  document.body.appendChild(downloadLink);
+  downloadLink.click();
+  downloadLink.remove();
+  URL.revokeObjectURL(objectUrl);
+};
+
 const App = ({ onLogout = undefined }) => {
   const [selectedCategory, setSelectedCategory] = useState(CATEGORY_ALL);
   const [selectedPeriod, setSelectedPeriod] = useState(PERIOD_ALL);
@@ -69,6 +81,7 @@ const App = ({ onLogout = undefined }) => {
   const [undoState, setUndoState] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [isLoadingTransactions, setLoadingTransactions] = useState(false);
+  const [isExportingCsv, setExportingCsv] = useState(false);
   const [requestError, setRequestError] = useState("");
   const undoTimeoutRef = useRef(null);
 
@@ -267,6 +280,39 @@ const App = ({ onLogout = undefined }) => {
     }
   };
 
+  const handleExportCsv = async () => {
+    setRequestError("");
+    setExportingCsv(true);
+
+    const periodRange = resolvePeriodRange(selectedPeriod, {
+      startDate: customStartDate,
+      endDate: customEndDate,
+    });
+    const exportFilters = {
+      from: periodRange.startDate || undefined,
+      to: periodRange.endDate || undefined,
+      type:
+        selectedCategory !== CATEGORY_ALL ? selectedCategory : undefined,
+    };
+
+    try {
+      const exportResponse = await transactionsService.exportCsv(exportFilters);
+      const csvBlob =
+        exportResponse.blob instanceof Blob
+          ? exportResponse.blob
+          : new Blob([exportResponse.blob], { type: "text/csv;charset=utf-8" });
+      const fallbackFileName = `transacoes-${getTodayISODate()}.csv`;
+
+      downloadBlobFile(csvBlob, exportResponse.fileName || fallbackFileName);
+    } catch (error) {
+      setRequestError(
+        getApiErrorMessage(error, "Nao foi possivel exportar o CSV."),
+      );
+    } finally {
+      setExportingCsv(false);
+    }
+  };
+
   const filterButtons = [CATEGORY_ALL, CATEGORY_ENTRY, CATEGORY_EXIT];
 
   return (
@@ -286,6 +332,14 @@ const App = ({ onLogout = undefined }) => {
                 Sair
               </button>
             ) : null}
+            <button
+              type="button"
+              onClick={handleExportCsv}
+              disabled={isExportingCsv}
+              className="rounded border border-gray-300 bg-white px-4 py-2 font-semibold text-gray-100 hover:bg-gray-400 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isExportingCsv ? "Exportando CSV..." : "Exportar CSV"}
+            </button>
             <button
               onClick={openCreateModal}
               className="rounded bg-brand-1 px-4 py-2 font-semibold text-white hover:bg-brand-2"

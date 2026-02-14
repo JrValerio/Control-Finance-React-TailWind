@@ -12,6 +12,7 @@ import {
   getTodayISODate,
   normalizeTransactionDate,
   parseCurrencyInput,
+  resolvePeriodRange,
 } from "./DatabaseUtils";
 
 describe("DatabaseUtils", () => {
@@ -57,6 +58,26 @@ describe("DatabaseUtils", () => {
         referenceDate,
       ),
     ).toEqual([{ id: 2, value: 50, type: CATEGORY_ENTRY, date: "2026-02-10" }]);
+  });
+
+  it("resolve intervalo por periodo e ordena datas personalizadas", () => {
+    const referenceDate = new Date("2026-02-13T12:00:00");
+
+    expect(resolvePeriodRange(PERIOD_TODAY, {}, referenceDate)).toEqual({
+      startDate: "2026-02-13",
+      endDate: "2026-02-13",
+    });
+
+    expect(
+      resolvePeriodRange(
+        PERIOD_CUSTOM,
+        { startDate: "2026-02-20", endDate: "2026-02-10" },
+        referenceDate,
+      ),
+    ).toEqual({
+      startDate: "2026-02-10",
+      endDate: "2026-02-20",
+    });
   });
 
   it("calcula saldo com entradas e saidas", () => {
