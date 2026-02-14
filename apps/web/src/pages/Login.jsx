@@ -1,0 +1,180 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
+
+const Login = () => {
+  const navigate = useNavigate();
+  const {
+    isAuthenticated,
+    isLoading,
+    errorMessage,
+    login,
+    register,
+    clearError,
+  } = useAuth();
+  const [mode, setMode] = useState("login");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [localError, setLocalError] = useState("");
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/app", { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
+
+  const resetErrors = () => {
+    setLocalError("");
+    clearError();
+  };
+
+  const handleModeChange = (nextMode) => {
+    setMode(nextMode);
+    resetErrors();
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    resetErrors();
+
+    if (!email.trim() || !password.trim()) {
+      setLocalError("Email e senha sao obrigatorios.");
+      return;
+    }
+
+    if (mode === "register" && password.trim().length < 6) {
+      setLocalError("A senha deve ter no minimo 6 caracteres.");
+      return;
+    }
+
+    try {
+      if (mode === "register") {
+        await register({
+          name,
+          email,
+          password,
+        });
+      }
+
+      await login({ email, password });
+      navigate("/app", { replace: true });
+    } catch {
+      // Erro de API tratado no contexto.
+    }
+  };
+
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-gray-500 p-4">
+      <section className="w-full max-w-md rounded bg-white p-6 shadow-lg">
+        <h1 className="text-3xl font-semibold text-gray-100">
+          <span className="text-brand-1">Control</span>Finance
+        </h1>
+        <p className="mt-2 text-sm text-gray-200">
+          Entre para acessar o dashboard financeiro.
+        </p>
+
+        <div className="mt-4 flex gap-2">
+          <button
+            type="button"
+            onClick={() => handleModeChange("login")}
+            className={`rounded px-3 py-2 text-sm font-medium ${
+              mode === "login"
+                ? "bg-brand-1 text-white"
+                : "bg-gray-400 text-gray-100"
+            }`}
+          >
+            Login
+          </button>
+          <button
+            type="button"
+            onClick={() => handleModeChange("register")}
+            className={`rounded px-3 py-2 text-sm font-medium ${
+              mode === "register"
+                ? "bg-brand-1 text-white"
+                : "bg-gray-400 text-gray-100"
+            }`}
+          >
+            Criar conta
+          </button>
+        </div>
+
+        <form className="mt-5 space-y-3" onSubmit={handleSubmit}>
+          {mode === "register" ? (
+            <div>
+              <label
+                htmlFor="nome"
+                className="mb-1 block text-sm font-medium text-gray-100"
+              >
+                Nome
+              </label>
+              <input
+                id="nome"
+                type="text"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                className="w-full rounded border border-gray-400 px-3 py-2 text-sm text-gray-200"
+              />
+            </div>
+          ) : null}
+
+          <div>
+            <label
+              htmlFor="email"
+              className="mb-1 block text-sm font-medium text-gray-100"
+            >
+              Email
+            </label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              className="w-full rounded border border-gray-400 px-3 py-2 text-sm text-gray-200"
+              autoComplete="email"
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="senha"
+              className="mb-1 block text-sm font-medium text-gray-100"
+            >
+              Senha
+            </label>
+            <input
+              id="senha"
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              className="w-full rounded border border-gray-400 px-3 py-2 text-sm text-gray-200"
+              autoComplete="current-password"
+            />
+          </div>
+
+          {localError ? (
+            <p className="text-sm font-medium text-red-600">{localError}</p>
+          ) : null}
+
+          {!localError && errorMessage ? (
+            <p className="text-sm font-medium text-red-600">{errorMessage}</p>
+          ) : null}
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full rounded bg-brand-1 px-4 py-2 font-semibold text-white hover:bg-brand-2 disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {isLoading
+              ? "Processando..."
+              : mode === "register"
+                ? "Criar conta e entrar"
+                : "Entrar"}
+          </button>
+        </form>
+      </section>
+    </main>
+  );
+};
+
+export default Login;

@@ -3,7 +3,7 @@
 [![CI](https://github.com/JrValerio/Control-Finance-React-TailWind/actions/workflows/ci.yml/badge.svg)](https://github.com/JrValerio/Control-Finance-React-TailWind/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-Aplicacao web para controle financeiro pessoal com entradas/saidas, filtros por categoria e periodo, grafico de receita x despesa e persistencia local.
+Aplicacao web para controle financeiro pessoal com entradas/saidas, filtros por categoria e periodo, grafico de receita x despesa e autenticacao JWT.
 
 ## Links
 
@@ -24,7 +24,9 @@ apps/
   api/ -> Backend Express (healthcheck + base para auth/transactions)
 ```
 
-Detalhes tecnicos da fundacao estao em `docs/architecture/v1.3.0.md`.
+Detalhes tecnicos:
+- Foundation: `docs/architecture/v1.3.0.md`
+- Auth: `docs/architecture/v1.3.0-auth.md`
 
 ## Funcionalidades atuais (web)
 
@@ -33,14 +35,19 @@ Detalhes tecnicos da fundacao estao em `docs/architecture/v1.3.0.md`.
 - Filtro por periodo: `Todo periodo`, `Hoje`, `Ultimos 7 dias`, `Ultimos 30 dias`, `Personalizado`
 - Saldo e totais por tipo em tempo real
 - Grafico de receita x despesa (Recharts, lazy-loaded)
-- Persistencia local com `localStorage`
+- Persistencia local de transacoes (temporaria nesta fase)
 - Modal com fechamento por `ESC` e clique no backdrop
 - Remocao de transacoes
+- Login e criacao de conta com JWT
+- Sessao JWT com token em `localStorage` (chave namespaced)
+- Logout e rota protegida para `/app`
 
-## API Foundation (apps/api)
+## API (apps/api)
 
 - `GET /health` retorna `{ ok: true, version: "1.3.0" }`
-- Estrutura pronta para evolucao de `auth` e `transactions`
+- `POST /auth/register` cria usuario (store em memoria)
+- `POST /auth/login` retorna `{ token, user }`
+- `/transactions` protegido por middleware JWT
 - Middleware global de erro e fallback `404`
 
 ## Como rodar localmente
@@ -84,7 +91,7 @@ npm run dev
 
 ## Roadmap
 
-- [ ] PR 2 (v1.3.0): autenticacao JWT + rotas protegidas
+- [x] PR 2 (v1.3.0): autenticacao JWT + rotas protegidas
 - [ ] PR 3 (v1.3.0): transacoes por usuario no backend + migracao localStorage -> API
 - [ ] Persistencia em banco remoto (Postgres) para ambiente de producao
 - [ ] Exportacao/importacao CSV e JSON

@@ -1,4 +1,5 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from "react";
+import PropTypes from "prop-types";
 import Modal from "../components/Modal";
 import TransactionList from "../components/TransactionList";
 import {
@@ -68,7 +69,7 @@ const getInitialTransactions = () => {
   }
 };
 
-const App = () => {
+const App = ({ onLogout = undefined }) => {
   const [selectedCategory, setSelectedCategory] = useState(CATEGORY_ALL);
   const [selectedPeriod, setSelectedPeriod] = useState(PERIOD_ALL);
   const [customStartDate, setCustomStartDate] = useState("");
@@ -144,12 +145,22 @@ const App = () => {
             <span className="text-brand-1">Control</span>
             <span className="text-gray-100">Finance</span>
           </h1>
-          <button
-            onClick={() => setModalOpen(true)}
-            className="rounded bg-brand-1 px-4 py-2 font-semibold text-white hover:bg-brand-2"
-          >
-            Registrar novo valor
-          </button>
+          <div className="flex items-center gap-2">
+            {onLogout ? (
+              <button
+                onClick={onLogout}
+                className="rounded border border-gray-300 bg-white px-4 py-2 font-semibold text-gray-100 hover:bg-gray-400"
+              >
+                Sair
+              </button>
+            ) : null}
+            <button
+              onClick={() => setModalOpen(true)}
+              className="rounded bg-brand-1 px-4 py-2 font-semibold text-white hover:bg-brand-2"
+            >
+              Registrar novo valor
+            </button>
+          </div>
         </div>
       </header>
 
@@ -310,3 +321,7 @@ const App = () => {
 };
 
 export default App;
+
+App.propTypes = {
+  onLogout: PropTypes.func,
+};

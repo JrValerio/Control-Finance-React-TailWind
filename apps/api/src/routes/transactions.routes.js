@@ -1,22 +1,28 @@
 import { Router } from "express";
+import { authMiddleware } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
-router.get("/", (_req, res) => {
+router.use(authMiddleware);
+
+router.get("/", (req, res) => {
   res.status(501).json({
     message: "Transactions list not implemented yet. Planned for PR 3.",
+    userId: req.user.id,
   });
 });
 
-router.post("/", (_req, res) => {
+router.post("/", (req, res) => {
   res.status(501).json({
     message: "Transactions create not implemented yet. Planned for PR 3.",
+    userId: req.user.id,
   });
 });
 
-router.delete("/:id", (_req, res) => {
+router.delete("/:id", (req, res) => {
   res.status(501).json({
     message: "Transactions delete not implemented yet. Planned for PR 3.",
+    userId: req.user.id,
   });
 });
 
