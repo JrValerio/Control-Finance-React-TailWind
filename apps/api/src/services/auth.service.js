@@ -4,9 +4,9 @@ import { dbQuery } from "../db/index.js";
 
 const DEFAULT_JWT_SECRET = "control-finance-dev-secret";
 const DEFAULT_JWT_EXPIRES_IN = "24h";
-const MIN_PASSWORD_LENGTH = 8;
-const PASSWORD_LETTER_REGEX = /[A-Za-z]/;
-const PASSWORD_NUMBER_REGEX = /\d/;
+const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
+const WEAK_PASSWORD_MESSAGE =
+  "Senha fraca. Use no minimo 8 caracteres com letras e numeros.";
 
 const createError = (status, message) => {
   const error = new Error(message);
@@ -40,15 +40,8 @@ const validateCredentials = ({ email, password }) => {
 };
 
 const validatePasswordStrength = (password) => {
-  const hasValidLength = password.length >= MIN_PASSWORD_LENGTH;
-  const hasLetter = PASSWORD_LETTER_REGEX.test(password);
-  const hasNumber = PASSWORD_NUMBER_REGEX.test(password);
-
-  if (!hasValidLength || !hasLetter || !hasNumber) {
-    throw createError(
-      400,
-      "A senha deve ter no minimo 8 caracteres, incluindo letra e numero.",
-    );
+  if (!PASSWORD_REGEX.test(password)) {
+    throw createError(400, WEAK_PASSWORD_MESSAGE);
   }
 };
 

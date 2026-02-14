@@ -94,16 +94,32 @@ describe("API auth and transactions", () => {
     expect(response.body.token.length).toBeGreaterThan(10);
   });
 
-  it("POST /auth/register valida senha forte", async () => {
+  it.each([
+    ["12345678", "somente numeros"],
+    ["abcdefgh", "somente letras"],
+    ["abc123", "menos de 8 caracteres"],
+  ])(
+    "POST /auth/register bloqueia senha fraca (%s - %s)",
+    async (password) => {
+      const response = await request(app).post("/auth/register").send({
+        email: `fraca-${password}@controlfinance.dev`,
+        password,
+      });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe(
+        "Senha fraca. Use no minimo 8 caracteres com letras e numeros.",
+      );
+    },
+  );
+
+  it("POST /auth/register aceita senha forte", async () => {
     const response = await request(app).post("/auth/register").send({
-      email: "fraca@controlfinance.dev",
-      password: "1234567",
+      email: "forte@controlfinance.dev",
+      password: "abc12345",
     });
 
-    expect(response.status).toBe(400);
-    expect(response.body.message).toBe(
-      "A senha deve ter no minimo 8 caracteres, incluindo letra e numero.",
-    );
+    expect(response.status).toBe(201);
   });
 
   it("GET /transactions bloqueia sem token", async () => {

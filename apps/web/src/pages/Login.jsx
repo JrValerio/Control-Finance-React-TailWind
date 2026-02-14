@@ -2,17 +2,13 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 
-const MIN_PASSWORD_LENGTH = 8;
-const PASSWORD_LETTER_REGEX = /[A-Za-z]/;
-const PASSWORD_NUMBER_REGEX = /\d/;
+const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
+const WEAK_PASSWORD_MESSAGE =
+  "Senha fraca: use no minimo 8 caracteres e inclua letras e numeros.";
 
 const isStrongPassword = (password) => {
   const normalizedPassword = password.trim();
-  const hasValidLength = normalizedPassword.length >= MIN_PASSWORD_LENGTH;
-  const hasLetter = PASSWORD_LETTER_REGEX.test(normalizedPassword);
-  const hasNumber = PASSWORD_NUMBER_REGEX.test(normalizedPassword);
-
-  return hasValidLength && hasLetter && hasNumber;
+  return PASSWORD_REGEX.test(normalizedPassword);
 };
 
 const Login = () => {
@@ -64,9 +60,7 @@ const Login = () => {
     try {
       if (mode === "register") {
         if (!isStrongPassword(password)) {
-          setLocalError(
-            "A senha deve ter no minimo 8 caracteres, incluindo letra e numero.",
-          );
+          setLocalError(WEAK_PASSWORD_MESSAGE);
           return;
         }
 

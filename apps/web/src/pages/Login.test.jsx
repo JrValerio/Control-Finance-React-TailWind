@@ -51,7 +51,7 @@ describe("Login", () => {
 
     expect(
       screen.getByText(
-        "A senha deve ter no minimo 8 caracteres, incluindo letra e numero.",
+        "Senha fraca: use no minimo 8 caracteres e inclua letras e numeros.",
       ),
     ).toBeInTheDocument();
     expect(authState.register).not.toHaveBeenCalled();
