@@ -5,6 +5,7 @@ import {
   clearStoredToken,
   getApiHealth,
   getStoredToken,
+  resolveApiUrl,
   setStoredToken,
   setUnauthorizedHandler,
 } from "./api";
@@ -53,6 +54,24 @@ describe("api service", () => {
 
     expect(api.get).toHaveBeenCalledWith("/health");
     expect(result).toEqual({ ok: true, version: "1.3.0" });
+  });
+
+  it("resolve URL configurada para producao", () => {
+    const url = resolveApiUrl({
+      DEV: false,
+      VITE_API_URL: "https://control-finance-api.example.com",
+    });
+
+    expect(url).toBe("https://control-finance-api.example.com");
+  });
+
+  it("nao usa localhost em producao sem VITE_API_URL", () => {
+    const url = resolveApiUrl({
+      DEV: false,
+      VITE_API_URL: "",
+    });
+
+    expect(url).toBe("");
   });
 
   it("persiste token de autenticacao no localStorage", () => {

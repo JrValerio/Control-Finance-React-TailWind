@@ -77,6 +77,8 @@ npm run dev
 - Referencia geral: `.env.example`
 - Web: `apps/web/.env.example`
 - API: `apps/api/.env.example`
+- Em deploy (Vercel), `VITE_API_URL` e obrigatoria e deve apontar para a URL publica da API
+- `CORS_ORIGIN` da API pode receber lista separada por virgula (local + dominios de deploy)
 
 ## Scripts (root)
 

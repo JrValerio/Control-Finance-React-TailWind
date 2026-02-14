@@ -10,7 +10,7 @@ import {
 import { AuthContext } from "./auth-context";
 
 const getApiErrorMessage = (error, fallbackMessage) => {
-  return error?.response?.data?.message || fallbackMessage;
+  return error?.response?.data?.message || error?.message || fallbackMessage;
 };
 
 export const AuthProvider = ({ children }) => {

@@ -31,7 +31,7 @@ const PERIOD_OPTIONS = [
 ];
 
 const getApiErrorMessage = (error, fallbackMessage) => {
-  return error?.response?.data?.message || fallbackMessage;
+  return error?.response?.data?.message || error?.message || fallbackMessage;
 };
 
 const normalizeTransactions = (transactions) => {
