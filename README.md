@@ -11,6 +11,10 @@ Aplicacao web para controle financeiro pessoal com entradas/saidas, filtros por 
 - CI: [GitHub Actions - CI](https://github.com/JrValerio/Control-Finance-React-TailWind/actions/workflows/ci.yml)
 - Releases: [GitHub Releases](https://github.com/JrValerio/Control-Finance-React-TailWind/releases)
 
+## Deploy (Render + Vercel)
+
+- Guia monorepo: `docs/deployment/monorepo-render-vercel.md`
+
 ## Preview
 
 ![Tela principal](docs/images/home.png)
