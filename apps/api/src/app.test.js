@@ -5,7 +5,7 @@ import app from "./app.js";
 import { clearDbClientForTests, dbQuery, setDbClientForTests } from "./db/index.js";
 import { runMigrations } from "./db/migrate.js";
 
-const registerAndLogin = async (email, password = "123456") => {
+const registerAndLogin = async (email, password = "Senha123") => {
   await request(app).post("/auth/register").send({
     email,
     password,
@@ -51,7 +51,7 @@ describe("API auth and transactions", () => {
     const response = await request(app).post("/auth/register").send({
       name: "Junior",
       email: "jr@controlfinance.dev",
-      password: "123456",
+      password: "Senha123",
     });
 
     expect(response.status).toBe(201);
@@ -66,12 +66,12 @@ describe("API auth and transactions", () => {
   it("POST /auth/register bloqueia email duplicado", async () => {
     await request(app).post("/auth/register").send({
       email: "duplicado@controlfinance.dev",
-      password: "123456",
+      password: "Senha123",
     });
 
     const response = await request(app).post("/auth/register").send({
       email: "duplicado@controlfinance.dev",
-      password: "123456",
+      password: "Senha123",
     });
 
     expect(response.status).toBe(409);
@@ -80,18 +80,30 @@ describe("API auth and transactions", () => {
   it("POST /auth/login retorna token", async () => {
     await request(app).post("/auth/register").send({
       email: "login@controlfinance.dev",
-      password: "123456",
+      password: "Senha123",
     });
 
     const response = await request(app).post("/auth/login").send({
       email: "login@controlfinance.dev",
-      password: "123456",
+      password: "Senha123",
     });
 
     expect(response.status).toBe(200);
     expect(response.body.user.email).toBe("login@controlfinance.dev");
     expect(typeof response.body.token).toBe("string");
     expect(response.body.token.length).toBeGreaterThan(10);
+  });
+
+  it("POST /auth/register valida senha forte", async () => {
+    const response = await request(app).post("/auth/register").send({
+      email: "fraca@controlfinance.dev",
+      password: "1234567",
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe(
+      "A senha deve ter no minimo 8 caracteres, incluindo letra e numero.",
+    );
   });
 
   it("GET /transactions bloqueia sem token", async () => {

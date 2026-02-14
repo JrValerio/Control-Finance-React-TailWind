@@ -2,6 +2,19 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 
+const MIN_PASSWORD_LENGTH = 8;
+const PASSWORD_LETTER_REGEX = /[A-Za-z]/;
+const PASSWORD_NUMBER_REGEX = /\d/;
+
+const isStrongPassword = (password) => {
+  const normalizedPassword = password.trim();
+  const hasValidLength = normalizedPassword.length >= MIN_PASSWORD_LENGTH;
+  const hasLetter = PASSWORD_LETTER_REGEX.test(normalizedPassword);
+  const hasNumber = PASSWORD_NUMBER_REGEX.test(normalizedPassword);
+
+  return hasValidLength && hasLetter && hasNumber;
+};
+
 const Login = () => {
   const navigate = useNavigate();
   const {
@@ -16,6 +29,7 @@ const Login = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [localError, setLocalError] = useState("");
 
   useEffect(() => {
@@ -32,6 +46,10 @@ const Login = () => {
   const handleModeChange = (nextMode) => {
     setMode(nextMode);
     resetErrors();
+
+    if (nextMode === "login") {
+      setConfirmPassword("");
+    }
   };
 
   const handleSubmit = async (event) => {
@@ -43,13 +61,20 @@ const Login = () => {
       return;
     }
 
-    if (mode === "register" && password.trim().length < 6) {
-      setLocalError("A senha deve ter no minimo 6 caracteres.");
-      return;
-    }
-
     try {
       if (mode === "register") {
+        if (!isStrongPassword(password)) {
+          setLocalError(
+            "A senha deve ter no minimo 8 caracteres, incluindo letra e numero.",
+          );
+          return;
+        }
+
+        if (password.trim() !== confirmPassword.trim()) {
+          setLocalError("As senhas nao conferem.");
+          return;
+        }
+
         await register({
           name,
           email,
@@ -148,9 +173,28 @@ const Login = () => {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               className="w-full rounded border border-gray-400 px-3 py-2 text-sm text-gray-200"
-              autoComplete="current-password"
+              autoComplete={mode === "register" ? "new-password" : "current-password"}
             />
           </div>
+
+          {mode === "register" ? (
+            <div>
+              <label
+                htmlFor="confirmar-senha"
+                className="mb-1 block text-sm font-medium text-gray-100"
+              >
+                Confirmar senha
+              </label>
+              <input
+                id="confirmar-senha"
+                type="password"
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                className="w-full rounded border border-gray-400 px-3 py-2 text-sm text-gray-200"
+                autoComplete="new-password"
+              />
+            </div>
+          ) : null}
 
           {localError ? (
             <p className="text-sm font-medium text-red-600">{localError}</p>

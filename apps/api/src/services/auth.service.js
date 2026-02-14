@@ -4,6 +4,9 @@ import { dbQuery } from "../db/index.js";
 
 const DEFAULT_JWT_SECRET = "control-finance-dev-secret";
 const DEFAULT_JWT_EXPIRES_IN = "24h";
+const MIN_PASSWORD_LENGTH = 8;
+const PASSWORD_LETTER_REGEX = /[A-Za-z]/;
+const PASSWORD_NUMBER_REGEX = /\d/;
 
 const createError = (status, message) => {
   const error = new Error(message);
@@ -33,11 +36,20 @@ const validateCredentials = ({ email, password }) => {
     throw createError(400, "Email e senha sao obrigatorios.");
   }
 
-  if (normalizedPassword.length < 6) {
-    throw createError(400, "A senha deve ter no minimo 6 caracteres.");
-  }
-
   return { normalizedEmail, normalizedPassword };
+};
+
+const validatePasswordStrength = (password) => {
+  const hasValidLength = password.length >= MIN_PASSWORD_LENGTH;
+  const hasLetter = PASSWORD_LETTER_REGEX.test(password);
+  const hasNumber = PASSWORD_NUMBER_REGEX.test(password);
+
+  if (!hasValidLength || !hasLetter || !hasNumber) {
+    throw createError(
+      400,
+      "A senha deve ter no minimo 8 caracteres, incluindo letra e numero.",
+    );
+  }
 };
 
 export const registerUser = async ({ name = "", email, password }) => {
@@ -45,6 +57,7 @@ export const registerUser = async ({ name = "", email, password }) => {
     email,
     password,
   });
+  validatePasswordStrength(normalizedPassword);
 
   const normalizedName = typeof name === "string" ? name.trim() : "";
   const passwordHash = await bcrypt.hash(normalizedPassword, 10);
