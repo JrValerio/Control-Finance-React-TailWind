@@ -78,7 +78,7 @@ describe("API auth and transactions", () => {
     const response = await request(app).get("/health");
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ ok: true, version: "1.4.0" });
+    expect(response.body).toEqual({ ok: true, version: "1.5.0" });
   });
 
   it("POST /auth/register cria usuario", async () => {
@@ -285,6 +285,108 @@ describe("API auth and transactions", () => {
     });
     expect(listResponse.body[0].id).toBe(createResponse.body.id);
     expect(listResponse.body[0].userId).toBe(createResponse.body.userId);
+  });
+
+  it("filtra transacoes por tipo, periodo e busca", async () => {
+    const token = await registerAndLogin("filtro@controlfinance.dev");
+
+    await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "Entrada",
+        value: 100,
+        date: "2026-02-01",
+        description: "Salario",
+      });
+
+    await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "Saida",
+        value: 30,
+        date: "2026-02-11",
+        description: "Mercado central",
+        notes: "Compra semanal",
+      });
+
+    await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "Saida",
+        value: 25,
+        date: "2026-02-20",
+        description: "Transporte",
+      });
+
+    const filteredResponse = await request(app)
+      .get("/transactions")
+      .query({
+        type: "Saida",
+        from: "2026-02-01",
+        to: "2026-02-15",
+        q: "merc",
+      })
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(filteredResponse.status).toBe(200);
+    expect(filteredResponse.body).toHaveLength(1);
+    expect(filteredResponse.body[0]).toMatchObject({
+      type: "Saida",
+      value: 30,
+      date: "2026-02-11",
+      description: "Mercado central",
+    });
+  });
+
+  it("exporta CSV filtrado com totais", async () => {
+    const token = await registerAndLogin("export@controlfinance.dev");
+
+    await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "Entrada",
+        value: 100,
+        date: "2026-02-10",
+        description: "Salario",
+      });
+
+    await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "Saida",
+        value: 40,
+        date: "2026-02-12",
+        description: "Mercado, feira",
+        notes: 'Compra "A"',
+      });
+
+    const exportResponse = await request(app)
+      .get("/transactions/export.csv")
+      .query({
+        type: "Saida",
+        from: "2026-02-01",
+        to: "2026-02-28",
+      })
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(exportResponse.status).toBe(200);
+    expect(exportResponse.headers["content-type"]).toContain("text/csv");
+    expect(exportResponse.headers["content-disposition"]).toContain(
+      'attachment; filename="transacoes-saida-2026-02-01-a-2026-02-28.csv"',
+    );
+    expect(exportResponse.text).toContain(
+      "id,type,value,date,description,notes,created_at",
+    );
+    expect(exportResponse.text).toContain('"Mercado, feira"');
+    expect(exportResponse.text).toContain('"Compra ""A"""');
+    expect(exportResponse.text).toContain("summary,total_entradas,total_saidas,saldo");
+    expect(exportResponse.text).toContain("totals,0.00,40.00,-40.00");
+    expect(exportResponse.text).not.toContain("Salario");
   });
 
   it("atualiza transacao do proprio usuario", async () => {

@@ -47,13 +47,13 @@ describe("api service", () => {
 
   it("consulta o healthcheck da API", async () => {
     api.get.mockResolvedValueOnce({
-      data: { ok: true, version: "1.4.0" },
+      data: { ok: true, version: "1.5.0" },
     });
 
     const result = await getApiHealth();
 
     expect(api.get).toHaveBeenCalledWith("/health");
-    expect(result).toEqual({ ok: true, version: "1.4.0" });
+    expect(result).toEqual({ ok: true, version: "1.5.0" });
   });
 
   it("resolve URL configurada para producao", () => {

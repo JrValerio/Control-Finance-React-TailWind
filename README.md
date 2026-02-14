@@ -3,7 +3,7 @@
 [![CI](https://github.com/JrValerio/Control-Finance-React-TailWind/actions/workflows/ci.yml/badge.svg)](https://github.com/JrValerio/Control-Finance-React-TailWind/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-Aplicacao web para controle financeiro pessoal com entradas/saidas, filtros por categoria e periodo, grafico de receita x despesa e autenticacao JWT.
+Aplicacao web para controle financeiro pessoal com entradas/saidas, filtros por categoria e periodo, grafico de receita x despesa, exportacao CSV e autenticacao JWT.
 
 ## Links
 
@@ -35,6 +35,7 @@ Detalhes tecnicos:
 - Postgres Persistence: `docs/architecture/v1.4.0-postgres.md`
 - Auth Hardening: `docs/architecture/v1.4.2-auth-hardening.md`
 - Transactions CRUD+: `docs/architecture/v1.4.3-transactions-crud-plus.md`
+- Export CSV: `docs/architecture/v1.5.0-export-csv.md`
 
 ## Funcionalidades atuais (web)
 
@@ -52,6 +53,7 @@ Detalhes tecnicos:
 - Protecao de login com rate limiting e bloqueio temporario por `IP+email`
 - Edicao de transacao com descricao e observacoes
 - Exclusao com confirmacao e desfazer (undo real)
+- Exportacao CSV com filtros ativos (categoria + periodo) e totais consolidados
 
 ## API (apps/api)
 
@@ -59,11 +61,12 @@ Detalhes tecnicos:
 - `POST /auth/register` cria usuario no Postgres
 - `POST /auth/login` retorna `{ token, user }`
 - `/auth/login` aplica rate limit por IP e bloqueio temporario por brute force
-- `GET /transactions` lista transacoes do usuario autenticado
+- `GET /transactions` lista transacoes do usuario autenticado com filtros opcionais (`type`, `from`, `to`, `q`, `includeDeleted`)
 - `POST /transactions` cria transacao para o usuario autenticado
 - `PATCH /transactions/:id` atualiza transacao do usuario autenticado
 - `DELETE /transactions/:id` aplica soft delete para o usuario autenticado
 - `POST /transactions/:id/restore` restaura transacao removida
+- `GET /transactions/export.csv` exporta CSV filtrado com totais de entradas, saidas e saldo
 - Migrations SQL automaticas no startup (`src/db/migrations`)
 - Middleware global de erro e fallback `404`
 
@@ -121,7 +124,8 @@ npm run dev
 - [x] PR 2 (v1.3.0): autenticacao JWT + rotas protegidas
 - [x] PR 3 (v1.3.0): transacoes por usuario no backend + frontend API-first
 - [x] Persistencia em banco remoto (Postgres) para ambiente de producao
-- [ ] Exportacao/importacao CSV e JSON
+- [x] Exportacao CSV com filtros e totais
+- [ ] Importacao CSV/JSON
 
 ## Licenca
 

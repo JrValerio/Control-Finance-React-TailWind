@@ -84,6 +84,39 @@ const normalizeOptionalDate = (date) => {
   return normalizeDate(date);
 };
 
+const normalizeOptionalFilterType = (type) => {
+  if (typeof type === "undefined" || type === null || type === "") {
+    return undefined;
+  }
+
+  return normalizeType(type);
+};
+
+const normalizeOptionalFilterDate = (date) => {
+  if (typeof date === "undefined" || date === null || date === "") {
+    return undefined;
+  }
+
+  if (!isValidISODate(date)) {
+    throw createError(400, "Data invalida. Use o formato YYYY-MM-DD.");
+  }
+
+  return date;
+};
+
+const normalizeOptionalSearchQuery = (value) => {
+  if (typeof value === "undefined" || value === null) {
+    return undefined;
+  }
+
+  if (typeof value !== "string") {
+    throw createError(400, "Busca invalida.");
+  }
+
+  const normalizedValue = value.trim();
+  return normalizedValue ? normalizedValue : undefined;
+};
+
 const normalizeText = (value, fieldName) => {
   if (typeof value !== "string") {
     throw createError(400, `${fieldName} invalido.`);
@@ -126,21 +159,167 @@ const mapTransaction = (row) => ({
       : new Date(row.created_at).toISOString(),
 });
 
-export const listTransactionsByUser = async (userId, options = {}) => {
-  const includeDeleted = options.includeDeleted === true;
+const normalizeListFilters = (options = {}) => {
+  const includeDeleted =
+    options.includeDeleted === true ||
+    String(options.includeDeleted || "").toLowerCase() === "true";
+  const type = normalizeOptionalFilterType(options.type);
+  let from = normalizeOptionalFilterDate(options.from);
+  let to = normalizeOptionalFilterDate(options.to);
+  const query = normalizeOptionalSearchQuery(options.q);
 
-  const result = await dbQuery(
-    `
+  if (from && to && from > to) {
+    [from, to] = [to, from];
+  }
+
+  return {
+    includeDeleted,
+    type,
+    from,
+    to,
+    query,
+  };
+};
+
+const buildListTransactionsStatement = (userId, options = {}) => {
+  const filters = normalizeListFilters(options);
+  const conditions = ["user_id = $1"];
+  const values = [userId];
+  let parameterIndex = 2;
+
+  if (!filters.includeDeleted) {
+    conditions.push("deleted_at IS NULL");
+  }
+
+  if (filters.type) {
+    conditions.push(`type = $${parameterIndex}`);
+    values.push(filters.type);
+    parameterIndex += 1;
+  }
+
+  if (filters.from) {
+    conditions.push(`date >= $${parameterIndex}`);
+    values.push(filters.from);
+    parameterIndex += 1;
+  }
+
+  if (filters.to) {
+    conditions.push(`date <= $${parameterIndex}`);
+    values.push(filters.to);
+    parameterIndex += 1;
+  }
+
+  if (filters.query) {
+    conditions.push(`(description ILIKE $${parameterIndex} OR notes ILIKE $${parameterIndex})`);
+    values.push(`%${filters.query}%`);
+    parameterIndex += 1;
+  }
+
+  return {
+    filters,
+    query: `
       SELECT id, user_id, value, type, date, description, notes, deleted_at, created_at
       FROM transactions
-      WHERE user_id = $1
-        AND ($2::boolean = TRUE OR deleted_at IS NULL)
-      ORDER BY id ASC
+      WHERE ${conditions.join("\n        AND ")}
+      ORDER BY date ASC, id ASC
     `,
-    [userId, includeDeleted],
-  );
+    values,
+  };
+};
 
-  return result.rows.map(mapTransaction);
+const runListTransactions = async (userId, options = {}) => {
+  const statement = buildListTransactionsStatement(userId, options);
+
+  const result = await dbQuery(statement.query, statement.values);
+
+  return {
+    filters: statement.filters,
+    transactions: result.rows.map(mapTransaction),
+  };
+};
+
+const formatCsvCell = (value) => {
+  const text = value === null || typeof value === "undefined" ? "" : String(value);
+
+  if (/[",\n\r]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+
+  return text;
+};
+
+const formatCurrency = (value) => Number(value).toFixed(2);
+
+const getTotalsByType = (transactions) => {
+  return transactions.reduce(
+    (totals, transaction) => {
+      if (transaction.type === CATEGORY_ENTRY) {
+        totals.entry += transaction.value;
+      }
+
+      if (transaction.type === CATEGORY_EXIT) {
+        totals.exit += transaction.value;
+      }
+
+      return totals;
+    },
+    { entry: 0, exit: 0 },
+  );
+};
+
+const buildExportFileName = (filters) => {
+  const nameParts = ["transacoes"];
+
+  if (filters.type) {
+    nameParts.push(filters.type.toLowerCase());
+  }
+
+  if (filters.from || filters.to) {
+    nameParts.push(filters.from || "inicio");
+    nameParts.push("a");
+    nameParts.push(filters.to || "hoje");
+  } else {
+    nameParts.push(toISODate());
+  }
+
+  return `${nameParts.join("-")}.csv`;
+};
+
+export const listTransactionsByUser = async (userId, options = {}) => {
+  const { transactions } = await runListTransactions(userId, options);
+  return transactions;
+};
+
+export const exportTransactionsCsvByUser = async (userId, options = {}) => {
+  const { filters, transactions } = await runListTransactions(userId, options);
+  const totalsByType = getTotalsByType(transactions);
+  const balance = totalsByType.entry - totalsByType.exit;
+  const csvLines = [
+    "id,type,value,date,description,notes,created_at",
+    ...transactions.map((transaction) =>
+      [
+        transaction.id,
+        transaction.type,
+        formatCurrency(transaction.value),
+        transaction.date,
+        transaction.description,
+        transaction.notes,
+        transaction.createdAt,
+      ]
+        .map(formatCsvCell)
+        .join(","),
+    ),
+    "",
+    "summary,total_entradas,total_saidas,saldo",
+    ["totals", formatCurrency(totalsByType.entry), formatCurrency(totalsByType.exit), formatCurrency(balance)]
+      .map(formatCsvCell)
+      .join(","),
+  ];
+
+  return {
+    fileName: buildExportFileName(filters),
+    content: `\uFEFF${csvLines.join("\n")}`,
+  };
 };
 
 export const createTransactionForUser = async (userId, payload = {}) => {

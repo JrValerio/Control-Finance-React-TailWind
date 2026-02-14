@@ -3,6 +3,7 @@ import { authMiddleware } from "../middlewares/auth.middleware.js";
 import {
   createTransactionForUser,
   deleteTransactionForUser,
+  exportTransactionsCsvByUser,
   listTransactionsByUser,
   restoreTransactionForUser,
   updateTransactionForUser,
@@ -12,12 +13,41 @@ const router = Router();
 
 router.use(authMiddleware);
 
+const getListFiltersFromQuery = (query = {}) => {
+  return {
+    includeDeleted: String(query.includeDeleted || "").toLowerCase() === "true",
+    type: query.type,
+    from: query.from,
+    to: query.to,
+    q: query.q,
+  };
+};
+
+router.get("/export.csv", async (req, res, next) => {
+  try {
+    const csvExport = await exportTransactionsCsvByUser(
+      req.user.id,
+      getListFiltersFromQuery(req.query),
+    );
+
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${csvExport.fileName}"`,
+    );
+
+    res.status(200).send(csvExport.content);
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get("/", async (req, res, next) => {
   try {
-    const includeDeleted = String(req.query.includeDeleted || "").toLowerCase() === "true";
-    const transactions = await listTransactionsByUser(req.user.id, {
-      includeDeleted,
-    });
+    const transactions = await listTransactionsByUser(
+      req.user.id,
+      getListFiltersFromQuery(req.query),
+    );
     res.status(200).json(transactions);
   } catch (error) {
     next(error);

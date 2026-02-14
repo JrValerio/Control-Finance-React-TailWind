@@ -25,6 +25,61 @@ const getDateWithOffsetISO = (referenceDate, offsetDays) => {
   return getTodayISODate(date);
 };
 
+export const resolvePeriodRange = (
+  period,
+  customRange = {},
+  referenceDate = new Date(),
+) => {
+  if (period === PERIOD_ALL) {
+    return {
+      startDate: null,
+      endDate: null,
+    };
+  }
+
+  const today = getTodayISODate(referenceDate);
+  let startDate = null;
+  let endDate = null;
+
+  if (period === PERIOD_TODAY) {
+    startDate = today;
+    endDate = today;
+  }
+
+  if (period === PERIOD_LAST_7_DAYS) {
+    startDate = getDateWithOffsetISO(referenceDate, -6);
+    endDate = today;
+  }
+
+  if (period === PERIOD_LAST_30_DAYS) {
+    startDate = getDateWithOffsetISO(referenceDate, -29);
+    endDate = today;
+  }
+
+  if (period === PERIOD_CUSTOM) {
+    startDate = isValidISODate(customRange.startDate)
+      ? customRange.startDate
+      : null;
+    endDate = isValidISODate(customRange.endDate) ? customRange.endDate : null;
+
+    if (!startDate && !endDate) {
+      return {
+        startDate: null,
+        endDate: null,
+      };
+    }
+  }
+
+  if (startDate && endDate && startDate > endDate) {
+    [startDate, endDate] = [endDate, startDate];
+  }
+
+  return {
+    startDate,
+    endDate,
+  };
+};
+
 export const isValidISODate = (value) => {
   if (typeof value !== "string" || !ISO_DATE_REGEX.test(value)) {
     return false;
@@ -59,43 +114,13 @@ export const filterByPeriod = (
   customRange = {},
   referenceDate = new Date(),
 ) => {
-  if (period === PERIOD_ALL) {
+  const { startDate, endDate } = resolvePeriodRange(period, customRange, referenceDate);
+
+  if (!startDate && !endDate) {
     return transactions;
   }
 
   const today = getTodayISODate(referenceDate);
-  let startDate = null;
-  let endDate = null;
-
-  if (period === PERIOD_TODAY) {
-    startDate = today;
-    endDate = today;
-  }
-
-  if (period === PERIOD_LAST_7_DAYS) {
-    startDate = getDateWithOffsetISO(referenceDate, -6);
-    endDate = today;
-  }
-
-  if (period === PERIOD_LAST_30_DAYS) {
-    startDate = getDateWithOffsetISO(referenceDate, -29);
-    endDate = today;
-  }
-
-  if (period === PERIOD_CUSTOM) {
-    startDate = isValidISODate(customRange.startDate)
-      ? customRange.startDate
-      : null;
-    endDate = isValidISODate(customRange.endDate) ? customRange.endDate : null;
-
-    if (!startDate && !endDate) {
-      return transactions;
-    }
-  }
-
-  if (startDate && endDate && startDate > endDate) {
-    [startDate, endDate] = [endDate, startDate];
-  }
 
   return transactions.filter((transaction) => {
     const transactionDate = normalizeTransactionDate(transaction.date, today);
