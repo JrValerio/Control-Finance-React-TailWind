@@ -28,6 +28,7 @@ Detalhes tecnicos:
 - Foundation: `docs/architecture/v1.3.0.md`
 - Auth: `docs/architecture/v1.3.0-auth.md`
 - Transactions API: `docs/architecture/v1.3.1-transactions.md`
+- Postgres Persistence: `docs/architecture/v1.4.0-postgres.md`
 
 ## Funcionalidades atuais (web)
 
@@ -45,12 +46,13 @@ Detalhes tecnicos:
 
 ## API (apps/api)
 
-- `GET /health` retorna `{ ok: true, version: "1.3.0" }`
-- `POST /auth/register` cria usuario (store em memoria)
+- `GET /health` retorna `{ ok: true, version }` com a versao atual do `apps/api/package.json`
+- `POST /auth/register` cria usuario no Postgres
 - `POST /auth/login` retorna `{ token, user }`
 - `GET /transactions` lista transacoes do usuario autenticado
 - `POST /transactions` cria transacao para o usuario autenticado
 - `DELETE /transactions/:id` remove transacao do usuario autenticado
+- Migrations SQL automaticas no startup (`src/db/migrations`)
 - Middleware global de erro e fallback `404`
 
 ## Como rodar localmente
@@ -78,6 +80,7 @@ npm run dev
 - Web: `apps/web/.env.example`
 - API: `apps/api/.env.example`
 - Em deploy (Vercel), `VITE_API_URL` e obrigatoria e deve apontar para a URL publica da API
+- Para Postgres gerenciado com SSL, configure `DB_SSL=true` na API
 - `CORS_ORIGIN` da API pode receber lista separada por virgula (local + dominios de deploy)
 
 ## Scripts (root)
@@ -87,6 +90,11 @@ npm run dev
 - `npm run test` roda testes dos dois apps
 - `npm run build` builda web e valida build da api
 - `npm run preview` sobe preview do web
+
+## Scripts (api)
+
+- `npm -w apps/api run db:migrate` aplica migrations do Postgres
+- `npm -w apps/api run db:seed` executa seed minima (usuario demo + transacoes)
 
 ## Qualidade
 
@@ -98,7 +106,7 @@ npm run dev
 
 - [x] PR 2 (v1.3.0): autenticacao JWT + rotas protegidas
 - [x] PR 3 (v1.3.0): transacoes por usuario no backend + frontend API-first
-- [ ] Persistencia em banco remoto (Postgres) para ambiente de producao
+- [x] Persistencia em banco remoto (Postgres) para ambiente de producao
 - [ ] Exportacao/importacao CSV e JSON
 
 ## Licenca

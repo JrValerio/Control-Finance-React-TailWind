@@ -10,23 +10,27 @@ const router = Router();
 
 router.use(authMiddleware);
 
-router.get("/", (req, res) => {
-  const transactions = listTransactionsByUser(req.user.id);
-  res.status(200).json(transactions);
+router.get("/", async (req, res, next) => {
+  try {
+    const transactions = await listTransactionsByUser(req.user.id);
+    res.status(200).json(transactions);
+  } catch (error) {
+    next(error);
+  }
 });
 
-router.post("/", (req, res, next) => {
+router.post("/", async (req, res, next) => {
   try {
-    const transaction = createTransactionForUser(req.user.id, req.body || {});
+    const transaction = await createTransactionForUser(req.user.id, req.body || {});
     res.status(201).json(transaction);
   } catch (error) {
     next(error);
   }
 });
 
-router.delete("/:id", (req, res, next) => {
+router.delete("/:id", async (req, res, next) => {
   try {
-    const removedTransaction = deleteTransactionForUser(req.user.id, req.params.id);
+    const removedTransaction = await deleteTransactionForUser(req.user.id, req.params.id);
     res.status(200).json({
       id: removedTransaction.id,
       success: true,

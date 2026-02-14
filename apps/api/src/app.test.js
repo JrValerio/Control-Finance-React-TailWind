@@ -1,8 +1,9 @@
 import request from "supertest";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { newDb } from "pg-mem";
 import app from "./app.js";
-import { __resetAuthStoreForTests } from "./services/auth.service.js";
-import { __resetTransactionsStoreForTests } from "./services/transactions.service.js";
+import { clearDbClientForTests, dbQuery, setDbClientForTests } from "./db/index.js";
+import { runMigrations } from "./db/migrate.js";
 
 const registerAndLogin = async (email, password = "123456") => {
   await request(app).post("/auth/register").send({
@@ -19,16 +20,31 @@ const registerAndLogin = async (email, password = "123456") => {
 };
 
 describe("API auth and transactions", () => {
-  beforeEach(() => {
-    __resetAuthStoreForTests();
-    __resetTransactionsStoreForTests();
+  beforeAll(async () => {
+    const inMemoryDatabase = newDb({
+      autoCreateForeignKeyIndices: true,
+    });
+    const pgAdapter = inMemoryDatabase.adapters.createPg();
+    const pool = new pgAdapter.Pool();
+
+    setDbClientForTests(pool);
+    await runMigrations();
+  });
+
+  afterAll(async () => {
+    await clearDbClientForTests();
+  });
+
+  beforeEach(async () => {
+    await dbQuery("DELETE FROM transactions");
+    await dbQuery("DELETE FROM users");
   });
 
   it("GET /health responde com status 200 e versao", async () => {
     const response = await request(app).get("/health");
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ ok: true, version: "1.3.0" });
+    expect(response.body).toEqual({ ok: true, version: "1.4.0" });
   });
 
   it("POST /auth/register cria usuario", async () => {
@@ -40,10 +56,11 @@ describe("API auth and transactions", () => {
 
     expect(response.status).toBe(201);
     expect(response.body.user).toMatchObject({
-      id: 1,
       name: "Junior",
       email: "jr@controlfinance.dev",
     });
+    expect(Number.isInteger(response.body.user.id)).toBe(true);
+    expect(response.body.user.id).toBeGreaterThan(0);
   });
 
   it("POST /auth/register bloqueia email duplicado", async () => {
@@ -97,12 +114,12 @@ describe("API auth and transactions", () => {
 
     expect(createResponse.status).toBe(201);
     expect(createResponse.body).toMatchObject({
-      id: 1,
-      userId: 1,
       type: "Entrada",
       value: 100.5,
       date: "2026-02-13",
     });
+    expect(Number.isInteger(createResponse.body.id)).toBe(true);
+    expect(Number.isInteger(createResponse.body.userId)).toBe(true);
 
     const listResponse = await request(app)
       .get("/transactions")
@@ -111,12 +128,12 @@ describe("API auth and transactions", () => {
     expect(listResponse.status).toBe(200);
     expect(listResponse.body).toHaveLength(1);
     expect(listResponse.body[0]).toMatchObject({
-      id: 1,
-      userId: 1,
       type: "Entrada",
       value: 100.5,
       date: "2026-02-13",
     });
+    expect(listResponse.body[0].id).toBe(createResponse.body.id);
+    expect(listResponse.body[0].userId).toBe(createResponse.body.userId);
   });
 
   it("isola transacoes por usuario", async () => {
