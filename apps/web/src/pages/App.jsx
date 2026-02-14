@@ -1,7 +1,8 @@
-import { Suspense, lazy, useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
 import PropTypes from "prop-types";
 import Modal from "../components/Modal";
 import TransactionList from "../components/TransactionList";
+import { transactionsService } from "../services/transactions.service";
 import {
   CATEGORY_ALL,
   CATEGORY_ENTRY,
@@ -19,7 +20,6 @@ import {
   normalizeTransactionDate,
 } from "../components/DatabaseUtils";
 
-const STORAGE_KEY = "transactions";
 const TransactionChart = lazy(() => import("../components/TransactionChart"));
 
 const PERIOD_OPTIONS = [
@@ -29,6 +29,10 @@ const PERIOD_OPTIONS = [
   PERIOD_LAST_30_DAYS,
   PERIOD_CUSTOM,
 ];
+
+const getApiErrorMessage = (error, fallbackMessage) => {
+  return error?.response?.data?.message || fallbackMessage;
+};
 
 const normalizeTransactions = (transactions) => {
   if (!Array.isArray(transactions)) {
@@ -52,30 +56,32 @@ const normalizeTransactions = (transactions) => {
     );
 };
 
-const getInitialTransactions = () => {
-  if (typeof window === "undefined") {
-    return [];
-  }
-
-  try {
-    const savedTransactions = window.localStorage.getItem(STORAGE_KEY);
-    if (!savedTransactions) {
-      return [];
-    }
-
-    return normalizeTransactions(JSON.parse(savedTransactions));
-  } catch {
-    return [];
-  }
-};
-
 const App = ({ onLogout = undefined }) => {
   const [selectedCategory, setSelectedCategory] = useState(CATEGORY_ALL);
   const [selectedPeriod, setSelectedPeriod] = useState(PERIOD_ALL);
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
   const [isModalOpen, setModalOpen] = useState(false);
-  const [transactions, setTransactions] = useState(getInitialTransactions);
+  const [transactions, setTransactions] = useState([]);
+  const [isLoadingTransactions, setLoadingTransactions] = useState(false);
+  const [requestError, setRequestError] = useState("");
+
+  const loadTransactions = useCallback(async () => {
+    setLoadingTransactions(true);
+    setRequestError("");
+
+    try {
+      const response = await transactionsService.list();
+      setTransactions(normalizeTransactions(response));
+    } catch (error) {
+      setTransactions([]);
+      setRequestError(
+        getApiErrorMessage(error, "Nao foi possivel carregar as transacoes."),
+      );
+    } finally {
+      setLoadingTransactions(false);
+    }
+  }, []);
 
   const periodFilteredTransactions = useMemo(() => {
     return filterByPeriod(transactions, selectedPeriod, {
@@ -104,35 +110,48 @@ const App = ({ onLogout = undefined }) => {
   }, [totalsByType]);
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
-  }, [transactions]);
+    loadTransactions();
+  }, [loadTransactions]);
 
-  const handleAddTransaction = ({ value, type, date }) => {
-    setTransactions((currentTransactions) => {
-      const nextId =
-        currentTransactions.reduce(
-          (highestId, transaction) => Math.max(highestId, transaction.id),
-          0,
-        ) + 1;
+  const handleAddTransaction = async ({ value, type, date }) => {
+    setRequestError("");
 
-      return [
-        ...currentTransactions,
-        {
-          id: nextId,
-          value,
-          type,
-          date: normalizeTransactionDate(date),
-        },
-      ];
-    });
+    try {
+      const response = await transactionsService.create({
+        value,
+        type,
+        date,
+      });
 
-    setModalOpen(false);
+      const [createdTransaction] = normalizeTransactions([response]);
+      if (createdTransaction) {
+        setTransactions((currentTransactions) => [
+          ...currentTransactions,
+          createdTransaction,
+        ]);
+      }
+
+      setModalOpen(false);
+    } catch (error) {
+      setRequestError(
+        getApiErrorMessage(error, "Nao foi possivel cadastrar a transacao."),
+      );
+    }
   };
 
-  const deleteTransaction = (id) => {
-    setTransactions((currentTransactions) =>
-      currentTransactions.filter((transaction) => transaction.id !== id),
-    );
+  const deleteTransaction = async (id) => {
+    setRequestError("");
+
+    try {
+      await transactionsService.remove(id);
+      setTransactions((currentTransactions) =>
+        currentTransactions.filter((transaction) => transaction.id !== id),
+      );
+    } catch (error) {
+      setRequestError(
+        getApiErrorMessage(error, "Nao foi possivel excluir a transacao."),
+      );
+    }
   };
 
   const filterButtons = [CATEGORY_ALL, CATEGORY_ENTRY, CATEGORY_EXIT];
@@ -289,7 +308,19 @@ const App = ({ onLogout = undefined }) => {
       </section>
 
       <section className="mx-auto mt-2 max-w-700 rounded border border-brand-1 bg-gray-500 px-4 py-3.5">
-        {transactions.length === 0 ? (
+        {requestError ? (
+          <div className="p-4 text-center">
+            <p className="text-sm font-medium text-red-300">{requestError}</p>
+            <button
+              onClick={loadTransactions}
+              className="mt-2 font-medium text-brand-1 hover:text-brand-2"
+            >
+              Tentar novamente
+            </button>
+          </div>
+        ) : isLoadingTransactions ? (
+          <div className="p-4 text-center text-gray-100">Carregando transacoes...</div>
+        ) : transactions.length === 0 ? (
           <div className="p-4 text-center">
             <p className="text-gray-100">Nenhum valor cadastrado.</p>
             <button

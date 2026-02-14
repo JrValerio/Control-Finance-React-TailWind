@@ -27,6 +27,7 @@ apps/
 Detalhes tecnicos:
 - Foundation: `docs/architecture/v1.3.0.md`
 - Auth: `docs/architecture/v1.3.0-auth.md`
+- Transactions API: `docs/architecture/v1.3.1-transactions.md`
 
 ## Funcionalidades atuais (web)
 
@@ -35,7 +36,7 @@ Detalhes tecnicos:
 - Filtro por periodo: `Todo periodo`, `Hoje`, `Ultimos 7 dias`, `Ultimos 30 dias`, `Personalizado`
 - Saldo e totais por tipo em tempo real
 - Grafico de receita x despesa (Recharts, lazy-loaded)
-- Persistencia local de transacoes (temporaria nesta fase)
+- Transacoes carregadas e persistidas pela API (por usuario autenticado)
 - Modal com fechamento por `ESC` e clique no backdrop
 - Remocao de transacoes
 - Login e criacao de conta com JWT
@@ -47,7 +48,9 @@ Detalhes tecnicos:
 - `GET /health` retorna `{ ok: true, version: "1.3.0" }`
 - `POST /auth/register` cria usuario (store em memoria)
 - `POST /auth/login` retorna `{ token, user }`
-- `/transactions` protegido por middleware JWT
+- `GET /transactions` lista transacoes do usuario autenticado
+- `POST /transactions` cria transacao para o usuario autenticado
+- `DELETE /transactions/:id` remove transacao do usuario autenticado
 - Middleware global de erro e fallback `404`
 
 ## Como rodar localmente
@@ -92,7 +95,7 @@ npm run dev
 ## Roadmap
 
 - [x] PR 2 (v1.3.0): autenticacao JWT + rotas protegidas
-- [ ] PR 3 (v1.3.0): transacoes por usuario no backend + migracao localStorage -> API
+- [x] PR 3 (v1.3.0): transacoes por usuario no backend + frontend API-first
 - [ ] Persistencia em banco remoto (Postgres) para ambiente de producao
 - [ ] Exportacao/importacao CSV e JSON
 
