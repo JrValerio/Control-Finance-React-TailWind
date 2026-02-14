@@ -8,22 +8,39 @@ import {
   parseCurrencyInput,
 } from "./DatabaseUtils";
 
-const Modal = ({ isOpen, onClose, onSave }) => {
+const formatValueForInput = (value) => {
+  const numericValue = Number(value);
+
+  if (!Number.isFinite(numericValue)) {
+    return "";
+  }
+
+  return numericValue.toFixed(2).replace(".", ",");
+};
+
+const Modal = ({ isOpen, onClose, onSave, initialTransaction = null }) => {
   const [value, setValue] = useState("");
   const [category, setCategory] = useState(CATEGORY_ENTRY);
   const [transactionDate, setTransactionDate] = useState(getTodayISODate());
+  const [description, setDescription] = useState("");
+  const [notes, setNotes] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const isEditing = Boolean(initialTransaction);
 
   useEffect(() => {
     if (!isOpen) {
       return;
     }
 
-    setValue("");
-    setCategory(CATEGORY_ENTRY);
-    setTransactionDate(getTodayISODate());
+    setValue(
+      initialTransaction ? formatValueForInput(initialTransaction.value) : "",
+    );
+    setCategory(initialTransaction?.type || CATEGORY_ENTRY);
+    setTransactionDate(initialTransaction?.date || getTodayISODate());
+    setDescription(initialTransaction?.description || "");
+    setNotes(initialTransaction?.notes || "");
     setErrorMessage("");
-  }, [isOpen]);
+  }, [initialTransaction, isOpen]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -56,7 +73,13 @@ const Modal = ({ isOpen, onClose, onSave }) => {
       return;
     }
 
-    onSave({ value: parsedValue, type: category, date: transactionDate });
+    onSave({
+      value: parsedValue,
+      type: category,
+      date: transactionDate,
+      description: description.trim(),
+      notes: notes.trim(),
+    });
   };
 
   const handleBackdropClick = (event) => {
@@ -77,7 +100,9 @@ const Modal = ({ isOpen, onClose, onSave }) => {
     >
       <div className="w-full max-w-md rounded-lg bg-white p-4 sm:p-6">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-100">Registro de valor</h2>
+          <h2 className="text-lg font-semibold text-gray-100">
+            {isEditing ? "Editar transacao" : "Registro de valor"}
+          </h2>
           <button
             type="button"
             onClick={onClose}
@@ -89,7 +114,9 @@ const Modal = ({ isOpen, onClose, onSave }) => {
         </div>
 
         <p className="mb-4 text-sm text-gray-200">
-          Digite o valor, selecione o tipo e a data da transacao.
+          {isEditing
+            ? "Atualize os campos da transacao."
+            : "Digite o valor, selecione o tipo e a data da transacao."}
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -128,6 +155,39 @@ const Modal = ({ isOpen, onClose, onSave }) => {
                 setTransactionDate(event.target.value);
                 setErrorMessage("");
               }}
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label htmlFor="descricao" className="text-sm font-medium text-gray-100">
+              Descricao
+            </label>
+            <input
+              id="descricao"
+              type="text"
+              className="rounded border border-gray-400 px-3 py-2 text-sm text-gray-200"
+              value={description}
+              onChange={(event) => {
+                setDescription(event.target.value);
+                setErrorMessage("");
+              }}
+              placeholder="Ex.: Mercado, Salario, Aluguel"
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label htmlFor="observacoes" className="text-sm font-medium text-gray-100">
+              Observacoes
+            </label>
+            <textarea
+              id="observacoes"
+              className="min-h-20 rounded border border-gray-400 px-3 py-2 text-sm text-gray-200"
+              value={notes}
+              onChange={(event) => {
+                setNotes(event.target.value);
+                setErrorMessage("");
+              }}
+              placeholder="Detalhes opcionais da transacao"
             />
           </div>
 
@@ -177,7 +237,7 @@ const Modal = ({ isOpen, onClose, onSave }) => {
               type="submit"
               className="rounded border border-brand-1 bg-brand-1 px-3.5 py-1.5 text-sm font-semibold text-white hover:bg-brand-2"
             >
-              Inserir valor
+              {isEditing ? "Salvar alteracoes" : "Inserir valor"}
             </button>
           </div>
         </form>
@@ -190,6 +250,14 @@ Modal.propTypes = {
   isOpen: PropTypes.bool.isRequired,
   onClose: PropTypes.func.isRequired,
   onSave: PropTypes.func.isRequired,
+  initialTransaction: PropTypes.shape({
+    id: PropTypes.number.isRequired,
+    value: PropTypes.number.isRequired,
+    type: PropTypes.string.isRequired,
+    date: PropTypes.string.isRequired,
+    description: PropTypes.string,
+    notes: PropTypes.string,
+  }),
 };
 
 export default Modal;

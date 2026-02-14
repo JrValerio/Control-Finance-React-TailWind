@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import App from "./App";
 import { CATEGORY_ENTRY, CATEGORY_EXIT, getTodayISODate } from "../components/DatabaseUtils";
@@ -13,7 +13,9 @@ vi.mock("../services/transactions.service", () => ({
   transactionsService: {
     list: vi.fn(),
     create: vi.fn(),
+    update: vi.fn(),
     remove: vi.fn(),
+    restore: vi.fn(),
   },
 }));
 
@@ -31,6 +33,8 @@ describe("App", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     transactionsService.list.mockResolvedValue([]);
+    transactionsService.update.mockResolvedValue({});
+    transactionsService.restore.mockResolvedValue({});
   });
 
   it("carrega transacoes da API ao iniciar", async () => {
@@ -69,6 +73,8 @@ describe("App", () => {
       value: 100.5,
       type: CATEGORY_ENTRY,
       date: "2026-02-13",
+      description: "",
+      notes: "",
     });
 
     expect(await screen.findAllByText("R$ 100.50")).toHaveLength(3);
@@ -121,6 +127,7 @@ describe("App", () => {
     await user.click(
       screen.getByRole("button", { name: /Excluir transacao 1/i }),
     );
+    await user.click(screen.getByRole("button", { name: "Confirmar exclusao" }));
 
     await waitFor(() => {
       expect(transactionsService.remove).toHaveBeenCalledWith(1);
@@ -128,5 +135,103 @@ describe("App", () => {
     expect(
       await screen.findByText("Nenhum valor cadastrado."),
     ).toBeInTheDocument();
+  });
+
+  it("edita transacao via API", async () => {
+    const user = userEvent.setup();
+    transactionsService.list.mockResolvedValueOnce([
+      {
+        id: 1,
+        value: 150,
+        type: CATEGORY_ENTRY,
+        date: "2026-02-12",
+        description: "Salario",
+        notes: "",
+      },
+    ]);
+    transactionsService.update.mockResolvedValueOnce({
+      id: 1,
+      value: 120.5,
+      type: CATEGORY_EXIT,
+      date: "2026-02-12",
+      description: "Mercado",
+      notes: "Compra do mes",
+    });
+
+    render(<App />);
+
+    await screen.findByText("Salario");
+    await user.click(screen.getByRole("button", { name: /Editar transacao 1/i }));
+    const modalForm = screen
+      .getByRole("button", { name: "Salvar alteracoes" })
+      .closest("form");
+    if (!modalForm) {
+      throw new Error("Formulario de edicao nao encontrado.");
+    }
+    const modalQueries = within(modalForm);
+
+    await user.clear(modalQueries.getByLabelText("Valor"));
+    await user.type(modalQueries.getByLabelText("Valor"), "120,50");
+    await user.clear(modalQueries.getByLabelText("Descricao"));
+    await user.type(modalQueries.getByLabelText("Descricao"), "Mercado");
+    await user.clear(modalQueries.getByLabelText("Observacoes"));
+    await user.type(modalQueries.getByLabelText("Observacoes"), "Compra do mes");
+    await user.click(modalQueries.getByRole("button", { name: "Saida" }));
+    await user.click(modalQueries.getByRole("button", { name: "Salvar alteracoes" }));
+
+    await waitFor(() => {
+      expect(transactionsService.update).toHaveBeenCalledWith(1, {
+        value: 120.5,
+        type: CATEGORY_EXIT,
+        date: "2026-02-12",
+        description: "Mercado",
+        notes: "Compra do mes",
+      });
+    });
+
+    expect(await screen.findAllByText("R$ 120.50")).toHaveLength(2);
+    expect(screen.getByText("Mercado")).toBeInTheDocument();
+    expect(screen.getByText("Compra do mes")).toBeInTheDocument();
+  });
+
+  it("remove e restaura transacao com desfazer", async () => {
+    const user = userEvent.setup();
+    transactionsService.list.mockResolvedValueOnce([
+      {
+        id: 1,
+        value: 45,
+        type: CATEGORY_ENTRY,
+        date: "2026-02-12",
+        description: "Freela",
+      },
+    ]);
+    transactionsService.remove.mockResolvedValueOnce({ id: 1, success: true });
+    transactionsService.restore.mockResolvedValueOnce({
+      id: 1,
+      value: 45,
+      type: CATEGORY_ENTRY,
+      date: "2026-02-12",
+      description: "Freela",
+      notes: "",
+    });
+
+    render(<App />);
+
+    await screen.findByText("Freela");
+    await user.click(screen.getByRole("button", { name: /Excluir transacao 1/i }));
+    await user.click(screen.getByRole("button", { name: "Confirmar exclusao" }));
+
+    await waitFor(() => {
+      expect(transactionsService.remove).toHaveBeenCalledWith(1);
+    });
+
+    expect(await screen.findByText("Transacao removida.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Desfazer" }));
+
+    await waitFor(() => {
+      expect(transactionsService.restore).toHaveBeenCalledWith(1);
+    });
+
+    expect(await screen.findByText("Freela")).toBeInTheDocument();
   });
 });

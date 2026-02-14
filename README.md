@@ -30,6 +30,7 @@ Detalhes tecnicos:
 - Transactions API: `docs/architecture/v1.3.1-transactions.md`
 - Postgres Persistence: `docs/architecture/v1.4.0-postgres.md`
 - Auth Hardening: `docs/architecture/v1.4.2-auth-hardening.md`
+- Transactions CRUD+: `docs/architecture/v1.4.3-transactions-crud-plus.md`
 
 ## Funcionalidades atuais (web)
 
@@ -45,6 +46,8 @@ Detalhes tecnicos:
 - Sessao JWT com token em `localStorage` (chave namespaced)
 - Logout e rota protegida para `/app`
 - Protecao de login com rate limiting e bloqueio temporario por `IP+email`
+- Edicao de transacao com descricao e observacoes
+- Exclusao com confirmacao e desfazer (undo real)
 
 ## API (apps/api)
 
@@ -54,7 +57,9 @@ Detalhes tecnicos:
 - `/auth/login` aplica rate limit por IP e bloqueio temporario por brute force
 - `GET /transactions` lista transacoes do usuario autenticado
 - `POST /transactions` cria transacao para o usuario autenticado
-- `DELETE /transactions/:id` remove transacao do usuario autenticado
+- `PATCH /transactions/:id` atualiza transacao do usuario autenticado
+- `DELETE /transactions/:id` aplica soft delete para o usuario autenticado
+- `POST /transactions/:id/restore` restaura transacao removida
 - Migrations SQL automaticas no startup (`src/db/migrations`)
 - Middleware global de erro e fallback `404`
 

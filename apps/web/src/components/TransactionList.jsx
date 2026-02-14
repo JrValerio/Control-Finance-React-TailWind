@@ -12,7 +12,7 @@ const formatDate = (value) => {
   return date.toLocaleDateString("pt-BR");
 };
 
-const TransactionList = ({ transactions, onDelete }) => {
+const TransactionList = ({ transactions, onDelete, onEdit }) => {
   return (
     <div className="mx-auto max-w-700 px-2 sm:px-0">
       {transactions.map((transaction) => (
@@ -21,10 +21,16 @@ const TransactionList = ({ transactions, onDelete }) => {
           className="my-2 flex items-center justify-between rounded border border-brand-1 bg-gray-mode p-3.5"
         >
           <div className="flex flex-col">
+            <span className="text-sm font-medium text-gray-100">
+              {transaction.description || "Sem descricao"}
+            </span>
             <span className="text-base font-medium text-gray-100">
               {formatValue(transaction.value)}
             </span>
             <span className="text-xs text-gray-200">{formatDate(transaction.date)}</span>
+            {transaction.notes ? (
+              <span className="text-xs text-gray-200">{transaction.notes}</span>
+            ) : null}
           </div>
 
           <div className="flex items-center gap-2">
@@ -37,6 +43,14 @@ const TransactionList = ({ transactions, onDelete }) => {
             >
               {transaction.type}
             </span>
+            <button
+              type="button"
+              onClick={() => onEdit(transaction)}
+              className="rounded border border-gray-300 px-2 py-1 text-xs font-semibold text-gray-200 transition-colors hover:border-gray-200 hover:text-gray-100"
+              aria-label={`Editar transacao ${transaction.id}`}
+            >
+              Editar
+            </button>
             <button
               type="button"
               onClick={() => onDelete(transaction.id)}
@@ -59,9 +73,12 @@ TransactionList.propTypes = {
       value: PropTypes.number.isRequired,
       type: PropTypes.string.isRequired,
       date: PropTypes.string.isRequired,
+      description: PropTypes.string,
+      notes: PropTypes.string,
     }),
   ).isRequired,
   onDelete: PropTypes.func.isRequired,
+  onEdit: PropTypes.func.isRequired,
 };
 
 export default TransactionList;
