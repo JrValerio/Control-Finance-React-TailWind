@@ -24,7 +24,9 @@ apps/
   api/ -> Backend Express (healthcheck + base para auth/transactions)
 ```
 
-Detalhes tecnicos da fundacao estao em `docs/architecture/v1.3.0.md`.
+Detalhes tecnicos:
+- Foundation: `docs/architecture/v1.3.0.md`
+- Auth: `docs/architecture/v1.3.0-auth.md`
 
 ## Funcionalidades atuais (web)
 
@@ -36,11 +38,15 @@ Detalhes tecnicos da fundacao estao em `docs/architecture/v1.3.0.md`.
 - Persistencia local com `localStorage`
 - Modal com fechamento por `ESC` e clique no backdrop
 - Remocao de transacoes
+- Login e criacao de conta com JWT
+- Logout e rota protegida para `/app`
 
-## API Foundation (apps/api)
+## API (apps/api)
 
 - `GET /health` retorna `{ ok: true, version: "1.3.0" }`
-- Estrutura pronta para evolucao de `auth` e `transactions`
+- `POST /auth/register` cria usuario (store em memoria)
+- `POST /auth/login` retorna `{ token, user }`
+- `/transactions` protegido por middleware JWT
 - Middleware global de erro e fallback `404`
 
 ## Como rodar localmente
@@ -84,7 +90,7 @@ npm run dev
 
 ## Roadmap
 
-- [ ] PR 2 (v1.3.0): autenticacao JWT + rotas protegidas
+- [x] PR 2 (v1.3.0): autenticacao JWT + rotas protegidas
 - [ ] PR 3 (v1.3.0): transacoes por usuario no backend + migracao localStorage -> API
 - [ ] Persistencia em banco remoto (Postgres) para ambiente de producao
 - [ ] Exportacao/importacao CSV e JSON

@@ -1,9 +1,26 @@
-import { describe, expect, it, vi } from "vitest";
-import { api, getApiHealth } from "./api";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  AUTH_TOKEN_STORAGE_KEY,
+  api,
+  clearStoredToken,
+  getApiHealth,
+  getStoredToken,
+  setStoredToken,
+} from "./api";
+
+var requestInterceptor;
 
 vi.mock("axios", () => {
   const instance = {
     get: vi.fn(),
+    interceptors: {
+      request: {
+        use: vi.fn((handler) => {
+          requestInterceptor = handler;
+          return 0;
+        }),
+      },
+    },
   };
 
   return {
@@ -14,6 +31,10 @@ vi.mock("axios", () => {
 });
 
 describe("api service", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
   it("consulta o healthcheck da API", async () => {
     api.get.mockResolvedValueOnce({
       data: { ok: true, version: "1.3.0" },
@@ -23,5 +44,26 @@ describe("api service", () => {
 
     expect(api.get).toHaveBeenCalledWith("/health");
     expect(result).toEqual({ ok: true, version: "1.3.0" });
+  });
+
+  it("persiste token de autenticacao no localStorage", () => {
+    setStoredToken("jwt_token");
+
+    expect(getStoredToken()).toBe("jwt_token");
+    expect(window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY)).toBe("jwt_token");
+
+    clearStoredToken();
+
+    expect(getStoredToken()).toBe("");
+  });
+
+  it("injeta header Authorization quando existe token", () => {
+    setStoredToken("jwt_token");
+
+    const nextConfig = requestInterceptor({
+      headers: {},
+    });
+
+    expect(nextConfig.headers.Authorization).toBe("Bearer jwt_token");
   });
 });
