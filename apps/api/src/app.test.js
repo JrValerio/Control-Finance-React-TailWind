@@ -255,6 +255,8 @@ describe("API auth and transactions", () => {
         type: "Entrada",
         value: 100.5,
         date: "2026-02-13",
+        description: "Freelance",
+        notes: "Projeto mensal",
       });
 
     expect(createResponse.status).toBe(201);
@@ -262,6 +264,8 @@ describe("API auth and transactions", () => {
       type: "Entrada",
       value: 100.5,
       date: "2026-02-13",
+      description: "Freelance",
+      notes: "Projeto mensal",
     });
     expect(Number.isInteger(createResponse.body.id)).toBe(true);
     expect(Number.isInteger(createResponse.body.userId)).toBe(true);
@@ -276,9 +280,67 @@ describe("API auth and transactions", () => {
       type: "Entrada",
       value: 100.5,
       date: "2026-02-13",
+      description: "Freelance",
+      notes: "Projeto mensal",
     });
     expect(listResponse.body[0].id).toBe(createResponse.body.id);
     expect(listResponse.body[0].userId).toBe(createResponse.body.userId);
+  });
+
+  it("atualiza transacao do proprio usuario", async () => {
+    const token = await registerAndLogin("update@controlfinance.dev");
+
+    const createdTransaction = await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "Entrada",
+        value: 200,
+        date: "2026-02-14",
+        description: "Salario",
+      });
+
+    const updatedTransaction = await request(app)
+      .patch(`/transactions/${createdTransaction.body.id}`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "Saida",
+        value: 180.4,
+        description: "Mercado",
+        notes: "Compra quinzenal",
+      });
+
+    expect(updatedTransaction.status).toBe(200);
+    expect(updatedTransaction.body).toMatchObject({
+      id: createdTransaction.body.id,
+      type: "Saida",
+      value: 180.4,
+      date: "2026-02-14",
+      description: "Mercado",
+      notes: "Compra quinzenal",
+    });
+  });
+
+  it("nao permite atualizar transacao de outro usuario", async () => {
+    const tokenUserA = await registerAndLogin("owner-update@controlfinance.dev");
+    const tokenUserB = await registerAndLogin("guest-update@controlfinance.dev");
+
+    const createdTransaction = await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${tokenUserA}`)
+      .send({
+        type: "Entrada",
+        value: 80,
+      });
+
+    const updateResponse = await request(app)
+      .patch(`/transactions/${createdTransaction.body.id}`)
+      .set("Authorization", `Bearer ${tokenUserB}`)
+      .send({
+        value: 99,
+      });
+
+    expect(updateResponse.status).toBe(404);
   });
 
   it("isola transacoes por usuario", async () => {
@@ -340,5 +402,61 @@ describe("API auth and transactions", () => {
       id: createdTransaction.body.id,
       success: true,
     });
+
+    const listResponse = await request(app)
+      .get("/transactions")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(listResponse.status).toBe(200);
+    expect(listResponse.body).toEqual([]);
+  });
+
+  it("restaura transacao removida por soft delete", async () => {
+    const token = await registerAndLogin("restore@controlfinance.dev");
+
+    const createdTransaction = await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "Saida",
+        value: 50,
+        description: "Internet",
+      });
+
+    const deleteResponse = await request(app)
+      .delete(`/transactions/${createdTransaction.body.id}`)
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(deleteResponse.status).toBe(200);
+
+    const listWithoutDeleted = await request(app)
+      .get("/transactions")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(listWithoutDeleted.status).toBe(200);
+    expect(listWithoutDeleted.body).toEqual([]);
+
+    const listWithDeleted = await request(app)
+      .get("/transactions?includeDeleted=true")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(listWithDeleted.status).toBe(200);
+    expect(listWithDeleted.body).toHaveLength(1);
+    expect(listWithDeleted.body[0].deletedAt).toBeTruthy();
+
+    const restoreResponse = await request(app)
+      .post(`/transactions/${createdTransaction.body.id}/restore`)
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(restoreResponse.status).toBe(200);
+    expect(restoreResponse.body.deletedAt).toBeNull();
+
+    const listAfterRestore = await request(app)
+      .get("/transactions")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(listAfterRestore.status).toBe(200);
+    expect(listAfterRestore.body).toHaveLength(1);
+    expect(listAfterRestore.body[0].id).toBe(createdTransaction.body.id);
   });
 });

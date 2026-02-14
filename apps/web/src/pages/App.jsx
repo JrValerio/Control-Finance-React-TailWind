@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PropTypes from "prop-types";
 import Modal from "../components/Modal";
 import TransactionList from "../components/TransactionList";
@@ -47,6 +47,8 @@ const normalizeTransactions = (transactions) => {
       value: Number(transaction.value),
       type: transaction.type,
       date: normalizeTransactionDate(transaction.date, fallbackDate),
+      description: typeof transaction.description === "string" ? transaction.description : "",
+      notes: typeof transaction.notes === "string" ? transaction.notes : "",
     }))
     .filter(
       (transaction) =>
@@ -62,9 +64,42 @@ const App = ({ onLogout = undefined }) => {
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
   const [isModalOpen, setModalOpen] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState(null);
+  const [pendingDeleteTransactionId, setPendingDeleteTransactionId] = useState(null);
+  const [undoState, setUndoState] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [isLoadingTransactions, setLoadingTransactions] = useState(false);
   const [requestError, setRequestError] = useState("");
+  const undoTimeoutRef = useRef(null);
+
+  const clearUndoState = useCallback(() => {
+    if (undoTimeoutRef.current) {
+      clearTimeout(undoTimeoutRef.current);
+      undoTimeoutRef.current = null;
+    }
+
+    setUndoState(null);
+  }, []);
+
+  const scheduleUndo = useCallback(
+    (transactionId) => {
+      clearUndoState();
+      setUndoState({ transactionId });
+      undoTimeoutRef.current = setTimeout(() => {
+        undoTimeoutRef.current = null;
+        setUndoState(null);
+      }, 10000);
+    },
+    [clearUndoState],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (undoTimeoutRef.current) {
+        clearTimeout(undoTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const loadTransactions = useCallback(async () => {
     setLoadingTransactions(true);
@@ -113,43 +148,121 @@ const App = ({ onLogout = undefined }) => {
     loadTransactions();
   }, [loadTransactions]);
 
-  const handleAddTransaction = async ({ value, type, date }) => {
+  const openCreateModal = () => {
+    setEditingTransaction(null);
+    setModalOpen(true);
+  };
+
+  const openEditModal = (transaction) => {
+    setEditingTransaction(transaction);
+    setModalOpen(true);
+  };
+
+  const handleSaveTransaction = async ({ value, type, date, description, notes }) => {
     setRequestError("");
 
     try {
-      const response = await transactionsService.create({
-        value,
-        type,
-        date,
-      });
+      const response = editingTransaction
+        ? await transactionsService.update(editingTransaction.id, {
+            value,
+            type,
+            date,
+            description,
+            notes,
+          })
+        : await transactionsService.create({
+            value,
+            type,
+            date,
+            description,
+            notes,
+          });
 
-      const [createdTransaction] = normalizeTransactions([response]);
-      if (createdTransaction) {
-        setTransactions((currentTransactions) => [
-          ...currentTransactions,
-          createdTransaction,
-        ]);
+      const [savedTransaction] = normalizeTransactions([response]);
+      if (savedTransaction) {
+        setTransactions((currentTransactions) => {
+          const transactionsWithoutSaved = currentTransactions.filter(
+            (transaction) => transaction.id !== savedTransaction.id,
+          );
+
+          return [...transactionsWithoutSaved, savedTransaction].sort(
+            (left, right) => left.id - right.id,
+          );
+        });
       }
 
+      setEditingTransaction(null);
       setModalOpen(false);
     } catch (error) {
       setRequestError(
-        getApiErrorMessage(error, "Nao foi possivel cadastrar a transacao."),
+        getApiErrorMessage(
+          error,
+          editingTransaction
+            ? "Nao foi possivel atualizar a transacao."
+            : "Nao foi possivel cadastrar a transacao.",
+        ),
       );
     }
   };
 
-  const deleteTransaction = async (id) => {
+  const requestDeleteTransaction = (id) => {
+    setPendingDeleteTransactionId(id);
+  };
+
+  const closeDeleteDialog = () => {
+    setPendingDeleteTransactionId(null);
+  };
+
+  const confirmDeleteTransaction = async () => {
+    if (!pendingDeleteTransactionId) {
+      return;
+    }
+
     setRequestError("");
 
     try {
-      await transactionsService.remove(id);
+      await transactionsService.remove(pendingDeleteTransactionId);
       setTransactions((currentTransactions) =>
-        currentTransactions.filter((transaction) => transaction.id !== id),
+        currentTransactions.filter(
+          (transaction) => transaction.id !== pendingDeleteTransactionId,
+        ),
       );
+      scheduleUndo(pendingDeleteTransactionId);
+      setPendingDeleteTransactionId(null);
     } catch (error) {
       setRequestError(
         getApiErrorMessage(error, "Nao foi possivel excluir a transacao."),
+      );
+    }
+  };
+
+  const restoreDeletedTransaction = async () => {
+    if (!undoState?.transactionId) {
+      return;
+    }
+
+    setRequestError("");
+
+    try {
+      const response = await transactionsService.restore(undoState.transactionId);
+      const [restoredTransaction] = normalizeTransactions([response]);
+
+      if (restoredTransaction) {
+        setTransactions((currentTransactions) => {
+          const transactionsWithoutRestored = currentTransactions.filter(
+            (transaction) => transaction.id !== restoredTransaction.id,
+          );
+
+          return [...transactionsWithoutRestored, restoredTransaction].sort(
+            (left, right) => left.id - right.id,
+          );
+        });
+      }
+
+      clearUndoState();
+    } catch (error) {
+      setRequestError(
+        getApiErrorMessage(error, "Nao foi possivel desfazer a exclusao."),
       );
     }
   };
@@ -174,7 +287,7 @@ const App = ({ onLogout = undefined }) => {
               </button>
             ) : null}
             <button
-              onClick={() => setModalOpen(true)}
+              onClick={openCreateModal}
               className="rounded bg-brand-1 px-4 py-2 font-semibold text-white hover:bg-brand-2"
             >
               Registrar novo valor
@@ -324,7 +437,7 @@ const App = ({ onLogout = undefined }) => {
           <div className="p-4 text-center">
             <p className="text-gray-100">Nenhum valor cadastrado.</p>
             <button
-              onClick={() => setModalOpen(true)}
+              onClick={openCreateModal}
               className="font-medium text-brand-1 hover:text-brand-2"
             >
               Registrar valor
@@ -337,15 +450,62 @@ const App = ({ onLogout = undefined }) => {
         ) : (
           <TransactionList
             transactions={filteredTransactions}
-            onDelete={deleteTransaction}
+            onDelete={requestDeleteTransaction}
+            onEdit={openEditModal}
           />
         )}
       </section>
 
+      {undoState ? (
+        <div className="fixed bottom-4 left-1/2 z-40 w-[calc(100%-2rem)] max-w-500 -translate-x-1/2 rounded border border-brand-1 bg-white px-4 py-3 shadow-lg">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm text-gray-100">Transacao removida.</p>
+            <button
+              type="button"
+              onClick={restoreDeletedTransaction}
+              className="rounded border border-brand-1 px-3 py-1 text-xs font-semibold text-brand-1 hover:bg-brand-3"
+            >
+              Desfazer
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {pendingDeleteTransactionId ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-100 bg-opacity-50 p-4">
+          <div className="w-full max-w-sm rounded bg-white p-4 shadow-lg">
+            <h3 className="text-base font-semibold text-gray-100">Confirmar exclusao</h3>
+            <p className="mt-2 text-sm text-gray-200">
+              Deseja realmente excluir esta transacao?
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeDeleteDialog}
+                className="rounded border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-200"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteTransaction}
+                className="rounded bg-red-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-700"
+              >
+                Confirmar exclusao
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setModalOpen(false)}
-        onSave={handleAddTransaction}
+        onClose={() => {
+          setModalOpen(false);
+          setEditingTransaction(null);
+        }}
+        onSave={handleSaveTransaction}
+        initialTransaction={editingTransaction}
       />
     </div>
   );

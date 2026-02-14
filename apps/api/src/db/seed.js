@@ -31,11 +31,11 @@ const seedTransactions = async (userId) => {
 
   await dbQuery(
     `
-      INSERT INTO transactions (user_id, type, value, date)
+      INSERT INTO transactions (user_id, type, value, date, description, notes)
       VALUES
-        ($1, 'Entrada', 3000.00, CURRENT_DATE - INTERVAL '2 day'),
-        ($1, 'Saida', 120.50, CURRENT_DATE - INTERVAL '1 day'),
-        ($1, 'Saida', 90.00, CURRENT_DATE)
+        ($1, 'Entrada', 3000.00, CURRENT_DATE - INTERVAL '2 day', 'Salario', 'Pagamento mensal'),
+        ($1, 'Saida', 120.50, CURRENT_DATE - INTERVAL '1 day', 'Mercado', 'Compra semanal'),
+        ($1, 'Saida', 90.00, CURRENT_DATE, 'Transporte', 'Combustivel')
     `,
     [userId],
   );
