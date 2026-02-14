@@ -4,6 +4,10 @@ import { newDb } from "pg-mem";
 import app from "./app.js";
 import { clearDbClientForTests, dbQuery, setDbClientForTests } from "./db/index.js";
 import { runMigrations } from "./db/migrate.js";
+import {
+  LOGIN_THROTTLE_MESSAGE,
+  resetLoginProtectionState,
+} from "./middlewares/login-protection.middleware.js";
 
 const registerAndLogin = async (email, password = "Senha123") => {
   await request(app).post("/auth/register").send({
@@ -17,6 +21,35 @@ const registerAndLogin = async (email, password = "Senha123") => {
   });
 
   return loginResponse.body.token;
+};
+
+const sleep = (durationInMs) =>
+  new Promise((resolve) => {
+    setTimeout(resolve, durationInMs);
+  });
+
+const AUTH_SECURITY_ENV_KEYS = [
+  "AUTH_BRUTE_FORCE_MAX_ATTEMPTS",
+  "AUTH_BRUTE_FORCE_WINDOW_MS",
+  "AUTH_BRUTE_FORCE_LOCK_MS",
+];
+
+const snapshotAuthSecurityEnv = () => {
+  return AUTH_SECURITY_ENV_KEYS.reduce((snapshot, key) => {
+    snapshot[key] = process.env[key];
+    return snapshot;
+  }, {});
+};
+
+const restoreAuthSecurityEnv = (snapshot) => {
+  AUTH_SECURITY_ENV_KEYS.forEach((key) => {
+    if (typeof snapshot[key] === "undefined") {
+      delete process.env[key];
+      return;
+    }
+
+    process.env[key] = snapshot[key];
+  });
 };
 
 describe("API auth and transactions", () => {
@@ -36,6 +69,7 @@ describe("API auth and transactions", () => {
   });
 
   beforeEach(async () => {
+    resetLoginProtectionState();
     await dbQuery("DELETE FROM transactions");
     await dbQuery("DELETE FROM users");
   });
@@ -92,6 +126,89 @@ describe("API auth and transactions", () => {
     expect(response.body.user.email).toBe("login@controlfinance.dev");
     expect(typeof response.body.token).toBe("string");
     expect(response.body.token.length).toBeGreaterThan(10);
+  });
+
+  it("aplica bloqueio por brute force e desbloqueia apos janela", async () => {
+    const envSnapshot = snapshotAuthSecurityEnv();
+    process.env.AUTH_BRUTE_FORCE_MAX_ATTEMPTS = "2";
+    process.env.AUTH_BRUTE_FORCE_WINDOW_MS = "150";
+    process.env.AUTH_BRUTE_FORCE_LOCK_MS = "150";
+
+    try {
+      await request(app).post("/auth/register").send({
+        email: "brute-window@controlfinance.dev",
+        password: "Senha123",
+      });
+
+      const invalidCredentials = {
+        email: "brute-window@controlfinance.dev",
+        password: "Senha999",
+      };
+
+      const firstFailure = await request(app).post("/auth/login").send(invalidCredentials);
+      const secondFailure = await request(app)
+        .post("/auth/login")
+        .send(invalidCredentials);
+      const blockedAttempt = await request(app)
+        .post("/auth/login")
+        .send(invalidCredentials);
+
+      expect(firstFailure.status).toBe(401);
+      expect(secondFailure.status).toBe(401);
+      expect(blockedAttempt.status).toBe(429);
+      expect(blockedAttempt.body.message).toBe(LOGIN_THROTTLE_MESSAGE);
+
+      await sleep(170);
+
+      const unlockedAttempt = await request(app)
+        .post("/auth/login")
+        .send(invalidCredentials);
+
+      expect(unlockedAttempt.status).toBe(401);
+    } finally {
+      restoreAuthSecurityEnv(envSnapshot);
+      resetLoginProtectionState();
+    }
+  });
+
+  it("isola bloqueio por combinacao de IP + email", async () => {
+    const envSnapshot = snapshotAuthSecurityEnv();
+    process.env.AUTH_BRUTE_FORCE_MAX_ATTEMPTS = "2";
+    process.env.AUTH_BRUTE_FORCE_WINDOW_MS = "1000";
+    process.env.AUTH_BRUTE_FORCE_LOCK_MS = "1000";
+
+    try {
+      await request(app).post("/auth/register").send({
+        email: "brute-a@controlfinance.dev",
+        password: "Senha123",
+      });
+
+      await request(app).post("/auth/register").send({
+        email: "brute-b@controlfinance.dev",
+        password: "Senha123",
+      });
+
+      const invalidForUserA = {
+        email: "brute-a@controlfinance.dev",
+        password: "Senha999",
+      };
+
+      await request(app).post("/auth/login").send(invalidForUserA);
+      await request(app).post("/auth/login").send(invalidForUserA);
+
+      const blockedUserA = await request(app).post("/auth/login").send(invalidForUserA);
+      expect(blockedUserA.status).toBe(429);
+
+      const invalidForUserB = await request(app).post("/auth/login").send({
+        email: "brute-b@controlfinance.dev",
+        password: "Senha999",
+      });
+
+      expect(invalidForUserB.status).toBe(401);
+    } finally {
+      restoreAuthSecurityEnv(envSnapshot);
+      resetLoginProtectionState();
+    }
   });
 
   it.each([
