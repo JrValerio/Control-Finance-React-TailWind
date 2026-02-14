@@ -6,7 +6,7 @@ const DEFAULT_JWT_SECRET = "control-finance-dev-secret";
 const DEFAULT_JWT_EXPIRES_IN = "24h";
 const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
 const WEAK_PASSWORD_MESSAGE =
-  "Senha fraca. Use no minimo 8 caracteres com letras e numeros.";
+  "Senha fraca: use no minimo 8 caracteres com letras e numeros.";
 
 const createError = (status, message) => {
   const error = new Error(message);

@@ -4,7 +4,7 @@ import { useAuth } from "../hooks/useAuth";
 
 const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
 const WEAK_PASSWORD_MESSAGE =
-  "Senha fraca: use no minimo 8 caracteres e inclua letras e numeros.";
+  "Senha fraca: use no minimo 8 caracteres com letras e numeros.";
 
 const isStrongPassword = (password) => {
   const normalizedPassword = password.trim();

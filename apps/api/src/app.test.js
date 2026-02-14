@@ -95,20 +95,20 @@ describe("API auth and transactions", () => {
   });
 
   it.each([
-    ["12345678", "somente numeros"],
-    ["abcdefgh", "somente letras"],
-    ["abc123", "menos de 8 caracteres"],
+    ["12345678", "somente-numeros"],
+    ["abcdefgh", "somente-letras"],
+    ["abc123", "menos-8"],
   ])(
     "POST /auth/register bloqueia senha fraca (%s - %s)",
-    async (password) => {
+    async (password, label) => {
       const response = await request(app).post("/auth/register").send({
-        email: `fraca-${password}@controlfinance.dev`,
+        email: `fraca-${label}@controlfinance.dev`,
         password,
       });
 
       expect(response.status).toBe(400);
       expect(response.body.message).toBe(
-        "Senha fraca. Use no minimo 8 caracteres com letras e numeros.",
+        "Senha fraca: use no minimo 8 caracteres com letras e numeros.",
       );
     },
   );
