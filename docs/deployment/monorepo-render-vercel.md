@@ -48,3 +48,21 @@ Se o service estiver com Root Directory no root do monorepo:
 - `GET /health` -> 200
 - `POST /auth/register` -> 201/200
 - `POST /auth/login` -> 200
+
+---
+
+## Vercel - Web (Vite/React)
+
+Settings -> General:
+- Root Directory: `apps/web`
+- Framework: `Vite`
+
+### Variavel de ambiente (Vercel Web)
+
+- `VITE_API_URL=https://<url-da-api-no-render>`
+
+### Checklist pos-deploy (Vercel)
+
+- Build finaliza sem erros
+- Web carrega normalmente
+- Login/register chamando API via `VITE_API_URL` (sem fallback para localhost)
