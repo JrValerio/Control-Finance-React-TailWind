@@ -52,7 +52,16 @@ export const transactionsService = {
   list: async (options = {}) => {
     const params = buildTransactionParams(options);
     const { data } = await api.get("/transactions", { params });
-    return data;
+
+    if (Array.isArray(data)) {
+      return data;
+    }
+
+    if (Array.isArray(data?.data)) {
+      return data.data;
+    }
+
+    return [];
   },
   create: async (payload) => {
     const { data } = await api.post("/transactions", payload);

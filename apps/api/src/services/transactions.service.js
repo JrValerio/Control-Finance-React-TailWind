@@ -4,6 +4,9 @@ const CATEGORY_ENTRY = "Entrada";
 const CATEGORY_EXIT = "Saida";
 const VALID_TYPES = new Set([CATEGORY_ENTRY, CATEGORY_EXIT]);
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+const DEFAULT_PAGE = 1;
+const DEFAULT_LIMIT = 20;
+const MAX_LIMIT = 100;
 
 const createError = (status, message) => {
   const error = new Error(message);
@@ -117,6 +120,25 @@ const normalizeOptionalSearchQuery = (value) => {
   return normalizedValue ? normalizedValue : undefined;
 };
 
+const normalizePositiveInteger = (
+  value,
+  fieldName,
+  fallbackValue,
+  maximumValue = Number.POSITIVE_INFINITY,
+) => {
+  if (typeof value === "undefined" || value === null || value === "") {
+    return fallbackValue;
+  }
+
+  const parsedValue = Number(value);
+
+  if (!Number.isInteger(parsedValue) || parsedValue <= 0) {
+    throw createError(400, `${fieldName} invalido. Informe um inteiro maior que zero.`);
+  }
+
+  return Math.min(parsedValue, maximumValue);
+};
+
 const normalizeText = (value, fieldName) => {
   if (typeof value !== "string") {
     throw createError(400, `${fieldName} invalido.`);
@@ -167,6 +189,13 @@ const normalizeListFilters = (options = {}) => {
   let from = normalizeOptionalFilterDate(options.from);
   let to = normalizeOptionalFilterDate(options.to);
   const query = normalizeOptionalSearchQuery(options.q);
+  const page = normalizePositiveInteger(options.page, "Pagina", DEFAULT_PAGE);
+  const limit = normalizePositiveInteger(
+    options.limit,
+    "Limite",
+    DEFAULT_LIMIT,
+    MAX_LIMIT,
+  );
 
   if (from && to && from > to) {
     [from, to] = [to, from];
@@ -178,11 +207,12 @@ const normalizeListFilters = (options = {}) => {
     from,
     to,
     query,
+    page,
+    limit,
   };
 };
 
-const buildListTransactionsStatement = (userId, options = {}) => {
-  const filters = normalizeListFilters(options);
+const buildListTransactionsFilters = (userId, filters) => {
   const conditions = ["user_id = $1"];
   const values = [userId];
   let parameterIndex = 2;
@@ -216,25 +246,67 @@ const buildListTransactionsStatement = (userId, options = {}) => {
   }
 
   return {
-    filters,
-    query: `
-      SELECT id, user_id, value, type, date, description, notes, deleted_at, created_at
-      FROM transactions
-      WHERE ${conditions.join("\n        AND ")}
-      ORDER BY date ASC, id ASC
-    `,
+    whereClause: conditions.join("\n        AND "),
     values,
+    parameterIndex,
   };
 };
 
-const runListTransactions = async (userId, options = {}) => {
-  const statement = buildListTransactionsStatement(userId, options);
+const runListTransactions = async (
+  userId,
+  options = {},
+  config = { paginate: true },
+) => {
+  const filters = normalizeListFilters(options);
+  const statement = buildListTransactionsFilters(userId, filters);
+  const { paginate } = config;
+  const listQuerySuffix = paginate
+    ? `
+      LIMIT $${statement.parameterIndex}
+      OFFSET $${statement.parameterIndex + 1}
+    `
+    : "";
+  const queryParams = paginate
+    ? [...statement.values, filters.limit, (filters.page - 1) * filters.limit]
+    : statement.values;
 
-  const result = await dbQuery(statement.query, statement.values);
+  const result = await dbQuery(
+    `
+      SELECT id, user_id, value, type, date, description, notes, deleted_at, created_at
+      FROM transactions
+      WHERE ${statement.whereClause}
+      ORDER BY date ASC, id ASC
+      ${listQuerySuffix}
+    `,
+    queryParams,
+  );
+  const transactions = result.rows.map(mapTransaction);
+
+  let total = transactions.length;
+
+  if (paginate) {
+    const countResult = await dbQuery(
+      `
+        SELECT COUNT(*)::int AS total
+        FROM transactions
+        WHERE ${statement.whereClause}
+      `,
+      statement.values,
+    );
+    total = Number(countResult.rows[0]?.total || 0);
+  }
+
+  const totalPages = Math.max(1, Math.ceil(total / filters.limit));
 
   return {
-    filters: statement.filters,
-    transactions: result.rows.map(mapTransaction),
+    filters,
+    transactions,
+    meta: {
+      page: filters.page,
+      limit: filters.limit,
+      total,
+      totalPages,
+    },
   };
 };
 
@@ -286,12 +358,17 @@ const buildExportFileName = (filters) => {
 };
 
 export const listTransactionsByUser = async (userId, options = {}) => {
-  const { transactions } = await runListTransactions(userId, options);
-  return transactions;
+  const { transactions, meta } = await runListTransactions(userId, options);
+  return {
+    data: transactions,
+    meta,
+  };
 };
 
 export const exportTransactionsCsvByUser = async (userId, options = {}) => {
-  const { filters, transactions } = await runListTransactions(userId, options);
+  const { filters, transactions } = await runListTransactions(userId, options, {
+    paginate: false,
+  });
   const totalsByType = getTotalsByType(transactions);
   const balance = totalsByType.entry - totalsByType.exit;
   const csvLines = [
