@@ -13,21 +13,29 @@ const router = Router();
 
 router.use(authMiddleware);
 
-const getListFiltersFromQuery = (query = {}) => {
-  return {
+const getListFiltersFromQuery = (query = {}, options = {}) => {
+  const includePagination = options.includePagination !== false;
+  const filters = {
     includeDeleted: String(query.includeDeleted || "").toLowerCase() === "true",
     type: query.type,
     from: query.from,
     to: query.to,
     q: query.q,
   };
+
+  if (includePagination) {
+    filters.page = query.page;
+    filters.limit = query.limit;
+  }
+
+  return filters;
 };
 
 router.get("/export.csv", async (req, res, next) => {
   try {
     const csvExport = await exportTransactionsCsvByUser(
       req.user.id,
-      getListFiltersFromQuery(req.query),
+      getListFiltersFromQuery(req.query, { includePagination: false }),
     );
 
     res.setHeader("Content-Type", "text/csv; charset=utf-8");

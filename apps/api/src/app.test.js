@@ -275,16 +275,59 @@ describe("API auth and transactions", () => {
       .set("Authorization", `Bearer ${token}`);
 
     expect(listResponse.status).toBe(200);
-    expect(listResponse.body).toHaveLength(1);
-    expect(listResponse.body[0]).toMatchObject({
+    expect(listResponse.body.meta).toEqual({
+      page: 1,
+      limit: 20,
+      total: 1,
+      totalPages: 1,
+    });
+    expect(listResponse.body.data).toHaveLength(1);
+    expect(listResponse.body.data[0]).toMatchObject({
       type: "Entrada",
       value: 100.5,
       date: "2026-02-13",
       description: "Freelance",
       notes: "Projeto mensal",
     });
-    expect(listResponse.body[0].id).toBe(createResponse.body.id);
-    expect(listResponse.body[0].userId).toBe(createResponse.body.userId);
+    expect(listResponse.body.data[0].id).toBe(createResponse.body.id);
+    expect(listResponse.body.data[0].userId).toBe(createResponse.body.userId);
+  });
+
+  it("pagina transacoes com meta consistente", async () => {
+    const token = await registerAndLogin("pagination@controlfinance.dev");
+
+    await Promise.all(
+      [1, 2, 3, 4, 5].map((day) =>
+        request(app)
+          .post("/transactions")
+          .set("Authorization", `Bearer ${token}`)
+          .send({
+            type: "Entrada",
+            value: day * 10,
+            date: `2026-02-0${day}`,
+            description: `Lancamento ${day}`,
+          }),
+      ),
+    );
+
+    const secondPageResponse = await request(app)
+      .get("/transactions")
+      .query({
+        page: 2,
+        limit: 2,
+      })
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(secondPageResponse.status).toBe(200);
+    expect(secondPageResponse.body.meta).toEqual({
+      page: 2,
+      limit: 2,
+      total: 5,
+      totalPages: 3,
+    });
+    expect(secondPageResponse.body.data).toHaveLength(2);
+    expect(secondPageResponse.body.data[0].description).toBe("Lancamento 3");
+    expect(secondPageResponse.body.data[1].description).toBe("Lancamento 4");
   });
 
   it("filtra transacoes por tipo, periodo e busca", async () => {
@@ -332,8 +375,14 @@ describe("API auth and transactions", () => {
       .set("Authorization", `Bearer ${token}`);
 
     expect(filteredResponse.status).toBe(200);
-    expect(filteredResponse.body).toHaveLength(1);
-    expect(filteredResponse.body[0]).toMatchObject({
+    expect(filteredResponse.body.meta).toEqual({
+      page: 1,
+      limit: 20,
+      total: 1,
+      totalPages: 1,
+    });
+    expect(filteredResponse.body.data).toHaveLength(1);
+    expect(filteredResponse.body.data[0]).toMatchObject({
       type: "Saida",
       value: 30,
       date: "2026-02-11",
@@ -462,7 +511,13 @@ describe("API auth and transactions", () => {
       .set("Authorization", `Bearer ${tokenUserB}`);
 
     expect(listUserB.status).toBe(200);
-    expect(listUserB.body).toEqual([]);
+    expect(listUserB.body.data).toEqual([]);
+    expect(listUserB.body.meta).toEqual({
+      page: 1,
+      limit: 20,
+      total: 0,
+      totalPages: 1,
+    });
   });
 
   it("nao permite deletar transacao de outro usuario", async () => {
@@ -510,7 +565,7 @@ describe("API auth and transactions", () => {
       .set("Authorization", `Bearer ${token}`);
 
     expect(listResponse.status).toBe(200);
-    expect(listResponse.body).toEqual([]);
+    expect(listResponse.body.data).toEqual([]);
   });
 
   it("restaura transacao removida por soft delete", async () => {
@@ -536,15 +591,15 @@ describe("API auth and transactions", () => {
       .set("Authorization", `Bearer ${token}`);
 
     expect(listWithoutDeleted.status).toBe(200);
-    expect(listWithoutDeleted.body).toEqual([]);
+    expect(listWithoutDeleted.body.data).toEqual([]);
 
     const listWithDeleted = await request(app)
       .get("/transactions?includeDeleted=true")
       .set("Authorization", `Bearer ${token}`);
 
     expect(listWithDeleted.status).toBe(200);
-    expect(listWithDeleted.body).toHaveLength(1);
-    expect(listWithDeleted.body[0].deletedAt).toBeTruthy();
+    expect(listWithDeleted.body.data).toHaveLength(1);
+    expect(listWithDeleted.body.data[0].deletedAt).toBeTruthy();
 
     const restoreResponse = await request(app)
       .post(`/transactions/${createdTransaction.body.id}/restore`)
@@ -558,7 +613,7 @@ describe("API auth and transactions", () => {
       .set("Authorization", `Bearer ${token}`);
 
     expect(listAfterRestore.status).toBe(200);
-    expect(listAfterRestore.body).toHaveLength(1);
-    expect(listAfterRestore.body[0].id).toBe(createdTransaction.body.id);
+    expect(listAfterRestore.body.data).toHaveLength(1);
+    expect(listAfterRestore.body.data[0].id).toBe(createdTransaction.body.id);
   });
 });

@@ -61,7 +61,8 @@ Detalhes tecnicos:
 - `POST /auth/register` cria usuario no Postgres
 - `POST /auth/login` retorna `{ token, user }`
 - `/auth/login` aplica rate limit por IP e bloqueio temporario por brute force
-- `GET /transactions` lista transacoes do usuario autenticado com filtros opcionais (`type`, `from`, `to`, `q`, `includeDeleted`)
+- `GET /transactions` lista transacoes do usuario autenticado com filtros opcionais (`type`, `from`, `to`, `q`, `includeDeleted`, `page`, `limit`)
+  - resposta paginada: `{ data, meta: { page, limit, total, totalPages } }`
 - `POST /transactions` cria transacao para o usuario autenticado
 - `PATCH /transactions/:id` atualiza transacao do usuario autenticado
 - `DELETE /transactions/:id` aplica soft delete para o usuario autenticado
