@@ -42,6 +42,8 @@ Se o service estiver com Root Directory no root do monorepo:
 - `JWT_EXPIRES_IN` (ex.: `24h`)
 - `CORS_ORIGIN` (ex.: `http://localhost:5173,https://<seu-vercel>.vercel.app`)
 - `TRUST_PROXY=1`
+- `APP_VERSION` (opcional, ex.: `v1.6.3`, exposto no `/health`)
+- `APP_COMMIT` (opcional, fallback automatico para `RENDER_GIT_COMMIT`)
 
 ### Checklist pos-deploy (Render)
 
