@@ -78,7 +78,11 @@ describe("API auth and transactions", () => {
     const response = await request(app).get("/health");
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ ok: true, version: "1.5.0" });
+    expect(response.body.ok).toBe(true);
+    expect(typeof response.body.version).toBe("string");
+    expect(response.body.version.length).toBeGreaterThan(0);
+    expect(typeof response.body.commit).toBe("string");
+    expect(response.body.commit.length).toBeGreaterThan(0);
   });
 
   it("POST /auth/register cria usuario", async () => {

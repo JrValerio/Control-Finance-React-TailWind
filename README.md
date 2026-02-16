@@ -38,6 +38,7 @@ Detalhes tecnicos:
 - Export CSV: `docs/architecture/v1.5.0-export-csv.md`
 - Web Pagination: `docs/architecture/v1.6.2-web-pagination.md`
 - Pagination UI Polish: `docs/architecture/v1.6.3-pagination-polish.md`
+- Health Build Identity: `docs/architecture/v1.6.4-health-build-identity.md`
 
 ## Funcionalidades atuais (web)
 
@@ -61,7 +62,7 @@ Detalhes tecnicos:
 
 ## API (apps/api)
 
-- `GET /health` retorna `{ ok: true, version }` com a versao atual do `apps/api/package.json`
+- `GET /health` retorna `{ ok: true, version, commit }` (build identity via `APP_VERSION`/`APP_COMMIT` com fallback seguro)
 - `POST /auth/register` cria usuario no Postgres
 - `POST /auth/login` retorna `{ token, user }`
 - `/auth/login` aplica rate limit por IP e bloqueio temporario por brute force
@@ -104,6 +105,7 @@ npm run dev
 - Em deploy com proxy (Render), use `TRUST_PROXY=1` na API
 - `CORS_ORIGIN` da API pode receber lista separada por virgula (local + dominios de deploy)
 - Hardening de login: `AUTH_RATE_LIMIT_*` e `AUTH_BRUTE_FORCE_*`
+- Build identity da API no healthcheck: `APP_VERSION`, `APP_COMMIT` (Render usa `RENDER_GIT_COMMIT` automaticamente)
 
 ## Scripts (root)
 
