@@ -30,6 +30,8 @@ const PERIOD_OPTIONS = [
 ];
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
+const PAGE_SIZE_OPTIONS = [10, 20, 50];
+const PAGE_SIZE_STORAGE_KEY = "control_finance.page_size";
 
 const getApiErrorMessage = (error, fallbackMessage) => {
   return error?.response?.data?.message || error?.message || fallbackMessage;
@@ -70,18 +72,37 @@ const downloadBlobFile = (blob, fileName) => {
   URL.revokeObjectURL(objectUrl);
 };
 
+const getInitialPageSize = () => {
+  if (typeof window === "undefined") {
+    return DEFAULT_LIMIT;
+  }
+
+  const storedPageSize = Number.parseInt(
+    window.localStorage.getItem(PAGE_SIZE_STORAGE_KEY) || "",
+    10,
+  );
+
+  if (PAGE_SIZE_OPTIONS.includes(storedPageSize)) {
+    return storedPageSize;
+  }
+
+  return DEFAULT_LIMIT;
+};
+
 const App = ({ onLogout = undefined }) => {
+  const listSectionRef = useRef(null);
   const [selectedCategory, setSelectedCategory] = useState(CATEGORY_ALL);
   const [selectedPeriod, setSelectedPeriod] = useState(PERIOD_ALL);
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
   const [currentPage, setCurrentPage] = useState(DEFAULT_PAGE);
-  const [paginationMeta, setPaginationMeta] = useState({
+  const [pageSize, setPageSize] = useState(() => getInitialPageSize());
+  const [paginationMeta, setPaginationMeta] = useState(() => ({
     page: DEFAULT_PAGE,
-    limit: DEFAULT_LIMIT,
+    limit: getInitialPageSize(),
     total: 0,
     totalPages: 1,
-  });
+  }));
   const [isModalOpen, setModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [pendingDeleteTransactionId, setPendingDeleteTransactionId] = useState(null);
@@ -137,7 +158,7 @@ const App = ({ onLogout = undefined }) => {
     try {
       const response = await transactionsService.listPage({
         page: currentPage,
-        limit: DEFAULT_LIMIT,
+        limit: pageSize,
         from: periodRange.startDate || undefined,
         to: periodRange.endDate || undefined,
         type: selectedCategory !== CATEGORY_ALL ? selectedCategory : undefined,
@@ -154,7 +175,7 @@ const App = ({ onLogout = undefined }) => {
       setTransactions([]);
       setPaginationMeta({
         page: currentPage,
-        limit: DEFAULT_LIMIT,
+        limit: pageSize,
         total: 0,
         totalPages: 1,
       });
@@ -162,7 +183,7 @@ const App = ({ onLogout = undefined }) => {
     } finally {
       setLoadingTransactions(false);
     }
-  }, [currentPage, periodRange, selectedCategory]);
+  }, [currentPage, pageSize, periodRange, selectedCategory]);
 
   useEffect(() => {
     loadTransactions();
@@ -307,16 +328,68 @@ const App = ({ onLogout = undefined }) => {
     }
   };
 
+  const scrollToListTop = () => {
+    const scrollTarget = listSectionRef.current;
+
+    if (!scrollTarget || typeof scrollTarget.scrollIntoView !== "function") {
+      return;
+    }
+
+    scrollTarget.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  };
+
+  const goToPage = (nextPage) => {
+    const clampedPage = Math.min(Math.max(nextPage, 1), paginationMeta.totalPages);
+
+    if (clampedPage === currentPage) {
+      return;
+    }
+
+    setCurrentPage(clampedPage);
+    scrollToListTop();
+  };
+
   const handlePreviousPage = () => {
-    setCurrentPage((page) => Math.max(1, page - 1));
+    goToPage(currentPage - 1);
   };
 
   const handleNextPage = () => {
-    setCurrentPage((page) => Math.min(paginationMeta.totalPages, page + 1));
+    goToPage(currentPage + 1);
+  };
+
+  const handleFirstPage = () => {
+    goToPage(1);
+  };
+
+  const handleLastPage = () => {
+    goToPage(paginationMeta.totalPages);
+  };
+
+  const handlePageSizeChange = (nextPageSize) => {
+    const parsedPageSize = Number.parseInt(nextPageSize, 10);
+
+    if (!PAGE_SIZE_OPTIONS.includes(parsedPageSize)) {
+      return;
+    }
+
+    setPageSize(parsedPageSize);
+    setCurrentPage(DEFAULT_PAGE);
+
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(PAGE_SIZE_STORAGE_KEY, String(parsedPageSize));
+    }
+
+    scrollToListTop();
   };
 
   const filterButtons = [CATEGORY_ALL, CATEGORY_ENTRY, CATEGORY_EXIT];
   const hasActiveFilters = selectedCategory !== CATEGORY_ALL || selectedPeriod !== PERIOD_ALL;
+  const rangeStart =
+    paginationMeta.total === 0 ? 0 : (paginationMeta.page - 1) * paginationMeta.limit + 1;
+  const rangeEnd = Math.min(paginationMeta.page * paginationMeta.limit, paginationMeta.total);
 
   return (
     <div className="App min-h-screen bg-white pb-10">
@@ -487,7 +560,10 @@ const App = ({ onLogout = undefined }) => {
         </Suspense>
       </section>
 
-      <section className="mx-auto mt-2 max-w-700 rounded border border-brand-1 bg-gray-500 px-4 py-3.5">
+      <section
+        ref={listSectionRef}
+        className="mx-auto mt-2 max-w-700 rounded border border-brand-1 bg-gray-500 px-4 py-3.5"
+      >
         {requestError ? (
           <div className="p-4 text-center">
             <p className="text-sm font-medium text-red-300">{requestError}</p>
@@ -499,7 +575,15 @@ const App = ({ onLogout = undefined }) => {
             </button>
           </div>
         ) : isLoadingTransactions ? (
-          <div className="p-4 text-center text-gray-100">Carregando transacoes...</div>
+          <div className="space-y-2 p-2" role="status" aria-live="polite">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div
+                key={`transactions-skeleton-${index + 1}`}
+                className="h-20 animate-pulse rounded border border-gray-300 bg-gray-400"
+              />
+            ))}
+            <span className="sr-only">Carregando transacoes...</span>
+          </div>
         ) : filteredTransactions.length === 0 ? (
           hasActiveFilters ? (
             <div className="p-4 text-center text-gray-100">
@@ -525,9 +609,41 @@ const App = ({ onLogout = undefined }) => {
         )}
 
         {!requestError && !isLoadingTransactions ? (
-          <div className="mt-2 flex items-center justify-between border-t border-gray-300 px-2 pt-3 text-sm text-gray-100">
-            <span>Total: {paginationMeta.total}</span>
-            <div className="flex items-center gap-2">
+          <div className="mt-2 border-t border-gray-300 px-2 pt-3 text-sm text-gray-100">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <span>
+                Mostrando {rangeStart}-{rangeEnd} de {paginationMeta.total}
+              </span>
+              <label className="flex items-center gap-2 text-xs font-semibold">
+                Itens por pagina
+                <select
+                  aria-label="Itens por pagina"
+                  value={pageSize}
+                  onChange={(event) => handlePageSizeChange(event.target.value)}
+                  className="rounded border border-gray-300 bg-white px-2 py-1 text-sm text-gray-100"
+                >
+                  {PAGE_SIZE_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              {paginationMeta.totalPages > 2 ? (
+                <button
+                  type="button"
+                  onClick={handleFirstPage}
+                  disabled={currentPage <= 1}
+                  className="rounded border border-gray-300 px-3 py-1 font-semibold text-gray-100 hover:bg-gray-400 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Primeira
+                </button>
+              ) : (
+                <span />
+              )}
+              <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={handlePreviousPage}
@@ -547,6 +663,19 @@ const App = ({ onLogout = undefined }) => {
               >
                 Proxima
               </button>
+              </div>
+              {paginationMeta.totalPages > 2 ? (
+                <button
+                  type="button"
+                  onClick={handleLastPage}
+                  disabled={currentPage >= paginationMeta.totalPages}
+                  className="rounded border border-gray-300 px-3 py-1 font-semibold text-gray-100 hover:bg-gray-400 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Ultima
+                </button>
+              ) : (
+                <span />
+              )}
             </div>
           </div>
         ) : null}

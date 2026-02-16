@@ -33,7 +33,8 @@ const buildPageResponse = (transactions = [], meta = {}) => ({
 
 describe("App", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
+    window.localStorage.clear();
     transactionsService.listPage.mockResolvedValue(buildPageResponse());
     transactionsService.update.mockResolvedValue({});
     transactionsService.restore.mockResolvedValue({});
@@ -55,7 +56,7 @@ describe("App", () => {
 
     expect(await screen.findByText("Freela")).toBeInTheDocument();
     expect(screen.getByText("Pagina 1 de 3")).toBeInTheDocument();
-    expect(screen.getByText("Total: 45")).toBeInTheDocument();
+    expect(screen.getByText("Mostrando 1-20 de 45")).toBeInTheDocument();
     expect(transactionsService.listPage).toHaveBeenCalledWith({
       page: 1,
       limit: 20,
@@ -97,6 +98,83 @@ describe("App", () => {
     expect(screen.getByText("Pagina 2 de 2")).toBeInTheDocument();
     expect(transactionsService.listPage).toHaveBeenNthCalledWith(2, {
       page: 2,
+      limit: 20,
+      from: undefined,
+      to: undefined,
+      type: undefined,
+    });
+  });
+
+  it("permite alterar itens por pagina e reseta para pagina 1", async () => {
+    const user = userEvent.setup();
+    transactionsService.listPage
+      .mockResolvedValueOnce(
+        buildPageResponse(
+          [{ id: 1, value: 100, type: CATEGORY_ENTRY, date: "2026-02-13", description: "P1" }],
+          { page: 1, limit: 20, total: 35, totalPages: 2 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        buildPageResponse(
+          [{ id: 2, value: 90, type: CATEGORY_ENTRY, date: "2026-02-14", description: "P2" }],
+          { page: 2, limit: 20, total: 35, totalPages: 2 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        buildPageResponse(
+          [{ id: 3, value: 80, type: CATEGORY_ENTRY, date: "2026-02-15", description: "P1-L10" }],
+          { page: 1, limit: 10, total: 35, totalPages: 4 },
+        ),
+      );
+
+    render(<App />);
+
+    expect(await screen.findByText("P1")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Proxima" }));
+    expect(await screen.findByText("P2")).toBeInTheDocument();
+    expect(screen.getByText("Pagina 2 de 2")).toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText("Itens por pagina"), "10");
+
+    expect(await screen.findByText("P1-L10")).toBeInTheDocument();
+    expect(screen.getByText("Pagina 1 de 4")).toBeInTheDocument();
+    expect(screen.getByText("Mostrando 1-10 de 35")).toBeInTheDocument();
+    expect(transactionsService.listPage).toHaveBeenLastCalledWith({
+      page: 1,
+      limit: 10,
+      from: undefined,
+      to: undefined,
+      type: undefined,
+    });
+  });
+
+  it("permite navegar para a ultima pagina", async () => {
+    const user = userEvent.setup();
+    transactionsService.listPage
+      .mockResolvedValueOnce(
+        buildPageResponse(
+          [{ id: 1, value: 100, type: CATEGORY_ENTRY, date: "2026-02-13", description: "Pagina inicial" }],
+          { page: 1, limit: 20, total: 61, totalPages: 4 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        buildPageResponse(
+          [{ id: 4, value: 50, type: CATEGORY_EXIT, date: "2026-02-16", description: "Pagina final" }],
+          { page: 4, limit: 20, total: 61, totalPages: 4 },
+        ),
+      );
+
+    render(<App />);
+
+    expect(await screen.findByText("Pagina inicial")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ultima" })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "Ultima" }));
+
+    expect(await screen.findByText("Pagina final")).toBeInTheDocument();
+    expect(screen.getByText("Pagina 4 de 4")).toBeInTheDocument();
+    expect(screen.getByText("Mostrando 61-61 de 61")).toBeInTheDocument();
+    expect(transactionsService.listPage).toHaveBeenNthCalledWith(2, {
+      page: 4,
       limit: 20,
       from: undefined,
       to: undefined,

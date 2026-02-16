@@ -37,6 +37,7 @@ Detalhes tecnicos:
 - Transactions CRUD+: `docs/architecture/v1.4.3-transactions-crud-plus.md`
 - Export CSV: `docs/architecture/v1.5.0-export-csv.md`
 - Web Pagination: `docs/architecture/v1.6.2-web-pagination.md`
+- Pagination UI Polish: `docs/architecture/v1.6.3-pagination-polish.md`
 
 ## Funcionalidades atuais (web)
 
@@ -56,6 +57,7 @@ Detalhes tecnicos:
 - Exclusao com confirmacao e desfazer (undo real)
 - Exportacao CSV com filtros ativos (categoria + periodo) e totais consolidados
 - Listagem paginada com `Anterior/Proxima` e indicador de pagina
+- Faixa de pagina (`Mostrando X-Y de N`) e seletor de itens por pagina
 
 ## API (apps/api)
 
