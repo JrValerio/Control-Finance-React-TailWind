@@ -40,6 +40,7 @@ Detalhes tecnicos:
 - Pagination UI Polish: `docs/architecture/v1.6.3-pagination-polish.md`
 - Health Build Identity: `docs/architecture/v1.6.4-health-build-identity.md`
 - Web TypeScript Thin Slice: `docs/architecture/v1.6.5-web-typescript-thin-slice.md`
+- Web TypeScript Services + Routes: `docs/architecture/v1.6.6-web-typescript-services-and-routes.md`
 
 ## Funcionalidades atuais (web)
 
@@ -61,6 +62,7 @@ Detalhes tecnicos:
 - Listagem paginada com `Anterior/Proxima` e indicador de pagina
 - Faixa de pagina (`Mostrando X-Y de N`) e seletor de itens por pagina
 - Base TypeScript inicial no `apps/web` com service de transacoes tipado
+- Camada `api` e entrypoints de rotas/web migrados para TypeScript
 
 ## API (apps/api)
 
