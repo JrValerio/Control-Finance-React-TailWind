@@ -39,6 +39,7 @@ Detalhes tecnicos:
 - Web Pagination: `docs/architecture/v1.6.2-web-pagination.md`
 - Pagination UI Polish: `docs/architecture/v1.6.3-pagination-polish.md`
 - Health Build Identity: `docs/architecture/v1.6.4-health-build-identity.md`
+- Web TypeScript Thin Slice: `docs/architecture/v1.6.5-web-typescript-thin-slice.md`
 
 ## Funcionalidades atuais (web)
 
@@ -59,6 +60,7 @@ Detalhes tecnicos:
 - Exportacao CSV com filtros ativos (categoria + periodo) e totais consolidados
 - Listagem paginada com `Anterior/Proxima` e indicador de pagina
 - Faixa de pagina (`Mostrando X-Y de N`) e seletor de itens por pagina
+- Base TypeScript inicial no `apps/web` com service de transacoes tipado
 
 ## API (apps/api)
 
@@ -111,6 +113,7 @@ npm run dev
 
 - `npm run dev` inicia `apps/web` e `apps/api`
 - `npm run lint` roda lint nos dois apps
+- `npm run typecheck` valida tipos no `apps/web`
 - `npm run test` roda testes dos dois apps
 - `npm run build` builda web e valida build da api
 - `npm run preview` sobe preview do web
@@ -119,6 +122,7 @@ npm run dev
 
 - `npm -w apps/api run db:migrate` aplica migrations do Postgres
 - `npm -w apps/api run db:seed` executa seed minima (usuario demo + transacoes)
+- `npm -w apps/web run typecheck` valida tipos do frontend
 
 ## Qualidade
 
