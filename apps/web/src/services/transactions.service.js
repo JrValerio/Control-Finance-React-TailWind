@@ -23,6 +23,14 @@ const buildTransactionParams = (options = {}) => {
     params.q = options.q.trim();
   }
 
+  if (Number.isInteger(options.page) && options.page > 0) {
+    params.page = String(options.page);
+  }
+
+  if (Number.isInteger(options.limit) && options.limit > 0) {
+    params.limit = String(options.limit);
+  }
+
   return params;
 };
 
@@ -49,19 +57,23 @@ const resolveCsvFilename = (contentDispositionHeader) => {
 };
 
 export const transactionsService = {
-  list: async (options = {}) => {
+  listPage: async (options = {}) => {
     const params = buildTransactionParams(options);
     const { data } = await api.get("/transactions", { params });
+    const page = Number(data?.meta?.page);
+    const limit = Number(data?.meta?.limit);
+    const total = Number(data?.meta?.total);
+    const totalPages = Number(data?.meta?.totalPages);
 
-    if (Array.isArray(data)) {
-      return data;
-    }
-
-    if (Array.isArray(data?.data)) {
-      return data.data;
-    }
-
-    return [];
+    return {
+      data: Array.isArray(data?.data) ? data.data : [],
+      meta: {
+        page: Number.isInteger(page) && page > 0 ? page : 1,
+        limit: Number.isInteger(limit) && limit > 0 ? limit : 20,
+        total: Number.isInteger(total) && total >= 0 ? total : 0,
+        totalPages: Number.isInteger(totalPages) && totalPages > 0 ? totalPages : 1,
+      },
+    };
   },
   create: async (payload) => {
     const { data } = await api.post("/transactions", payload);
