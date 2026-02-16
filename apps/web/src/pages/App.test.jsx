@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import App from "./App";
-import { CATEGORY_ENTRY, CATEGORY_EXIT, getTodayISODate } from "../components/DatabaseUtils";
+import { CATEGORY_ENTRY, CATEGORY_EXIT } from "../components/DatabaseUtils";
 import { transactionsService } from "../services/transactions.service";
 
 vi.mock("../components/TransactionChart", () => ({
@@ -11,7 +11,7 @@ vi.mock("../components/TransactionChart", () => ({
 
 vi.mock("../services/transactions.service", () => ({
   transactionsService: {
-    list: vi.fn(),
+    listPage: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
     remove: vi.fn(),
@@ -20,20 +20,21 @@ vi.mock("../services/transactions.service", () => ({
   },
 }));
 
-const getDateWithOffset = (offsetDays) => {
-  const date = new Date();
-  date.setDate(date.getDate() + offsetDays);
-
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
+const buildPageResponse = (transactions = [], meta = {}) => ({
+  data: transactions,
+  meta: {
+    page: 1,
+    limit: 20,
+    total: transactions.length,
+    totalPages: 1,
+    ...meta,
+  },
+});
 
 describe("App", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    transactionsService.list.mockResolvedValue([]);
+    transactionsService.listPage.mockResolvedValue(buildPageResponse());
     transactionsService.update.mockResolvedValue({});
     transactionsService.restore.mockResolvedValue({});
     transactionsService.exportCsv.mockResolvedValue({
@@ -42,33 +43,141 @@ describe("App", () => {
     });
   });
 
-  it("carrega transacoes da API ao iniciar", async () => {
-    transactionsService.list.mockResolvedValueOnce([
-      { id: 1, value: 45, type: CATEGORY_ENTRY, date: "2026-02-13" },
-    ]);
+  it("carrega transacoes paginadas da API ao iniciar", async () => {
+    transactionsService.listPage.mockResolvedValueOnce(
+      buildPageResponse(
+        [{ id: 1, value: 45, type: CATEGORY_ENTRY, date: "2026-02-13", description: "Freela" }],
+        { page: 1, total: 45, totalPages: 3 },
+      ),
+    );
 
     render(<App />);
 
-    expect(await screen.findAllByText("R$ 45.00")).toHaveLength(3);
-    expect(transactionsService.list).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText("Freela")).toBeInTheDocument();
+    expect(screen.getByText("Pagina 1 de 3")).toBeInTheDocument();
+    expect(screen.getByText("Total: 45")).toBeInTheDocument();
+    expect(transactionsService.listPage).toHaveBeenCalledWith({
+      page: 1,
+      limit: 20,
+      from: undefined,
+      to: undefined,
+      type: undefined,
+    });
+  });
+
+  it("navega para a proxima pagina", async () => {
+    const user = userEvent.setup();
+    transactionsService.listPage
+      .mockResolvedValueOnce(
+        buildPageResponse(
+          [{ id: 1, value: 100, type: CATEGORY_ENTRY, date: "2026-02-13", description: "Pagina 1" }],
+          { page: 1, total: 2, totalPages: 2 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        buildPageResponse(
+          [{ id: 2, value: 70, type: CATEGORY_EXIT, date: "2026-02-14", description: "Pagina 2" }],
+          { page: 2, total: 2, totalPages: 2 },
+        ),
+      );
+
+    render(<App />);
+
+    expect(await screen.findByText("Pagina 1")).toBeInTheDocument();
+
+    const previousButton = screen.getByRole("button", { name: "Anterior" });
+    const nextButton = screen.getByRole("button", { name: "Proxima" });
+
+    expect(previousButton).toBeDisabled();
+    expect(nextButton).toBeEnabled();
+
+    await user.click(nextButton);
+
+    expect(await screen.findByText("Pagina 2")).toBeInTheDocument();
+    expect(screen.getByText("Pagina 2 de 2")).toBeInTheDocument();
+    expect(transactionsService.listPage).toHaveBeenNthCalledWith(2, {
+      page: 2,
+      limit: 20,
+      from: undefined,
+      to: undefined,
+      type: undefined,
+    });
+  });
+
+  it("reseta para pagina 1 ao trocar filtro", async () => {
+    const user = userEvent.setup();
+    transactionsService.listPage
+      .mockResolvedValueOnce(
+        buildPageResponse(
+          [{ id: 1, value: 100, type: CATEGORY_ENTRY, date: "2026-02-13", description: "Entrada p1" }],
+          { page: 1, total: 2, totalPages: 2 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        buildPageResponse(
+          [{ id: 2, value: 80, type: CATEGORY_EXIT, date: "2026-02-13", description: "Saida p2" }],
+          { page: 2, total: 2, totalPages: 2 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        buildPageResponse(
+          [{ id: 3, value: 60, type: CATEGORY_ENTRY, date: "2026-02-13", description: "Entrada filtrada" }],
+          { page: 1, total: 1, totalPages: 1 },
+        ),
+      );
+
+    render(<App />);
+
+    expect(await screen.findByText("Entrada p1")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Proxima" }));
+    expect(await screen.findByText("Saida p2")).toBeInTheDocument();
+    expect(screen.getByText("Pagina 2 de 2")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: CATEGORY_ENTRY }));
+
+    expect(await screen.findByText("Entrada filtrada")).toBeInTheDocument();
+    expect(screen.getByText("Pagina 1 de 1")).toBeInTheDocument();
+    expect(transactionsService.listPage).toHaveBeenLastCalledWith({
+      page: 1,
+      limit: 20,
+      from: undefined,
+      to: undefined,
+      type: CATEGORY_ENTRY,
+    });
   });
 
   it("adiciona transacao via API", async () => {
     const user = userEvent.setup();
+    transactionsService.listPage
+      .mockResolvedValueOnce(buildPageResponse())
+      .mockResolvedValueOnce(
+        buildPageResponse([
+          {
+            id: 1,
+            value: 100.5,
+            type: CATEGORY_ENTRY,
+            date: "2026-02-13",
+            description: "Extra",
+            notes: "",
+          },
+        ]),
+      );
     transactionsService.create.mockResolvedValueOnce({
       id: 1,
       value: 100.5,
       type: CATEGORY_ENTRY,
       date: "2026-02-13",
+      description: "Extra",
+      notes: "",
     });
 
     render(<App />);
 
     await screen.findByText("Nenhum valor cadastrado.");
-    await user.click(
-      screen.getByRole("button", { name: "Registrar novo valor" }),
-    );
+    await user.click(screen.getByRole("button", { name: "Registrar novo valor" }));
     await user.type(screen.getByLabelText("Valor"), "100,50");
+    await user.type(screen.getByLabelText("Descricao"), "Extra");
     fireEvent.change(screen.getByLabelText("Data"), {
       target: { value: "2026-02-13" },
     });
@@ -78,82 +187,40 @@ describe("App", () => {
       value: 100.5,
       type: CATEGORY_ENTRY,
       date: "2026-02-13",
-      description: "",
+      description: "Extra",
       notes: "",
     });
-
-    expect(await screen.findAllByText("R$ 100.50")).toHaveLength(3);
-    expect(screen.getByText("13/02/2026")).toBeInTheDocument();
-  });
-
-  it("filtra por categoria e periodo com dados da API", async () => {
-    const user = userEvent.setup();
-    const today = getTodayISODate();
-    const oldDate = getDateWithOffset(-20);
-
-    transactionsService.list.mockResolvedValueOnce([
-      { id: 1, value: 100, type: CATEGORY_ENTRY, date: today },
-      { id: 2, value: 40, type: CATEGORY_EXIT, date: today },
-      { id: 3, value: 30, type: CATEGORY_ENTRY, date: oldDate },
-    ]);
-
-    render(<App />);
-
-    await screen.findAllByText("R$ 100.00");
-    await user.selectOptions(screen.getByLabelText("Periodo"), "Hoje");
-    await user.click(screen.getByRole("button", { name: CATEGORY_EXIT }));
-
-    expect(screen.getAllByText("R$ 40.00")).toHaveLength(2);
-    expect(screen.queryByText("R$ 30.00")).not.toBeInTheDocument();
-
-    await user.selectOptions(screen.getByLabelText("Periodo"), "Personalizado");
-
-    fireEvent.change(screen.getByLabelText("Data inicial"), {
-      target: { value: oldDate },
-    });
-    fireEvent.change(screen.getByLabelText("Data final"), {
-      target: { value: oldDate },
-    });
-    await user.click(screen.getByRole("button", { name: CATEGORY_ENTRY }));
-
-    expect(screen.getAllByText("R$ 30.00")).toHaveLength(3);
-  });
-
-  it("remove transacao via API", async () => {
-    const user = userEvent.setup();
-    transactionsService.list.mockResolvedValueOnce([
-      { id: 1, value: 30, type: CATEGORY_ENTRY, date: "2026-02-12" },
-    ]);
-    transactionsService.remove.mockResolvedValueOnce({ id: 1, success: true });
-
-    render(<App />);
-
-    await screen.findAllByText("R$ 30.00");
-    await user.click(
-      screen.getByRole("button", { name: /Excluir transacao 1/i }),
-    );
-    await user.click(screen.getByRole("button", { name: "Confirmar exclusao" }));
-
-    await waitFor(() => {
-      expect(transactionsService.remove).toHaveBeenCalledWith(1);
-    });
-    expect(
-      await screen.findByText("Nenhum valor cadastrado."),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("Extra")).toBeInTheDocument();
+    expect(transactionsService.listPage).toHaveBeenCalledTimes(2);
   });
 
   it("edita transacao via API", async () => {
     const user = userEvent.setup();
-    transactionsService.list.mockResolvedValueOnce([
-      {
-        id: 1,
-        value: 150,
-        type: CATEGORY_ENTRY,
-        date: "2026-02-12",
-        description: "Salario",
-        notes: "",
-      },
-    ]);
+    transactionsService.listPage
+      .mockResolvedValueOnce(
+        buildPageResponse([
+          {
+            id: 1,
+            value: 150,
+            type: CATEGORY_ENTRY,
+            date: "2026-02-12",
+            description: "Salario",
+            notes: "",
+          },
+        ]),
+      )
+      .mockResolvedValueOnce(
+        buildPageResponse([
+          {
+            id: 1,
+            value: 120.5,
+            type: CATEGORY_EXIT,
+            date: "2026-02-12",
+            description: "Mercado",
+            notes: "Compra do mes",
+          },
+        ]),
+      );
     transactionsService.update.mockResolvedValueOnce({
       id: 1,
       value: 120.5,
@@ -167,12 +234,12 @@ describe("App", () => {
 
     await screen.findByText("Salario");
     await user.click(screen.getByRole("button", { name: /Editar transacao 1/i }));
-    const modalForm = screen
-      .getByRole("button", { name: "Salvar alteracoes" })
-      .closest("form");
+    const modalForm = screen.getByRole("button", { name: "Salvar alteracoes" }).closest("form");
+
     if (!modalForm) {
       throw new Error("Formulario de edicao nao encontrado.");
     }
+
     const modalQueries = within(modalForm);
 
     await user.clear(modalQueries.getByLabelText("Valor"));
@@ -194,22 +261,37 @@ describe("App", () => {
       });
     });
 
-    expect(await screen.findAllByText("R$ 120.50")).toHaveLength(2);
-    expect(screen.getByText("Mercado")).toBeInTheDocument();
+    expect(await screen.findByText("Mercado")).toBeInTheDocument();
     expect(screen.getByText("Compra do mes")).toBeInTheDocument();
   });
 
   it("remove e restaura transacao com desfazer", async () => {
     const user = userEvent.setup();
-    transactionsService.list.mockResolvedValueOnce([
-      {
-        id: 1,
-        value: 45,
-        type: CATEGORY_ENTRY,
-        date: "2026-02-12",
-        description: "Freela",
-      },
-    ]);
+    transactionsService.listPage
+      .mockResolvedValueOnce(
+        buildPageResponse([
+          {
+            id: 1,
+            value: 45,
+            type: CATEGORY_ENTRY,
+            date: "2026-02-12",
+            description: "Freela",
+          },
+        ]),
+      )
+      .mockResolvedValueOnce(buildPageResponse())
+      .mockResolvedValueOnce(
+        buildPageResponse([
+          {
+            id: 1,
+            value: 45,
+            type: CATEGORY_ENTRY,
+            date: "2026-02-12",
+            description: "Freela",
+            notes: "",
+          },
+        ]),
+      );
     transactionsService.remove.mockResolvedValueOnce({ id: 1, success: true });
     transactionsService.restore.mockResolvedValueOnce({
       id: 1,
@@ -254,10 +336,9 @@ describe("App", () => {
     URL.revokeObjectURL = revokeObjectURLMock;
 
     try {
-      transactionsService.list.mockResolvedValueOnce([
-        { id: 1, value: 100, type: CATEGORY_ENTRY, date: "2026-02-10" },
-        { id: 2, value: 50, type: CATEGORY_EXIT, date: "2026-02-12" },
-      ]);
+      transactionsService.listPage
+        .mockResolvedValueOnce(buildPageResponse())
+        .mockResolvedValue(buildPageResponse());
 
       render(<App />);
 

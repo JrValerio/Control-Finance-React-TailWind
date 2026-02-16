@@ -13,8 +13,6 @@ import {
   PERIOD_LAST_7_DAYS,
   PERIOD_TODAY,
   calculateBalance,
-  filterByCategory,
-  filterByPeriod,
   getTodayISODate,
   getTotalsByType,
   normalizeTransactionDate,
@@ -30,6 +28,8 @@ const PERIOD_OPTIONS = [
   PERIOD_LAST_30_DAYS,
   PERIOD_CUSTOM,
 ];
+const DEFAULT_PAGE = 1;
+const DEFAULT_LIMIT = 20;
 
 const getApiErrorMessage = (error, fallbackMessage) => {
   return error?.response?.data?.message || error?.message || fallbackMessage;
@@ -75,6 +75,13 @@ const App = ({ onLogout = undefined }) => {
   const [selectedPeriod, setSelectedPeriod] = useState(PERIOD_ALL);
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
+  const [currentPage, setCurrentPage] = useState(DEFAULT_PAGE);
+  const [paginationMeta, setPaginationMeta] = useState({
+    page: DEFAULT_PAGE,
+    limit: DEFAULT_LIMIT,
+    total: 0,
+    totalPages: 1,
+  });
   const [isModalOpen, setModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [pendingDeleteTransactionId, setPendingDeleteTransactionId] = useState(null);
@@ -84,6 +91,15 @@ const App = ({ onLogout = undefined }) => {
   const [isExportingCsv, setExportingCsv] = useState(false);
   const [requestError, setRequestError] = useState("");
   const undoTimeoutRef = useRef(null);
+
+  const periodRange = useMemo(
+    () =>
+      resolvePeriodRange(selectedPeriod, {
+        startDate: customStartDate,
+        endDate: customEndDate,
+      }),
+    [selectedPeriod, customStartDate, customEndDate],
+  );
 
   const clearUndoState = useCallback(() => {
     if (undoTimeoutRef.current) {
@@ -119,36 +135,56 @@ const App = ({ onLogout = undefined }) => {
     setRequestError("");
 
     try {
-      const response = await transactionsService.list();
-      setTransactions(normalizeTransactions(response));
+      const response = await transactionsService.listPage({
+        page: currentPage,
+        limit: DEFAULT_LIMIT,
+        from: periodRange.startDate || undefined,
+        to: periodRange.endDate || undefined,
+        type: selectedCategory !== CATEGORY_ALL ? selectedCategory : undefined,
+      });
+
+      setTransactions(normalizeTransactions(response.data));
+      setPaginationMeta({
+        page: response.meta.page,
+        limit: response.meta.limit,
+        total: response.meta.total,
+        totalPages: response.meta.totalPages,
+      });
     } catch (error) {
       setTransactions([]);
-      setRequestError(
-        getApiErrorMessage(error, "Nao foi possivel carregar as transacoes."),
-      );
+      setPaginationMeta({
+        page: currentPage,
+        limit: DEFAULT_LIMIT,
+        total: 0,
+        totalPages: 1,
+      });
+      setRequestError(getApiErrorMessage(error, "Nao foi possivel carregar as transacoes."));
     } finally {
       setLoadingTransactions(false);
     }
-  }, []);
+  }, [currentPage, periodRange, selectedCategory]);
 
-  const periodFilteredTransactions = useMemo(() => {
-    return filterByPeriod(transactions, selectedPeriod, {
-      startDate: customStartDate,
-      endDate: customEndDate,
-    });
-  }, [transactions, selectedPeriod, customStartDate, customEndDate]);
+  useEffect(() => {
+    loadTransactions();
+  }, [loadTransactions]);
+
+  useEffect(() => {
+    if (currentPage > paginationMeta.totalPages) {
+      setCurrentPage(paginationMeta.totalPages);
+    }
+  }, [currentPage, paginationMeta.totalPages]);
 
   const filteredTransactions = useMemo(() => {
-    return filterByCategory(periodFilteredTransactions, selectedCategory);
-  }, [periodFilteredTransactions, selectedCategory]);
+    return transactions;
+  }, [transactions]);
 
   const balance = useMemo(() => {
     return calculateBalance(filteredTransactions);
   }, [filteredTransactions]);
 
   const totalsByType = useMemo(() => {
-    return getTotalsByType(periodFilteredTransactions);
-  }, [periodFilteredTransactions]);
+    return getTotalsByType(filteredTransactions);
+  }, [filteredTransactions]);
 
   const chartData = useMemo(() => {
     return [
@@ -156,10 +192,6 @@ const App = ({ onLogout = undefined }) => {
       { name: "Saidas", total: totalsByType.exit },
     ];
   }, [totalsByType]);
-
-  useEffect(() => {
-    loadTransactions();
-  }, [loadTransactions]);
 
   const openCreateModal = () => {
     setEditingTransaction(null);
@@ -175,37 +207,27 @@ const App = ({ onLogout = undefined }) => {
     setRequestError("");
 
     try {
-      const response = editingTransaction
-        ? await transactionsService.update(editingTransaction.id, {
-            value,
-            type,
-            date,
-            description,
-            notes,
-          })
-        : await transactionsService.create({
-            value,
-            type,
-            date,
-            description,
-            notes,
-          });
-
-      const [savedTransaction] = normalizeTransactions([response]);
-      if (savedTransaction) {
-        setTransactions((currentTransactions) => {
-          const transactionsWithoutSaved = currentTransactions.filter(
-            (transaction) => transaction.id !== savedTransaction.id,
-          );
-
-          return [...transactionsWithoutSaved, savedTransaction].sort(
-            (left, right) => left.id - right.id,
-          );
+      if (editingTransaction) {
+        await transactionsService.update(editingTransaction.id, {
+          value,
+          type,
+          date,
+          description,
+          notes,
+        });
+      } else {
+        await transactionsService.create({
+          value,
+          type,
+          date,
+          description,
+          notes,
         });
       }
 
       setEditingTransaction(null);
       setModalOpen(false);
+      await loadTransactions();
     } catch (error) {
       setRequestError(
         getApiErrorMessage(
@@ -235,17 +257,11 @@ const App = ({ onLogout = undefined }) => {
 
     try {
       await transactionsService.remove(pendingDeleteTransactionId);
-      setTransactions((currentTransactions) =>
-        currentTransactions.filter(
-          (transaction) => transaction.id !== pendingDeleteTransactionId,
-        ),
-      );
       scheduleUndo(pendingDeleteTransactionId);
       setPendingDeleteTransactionId(null);
+      await loadTransactions();
     } catch (error) {
-      setRequestError(
-        getApiErrorMessage(error, "Nao foi possivel excluir a transacao."),
-      );
+      setRequestError(getApiErrorMessage(error, "Nao foi possivel excluir a transacao."));
     }
   };
 
@@ -257,26 +273,11 @@ const App = ({ onLogout = undefined }) => {
     setRequestError("");
 
     try {
-      const response = await transactionsService.restore(undoState.transactionId);
-      const [restoredTransaction] = normalizeTransactions([response]);
-
-      if (restoredTransaction) {
-        setTransactions((currentTransactions) => {
-          const transactionsWithoutRestored = currentTransactions.filter(
-            (transaction) => transaction.id !== restoredTransaction.id,
-          );
-
-          return [...transactionsWithoutRestored, restoredTransaction].sort(
-            (left, right) => left.id - right.id,
-          );
-        });
-      }
-
+      await transactionsService.restore(undoState.transactionId);
       clearUndoState();
+      await loadTransactions();
     } catch (error) {
-      setRequestError(
-        getApiErrorMessage(error, "Nao foi possivel desfazer a exclusao."),
-      );
+      setRequestError(getApiErrorMessage(error, "Nao foi possivel desfazer a exclusao."));
     }
   };
 
@@ -284,15 +285,10 @@ const App = ({ onLogout = undefined }) => {
     setRequestError("");
     setExportingCsv(true);
 
-    const periodRange = resolvePeriodRange(selectedPeriod, {
-      startDate: customStartDate,
-      endDate: customEndDate,
-    });
     const exportFilters = {
       from: periodRange.startDate || undefined,
       to: periodRange.endDate || undefined,
-      type:
-        selectedCategory !== CATEGORY_ALL ? selectedCategory : undefined,
+      type: selectedCategory !== CATEGORY_ALL ? selectedCategory : undefined,
     };
 
     try {
@@ -305,15 +301,22 @@ const App = ({ onLogout = undefined }) => {
 
       downloadBlobFile(csvBlob, exportResponse.fileName || fallbackFileName);
     } catch (error) {
-      setRequestError(
-        getApiErrorMessage(error, "Nao foi possivel exportar o CSV."),
-      );
+      setRequestError(getApiErrorMessage(error, "Nao foi possivel exportar o CSV."));
     } finally {
       setExportingCsv(false);
     }
   };
 
+  const handlePreviousPage = () => {
+    setCurrentPage((page) => Math.max(1, page - 1));
+  };
+
+  const handleNextPage = () => {
+    setCurrentPage((page) => Math.min(paginationMeta.totalPages, page + 1));
+  };
+
   const filterButtons = [CATEGORY_ALL, CATEGORY_ENTRY, CATEGORY_EXIT];
+  const hasActiveFilters = selectedCategory !== CATEGORY_ALL || selectedPeriod !== PERIOD_ALL;
 
   return (
     <div className="App min-h-screen bg-white pb-10">
@@ -361,7 +364,10 @@ const App = ({ onLogout = undefined }) => {
                 return (
                   <button
                     key={category}
-                    onClick={() => setSelectedCategory(category)}
+                    onClick={() => {
+                      setSelectedCategory(category);
+                      setCurrentPage(DEFAULT_PAGE);
+                    }}
                     className={`flex items-center justify-center gap-2.5 rounded border px-4 py-2 text-sm font-semibold transition-colors ${
                       active
                         ? "border-brand-1 bg-brand-3 text-brand-1"
@@ -388,6 +394,7 @@ const App = ({ onLogout = undefined }) => {
               onChange={(event) => {
                 const nextPeriod = event.target.value;
                 setSelectedPeriod(nextPeriod);
+                setCurrentPage(DEFAULT_PAGE);
 
                 if (nextPeriod !== PERIOD_CUSTOM) {
                   setCustomStartDate("");
@@ -416,7 +423,10 @@ const App = ({ onLogout = undefined }) => {
                     id="data-inicial"
                     type="date"
                     value={customStartDate}
-                    onChange={(event) => setCustomStartDate(event.target.value)}
+                    onChange={(event) => {
+                      setCustomStartDate(event.target.value);
+                      setCurrentPage(DEFAULT_PAGE);
+                    }}
                     className="w-full rounded border border-gray-400 px-3 py-2 text-sm text-gray-200"
                   />
                 </div>
@@ -431,7 +441,10 @@ const App = ({ onLogout = undefined }) => {
                     id="data-final"
                     type="date"
                     value={customEndDate}
-                    onChange={(event) => setCustomEndDate(event.target.value)}
+                    onChange={(event) => {
+                      setCustomEndDate(event.target.value);
+                      setCurrentPage(DEFAULT_PAGE);
+                    }}
                     className="w-full rounded border border-gray-400 px-3 py-2 text-sm text-gray-200"
                   />
                 </div>
@@ -487,20 +500,22 @@ const App = ({ onLogout = undefined }) => {
           </div>
         ) : isLoadingTransactions ? (
           <div className="p-4 text-center text-gray-100">Carregando transacoes...</div>
-        ) : transactions.length === 0 ? (
-          <div className="p-4 text-center">
-            <p className="text-gray-100">Nenhum valor cadastrado.</p>
-            <button
-              onClick={openCreateModal}
-              className="font-medium text-brand-1 hover:text-brand-2"
-            >
-              Registrar valor
-            </button>
-          </div>
         ) : filteredTransactions.length === 0 ? (
-          <div className="p-4 text-center text-gray-100">
-            Nenhum valor encontrado para os filtros selecionados.
-          </div>
+          hasActiveFilters ? (
+            <div className="p-4 text-center text-gray-100">
+              Nenhum valor encontrado para os filtros selecionados.
+            </div>
+          ) : (
+            <div className="p-4 text-center">
+              <p className="text-gray-100">Nenhum valor cadastrado.</p>
+              <button
+                onClick={openCreateModal}
+                className="font-medium text-brand-1 hover:text-brand-2"
+              >
+                Registrar valor
+              </button>
+            </div>
+          )
         ) : (
           <TransactionList
             transactions={filteredTransactions}
@@ -508,6 +523,33 @@ const App = ({ onLogout = undefined }) => {
             onEdit={openEditModal}
           />
         )}
+
+        {!requestError && !isLoadingTransactions ? (
+          <div className="mt-2 flex items-center justify-between border-t border-gray-300 px-2 pt-3 text-sm text-gray-100">
+            <span>Total: {paginationMeta.total}</span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handlePreviousPage}
+                disabled={currentPage <= 1}
+                className="rounded border border-gray-300 px-3 py-1 font-semibold text-gray-100 hover:bg-gray-400 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Anterior
+              </button>
+              <span>
+                Pagina {currentPage} de {paginationMeta.totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={handleNextPage}
+                disabled={currentPage >= paginationMeta.totalPages}
+                className="rounded border border-gray-300 px-3 py-1 font-semibold text-gray-100 hover:bg-gray-400 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Proxima
+              </button>
+            </div>
+          </div>
+        ) : null}
       </section>
 
       {undoState ? (

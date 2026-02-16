@@ -36,6 +36,7 @@ Detalhes tecnicos:
 - Auth Hardening: `docs/architecture/v1.4.2-auth-hardening.md`
 - Transactions CRUD+: `docs/architecture/v1.4.3-transactions-crud-plus.md`
 - Export CSV: `docs/architecture/v1.5.0-export-csv.md`
+- Web Pagination: `docs/architecture/v1.6.2-web-pagination.md`
 
 ## Funcionalidades atuais (web)
 
@@ -54,6 +55,7 @@ Detalhes tecnicos:
 - Edicao de transacao com descricao e observacoes
 - Exclusao com confirmacao e desfazer (undo real)
 - Exportacao CSV com filtros ativos (categoria + periodo) e totais consolidados
+- Listagem paginada com `Anterior/Proxima` e indicador de pagina
 
 ## API (apps/api)
 
