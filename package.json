@@ -12,6 +12,7 @@
   "scripts": {
     "dev": "concurrently \"npm -w apps/api run dev\" \"npm -w apps/web run dev\"",
     "lint": "npm -w apps/web run lint && npm -w apps/api run lint",
+    "typecheck": "npm -w apps/web run typecheck",
     "test": "npm -w apps/web run test:run && npm -w apps/api run test",
     "test:run": "npm run test",
     "build": "npm -w apps/web run build && npm -w apps/api run build",
