@@ -14,6 +14,7 @@ Aplicacao web para controle financeiro pessoal com entradas/saidas, filtros por 
 ## Deploy (Render + Vercel)
 
 - Guia monorepo: `docs/deployment/monorepo-render-vercel.md`
+- Production release checklist: `docs/runbooks/release-production-checklist.md`
 
 ## Preview
 

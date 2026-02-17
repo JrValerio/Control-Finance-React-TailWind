@@ -1,0 +1,29 @@
+# Release production checklist
+
+## Goal
+Keep release, deploy, and runtime (`/health`) consistent.
+
+## Steps
+1. Merge PRs to `main`
+- Ensure CI is green.
+
+2. Tag + Release
+- Create tag `vX.Y.Z` on `main`.
+- Publish GitHub Release for the same tag.
+
+3. Render (API service)
+- Set `APP_VERSION=X.Y.Z`.
+- Click **Deploy latest commit** (optionally: clear cache if needed).
+
+4. Verify runtime
+Run:
+
+```powershell
+$api='https://control-finance-react-tailwind.onrender.com/health'
+Invoke-RestMethod -Uri $api -Method Get | ConvertTo-Json -Compress
+```
+
+Expected:
+- `version` matches the release (`X.Y.Z`).
+- `commit` matches `origin/main` at the release tag.
+
