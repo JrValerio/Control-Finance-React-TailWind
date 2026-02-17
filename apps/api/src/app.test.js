@@ -288,6 +288,136 @@ describe("API auth and transactions", () => {
     expect(response.status).toBe(201);
   });
 
+  it("GET /categories bloqueia sem token", async () => {
+    const response = await request(app).get("/categories");
+
+    expect(response.status).toBe(401);
+  });
+
+  it("POST /categories cria categoria e GET /categories lista ordenado por nome", async () => {
+    const token = await registerAndLogin("categories@controlfinance.dev");
+
+    const createTransportResponse = await request(app)
+      .post("/categories")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: "Transporte",
+      });
+
+    const createFoodResponse = await request(app)
+      .post("/categories")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: "  Alimentacao  ",
+      });
+
+    expect(createTransportResponse.status).toBe(201);
+    expect(createTransportResponse.body).toMatchObject({
+      name: "Transporte",
+    });
+    expect(Number.isInteger(createTransportResponse.body.id)).toBe(true);
+    expect(createTransportResponse.body.id).toBeGreaterThan(0);
+    expect(typeof createTransportResponse.body.created_at).toBe("string");
+
+    expect(createFoodResponse.status).toBe(201);
+    expect(createFoodResponse.body).toMatchObject({
+      name: "Alimentacao",
+    });
+    expect(Number.isInteger(createFoodResponse.body.id)).toBe(true);
+
+    const listResponse = await request(app)
+      .get("/categories")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(listResponse.status).toBe(200);
+    expect(Array.isArray(listResponse.body)).toBe(true);
+    expect(listResponse.body).toEqual([
+      {
+        id: createFoodResponse.body.id,
+        name: "Alimentacao",
+      },
+      {
+        id: createTransportResponse.body.id,
+        name: "Transporte",
+      },
+    ]);
+  });
+
+  it("POST /categories bloqueia nome vazio", async () => {
+    const token = await registerAndLogin("categories-empty@controlfinance.dev");
+
+    const response = await request(app)
+      .post("/categories")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: "   ",
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      message: "Nome da categoria e obrigatorio.",
+    });
+  });
+
+  it("POST /categories bloqueia categoria duplicada por usuario (case-insensitive)", async () => {
+    const token = await registerAndLogin("categories-duplicate@controlfinance.dev");
+
+    const firstResponse = await request(app)
+      .post("/categories")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: "Alimentacao",
+      });
+
+    const duplicateResponse = await request(app)
+      .post("/categories")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: "alimentacao",
+      });
+
+    expect(firstResponse.status).toBe(201);
+    expect(duplicateResponse.status).toBe(409);
+    expect(duplicateResponse.body).toEqual({
+      message: "Categoria ja existe.",
+    });
+  });
+
+  it("GET /categories isola categorias por usuario", async () => {
+    const tokenUserA = await registerAndLogin("categories-user-a@controlfinance.dev");
+    const tokenUserB = await registerAndLogin("categories-user-b@controlfinance.dev");
+
+    await request(app)
+      .post("/categories")
+      .set("Authorization", `Bearer ${tokenUserA}`)
+      .send({
+        name: "Lazer",
+      });
+
+    await request(app)
+      .post("/categories")
+      .set("Authorization", `Bearer ${tokenUserB}`)
+      .send({
+        name: "Transporte",
+      });
+
+    const listUserAResponse = await request(app)
+      .get("/categories")
+      .set("Authorization", `Bearer ${tokenUserA}`);
+
+    const listUserBResponse = await request(app)
+      .get("/categories")
+      .set("Authorization", `Bearer ${tokenUserB}`);
+
+    expect(listUserAResponse.status).toBe(200);
+    expect(listUserAResponse.body).toHaveLength(1);
+    expect(listUserAResponse.body[0].name).toBe("Lazer");
+
+    expect(listUserBResponse.status).toBe(200);
+    expect(listUserBResponse.body).toHaveLength(1);
+    expect(listUserBResponse.body[0].name).toBe("Transporte");
+  });
+
   it("GET /transactions bloqueia sem token", async () => {
     const response = await request(app).get("/transactions");
 
