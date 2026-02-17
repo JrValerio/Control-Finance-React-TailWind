@@ -424,6 +424,157 @@ describe("API auth and transactions", () => {
     expect(response.status).toBe(401);
   });
 
+  it("GET /transactions/summary bloqueia sem token", async () => {
+    const response = await request(app).get("/transactions/summary");
+
+    expect(response.status).toBe(401);
+  });
+
+  it("GET /transactions/summary retorna 400 quando month nao e informado", async () => {
+    const token = await registerAndLogin("summary-sem-mes@controlfinance.dev");
+
+    const response = await request(app)
+      .get("/transactions/summary")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      message: "Mes e obrigatorio. Use YYYY-MM.",
+    });
+  });
+
+  it("GET /transactions/summary retorna 400 quando month e invalido", async () => {
+    const token = await registerAndLogin("summary-mes-invalido@controlfinance.dev");
+
+    const response = await request(app)
+      .get("/transactions/summary")
+      .query({
+        month: "2026-13",
+      })
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      message: "Mes invalido. Use YYYY-MM.",
+    });
+  });
+
+  it("GET /transactions/summary retorna totais zerados quando nao ha transacoes no mes", async () => {
+    const token = await registerAndLogin("summary-vazio@controlfinance.dev");
+
+    const response = await request(app)
+      .get("/transactions/summary")
+      .query({
+        month: "2026-02",
+      })
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      month: "2026-02",
+      income: 0,
+      expense: 0,
+      balance: 0,
+      byCategory: [],
+    });
+  });
+
+  it("GET /transactions/summary retorna totais do mes e breakdown por categoria", async () => {
+    const token = await registerAndLogin("summary-mix@controlfinance.dev");
+
+    const foodCategoryResponse = await request(app)
+      .post("/categories")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: "Alimentacao",
+      });
+    const foodCategoryId = foodCategoryResponse.body.id;
+
+    await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "Entrada",
+        value: 1000,
+        date: "2026-02-05",
+        description: "Salario",
+      });
+
+    await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "Saida",
+        value: 220.5,
+        date: "2026-02-08",
+        description: "Mercado",
+        category_id: foodCategoryId,
+      });
+
+    await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "Saida",
+        value: 80,
+        date: "2026-02-09",
+        description: "Lanche",
+      });
+
+    await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "Saida",
+        value: 300,
+        date: "2026-03-01",
+        description: "Fora do mes",
+        category_id: foodCategoryId,
+      });
+
+    const deletedExpenseResponse = await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "Saida",
+        value: 50,
+        date: "2026-02-10",
+        description: "Despesa removida",
+        category_id: foodCategoryId,
+      });
+
+    await request(app)
+      .delete(`/transactions/${deletedExpenseResponse.body.id}`)
+      .set("Authorization", `Bearer ${token}`);
+
+    const response = await request(app)
+      .get("/transactions/summary")
+      .query({
+        month: "2026-02",
+      })
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      month: "2026-02",
+      income: 1000,
+      expense: 300.5,
+      balance: 699.5,
+      byCategory: [
+        {
+          categoryId: foodCategoryId,
+          categoryName: "Alimentacao",
+          expense: 220.5,
+        },
+        {
+          categoryId: null,
+          categoryName: "Sem categoria",
+          expense: 80,
+        },
+      ],
+    });
+  });
+
   it("cria e lista transacoes do usuario autenticado", async () => {
     const token = await registerAndLogin("transacoes@controlfinance.dev");
 

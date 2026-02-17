@@ -4,6 +4,7 @@ const CATEGORY_ENTRY = "Entrada";
 const CATEGORY_EXIT = "Saida";
 const VALID_TYPES = new Set([CATEGORY_ENTRY, CATEGORY_EXIT]);
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+const ISO_MONTH_REGEX = /^\d{4}-\d{2}$/;
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
@@ -118,6 +119,41 @@ const normalizeOptionalSearchQuery = (value) => {
 
   const normalizedValue = value.trim();
   return normalizedValue ? normalizedValue : undefined;
+};
+
+const normalizeSummaryMonth = (month) => {
+  if (typeof month === "undefined" || month === null || month === "") {
+    throw createError(400, "Mes e obrigatorio. Use YYYY-MM.");
+  }
+
+  if (typeof month !== "string") {
+    throw createError(400, "Mes invalido. Use YYYY-MM.");
+  }
+
+  const normalizedMonth = month.trim();
+
+  if (!ISO_MONTH_REGEX.test(normalizedMonth)) {
+    throw createError(400, "Mes invalido. Use YYYY-MM.");
+  }
+
+  const [yearPart, monthPart] = normalizedMonth.split("-");
+  const year = Number(yearPart);
+  const monthNumber = Number(monthPart);
+
+  if (!Number.isInteger(year) || !Number.isInteger(monthNumber) || monthNumber < 1 || monthNumber > 12) {
+    throw createError(400, "Mes invalido. Use YYYY-MM.");
+  }
+
+  const from = `${yearPart}-${monthPart}-01`;
+  const nextYear = monthNumber === 12 ? year + 1 : year;
+  const nextMonth = monthNumber === 12 ? 1 : monthNumber + 1;
+  const to = `${String(nextYear).padStart(4, "0")}-${String(nextMonth).padStart(2, "0")}-01`;
+
+  return {
+    month: normalizedMonth,
+    from,
+    to,
+  };
 };
 
 const normalizePositiveInteger = (
@@ -465,6 +501,59 @@ export const exportTransactionsCsvByUser = async (userId, options = {}) => {
   return {
     fileName: buildExportFileName(filters),
     content: `\uFEFF${csvLines.join("\n")}`,
+  };
+};
+
+export const getMonthlySummaryForUser = async (userId, month) => {
+  const { month: normalizedMonth, from, to } = normalizeSummaryMonth(month);
+
+  const totalsResult = await dbQuery(
+    `
+      SELECT
+        COALESCE(SUM(CASE WHEN type = '${CATEGORY_ENTRY}' THEN value ELSE 0 END), 0)::numeric AS income,
+        COALESCE(SUM(CASE WHEN type = '${CATEGORY_EXIT}' THEN value ELSE 0 END), 0)::numeric AS expense
+      FROM transactions
+      WHERE user_id = $1
+        AND deleted_at IS NULL
+        AND date >= $2
+        AND date < $3
+    `,
+    [userId, from, to],
+  );
+  const income = Number(totalsResult.rows[0]?.income || 0);
+  const expense = Number(totalsResult.rows[0]?.expense || 0);
+
+  const byCategoryResult = await dbQuery(
+    `
+      SELECT
+        t.category_id,
+        c.name AS category_name,
+        COALESCE(SUM(t.value), 0)::numeric AS expense
+      FROM transactions t
+      LEFT JOIN categories c
+        ON c.id = t.category_id
+       AND c.user_id = $1
+      WHERE t.user_id = $1
+        AND t.deleted_at IS NULL
+        AND t.type = $4
+        AND t.date >= $2
+        AND t.date < $3
+      GROUP BY t.category_id, c.name
+      ORDER BY expense DESC, t.category_id ASC NULLS LAST
+    `,
+    [userId, from, to, CATEGORY_EXIT],
+  );
+
+  return {
+    month: normalizedMonth,
+    income,
+    expense,
+    balance: income - expense,
+    byCategory: byCategoryResult.rows.map((row) => ({
+      categoryId: row.category_id === null ? null : Number(row.category_id),
+      categoryName: row.category_name || "Sem categoria",
+      expense: Number(row.expense),
+    })),
   };
 };
 
