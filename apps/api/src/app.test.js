@@ -93,12 +93,15 @@ describe("API auth and transactions", () => {
     });
 
     expect(response.status).toBe(201);
+    expect(typeof response.body.token).toBe("string");
+    expect(response.body.token.length).toBeGreaterThan(10);
     expect(response.body.user).toMatchObject({
       name: "Junior",
       email: "jr@controlfinance.dev",
     });
     expect(Number.isInteger(response.body.user.id)).toBe(true);
     expect(response.body.user.id).toBeGreaterThan(0);
+    expect(response.body.user.password_hash).toBeUndefined();
   });
 
   it("POST /auth/register bloqueia email duplicado", async () => {
@@ -113,6 +116,27 @@ describe("API auth and transactions", () => {
     });
 
     expect(response.status).toBe(409);
+    expect(response.body).toEqual({ message: "Usuario ja cadastrado." });
+  });
+
+  it("POST /auth/register retorna erro quando email esta vazio", async () => {
+    const response = await request(app).post("/auth/register").send({
+      email: "",
+      password: "Senha123",
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ message: "Email e senha sao obrigatorios." });
+  });
+
+  it("POST /auth/register retorna erro quando senha esta vazia", async () => {
+    const response = await request(app).post("/auth/register").send({
+      email: "vazio-register@controlfinance.dev",
+      password: "",
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ message: "Email e senha sao obrigatorios." });
   });
 
   it("POST /auth/login retorna token", async () => {
@@ -130,6 +154,27 @@ describe("API auth and transactions", () => {
     expect(response.body.user.email).toBe("login@controlfinance.dev");
     expect(typeof response.body.token).toBe("string");
     expect(response.body.token.length).toBeGreaterThan(10);
+    expect(response.body.user.password_hash).toBeUndefined();
+  });
+
+  it("POST /auth/login retorna erro quando email esta vazio", async () => {
+    const response = await request(app).post("/auth/login").send({
+      email: "",
+      password: "Senha123",
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ message: "Email e senha sao obrigatorios." });
+  });
+
+  it("POST /auth/login retorna erro quando senha esta vazia", async () => {
+    const response = await request(app).post("/auth/login").send({
+      email: "vazio-login@controlfinance.dev",
+      password: "",
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ message: "Email e senha sao obrigatorios." });
   });
 
   it("aplica bloqueio por brute force e desbloqueia apos janela", async () => {
