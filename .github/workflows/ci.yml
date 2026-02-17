@@ -26,6 +26,9 @@ jobs:
       - name: Lint (web)
         run: npm -w apps/web run lint
 
+      - name: Typecheck auth (web)
+        run: npm -w apps/web run typecheck:auth
+
       - name: Test (web)
         run: npm -w apps/web run test:run
 
