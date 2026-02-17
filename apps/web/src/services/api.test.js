@@ -85,6 +85,20 @@ describe("api service", () => {
     expect(getStoredToken()).toBe("");
   });
 
+  it("normaliza token salvo removendo espacos extras", () => {
+    setStoredToken("  jwt_token  ");
+
+    expect(getStoredToken()).toBe("jwt_token");
+    expect(window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY)).toBe("jwt_token");
+  });
+
+  it("nao persiste token vazio apos normalizacao", () => {
+    setStoredToken("   ");
+
+    expect(getStoredToken()).toBe("");
+    expect(window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY)).toBeNull();
+  });
+
   it("injeta header Authorization quando existe token", () => {
     setStoredToken("jwt_token");
 
@@ -108,5 +122,21 @@ describe("api service", () => {
 
     expect(getStoredToken()).toBe("");
     expect(onUnauthorized).toHaveBeenCalledTimes(1);
+  });
+
+  it("nao executa handler se ele for removido", async () => {
+    const onUnauthorized = vi.fn();
+    setUnauthorizedHandler(onUnauthorized);
+    setUnauthorizedHandler(undefined);
+    setStoredToken("jwt_token");
+
+    await expect(
+      responseErrorInterceptor({
+        response: { status: 401 },
+      }),
+    ).rejects.toBeTruthy();
+
+    expect(getStoredToken()).toBe("");
+    expect(onUnauthorized).not.toHaveBeenCalled();
   });
 });

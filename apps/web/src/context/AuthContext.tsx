@@ -53,7 +53,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         const response = await authService.login({ email, password });
         setStoredToken(response.token);
         setToken(response.token);
-        setUser(response.user || null);
+        setUser(response.user);
         return response;
       } catch (error) {
         const message = getApiErrorMessage(error, "Nao foi possivel fazer login.");
