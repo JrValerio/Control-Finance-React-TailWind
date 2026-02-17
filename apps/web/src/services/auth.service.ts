@@ -47,13 +47,14 @@ const parseAuthResponse = (responseData: unknown): AuthResponse => {
 
   const token = responseData.token;
   const user = responseData.user;
+  const normalizedToken = typeof token === "string" ? token.trim() : "";
 
-  if (typeof token !== "string" || token.trim() === "" || !isAuthUser(user)) {
+  if (!normalizedToken || !isAuthUser(user)) {
     throw new Error(INVALID_AUTH_RESPONSE_MESSAGE);
   }
 
   return {
-    token,
+    token: normalizedToken,
     user,
   };
 };

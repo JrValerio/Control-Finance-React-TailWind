@@ -39,6 +39,30 @@ describe("auth service", () => {
     });
   });
 
+  it("normaliza token da resposta removendo espacos extras", async () => {
+    postMock.mockResolvedValueOnce({
+      data: {
+        token: "  jwt_token  ",
+        user: {
+          id: 1,
+          name: "Amaro",
+          email: "amaro@control.finance",
+        },
+      },
+    });
+
+    await expect(
+      authService.login({ email: "amaro@control.finance", password: "abc12345" }),
+    ).resolves.toEqual({
+      token: "jwt_token",
+      user: {
+        id: 1,
+        name: "Amaro",
+        email: "amaro@control.finance",
+      },
+    });
+  });
+
   it("falha quando resposta de registro nao possui token", async () => {
     postMock.mockResolvedValueOnce({
       data: {
