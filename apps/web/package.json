@@ -9,8 +9,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
+    "lint": "eslint . --ext js,jsx,ts,tsx --report-unused-disable-directives --max-warnings 0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck:auth": "tsc -p tsconfig.auth.json --noEmit",
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run"
@@ -30,6 +31,8 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
+    "@typescript-eslint/eslint-plugin": "^8.47.0",
+    "@typescript-eslint/parser": "^8.47.0",
     "@types/node": "^25.2.3",
     "@types/react": "^18.3.28",
     "@types/react-dom": "^18.3.7",

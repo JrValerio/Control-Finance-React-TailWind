@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "strictNullChecks": true
+  },
+  "include": [
+    "src/services/auth.service.ts",
+    "src/context/auth-context.ts",
+    "src/context/AuthContext.tsx",
+    "src/hooks/useAuth.ts"
+  ]
+}
