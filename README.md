@@ -16,6 +16,17 @@ Aplicacao web para controle financeiro pessoal com entradas/saidas, filtros por 
 - Guia monorepo: `docs/deployment/monorepo-render-vercel.md`
 - Production release checklist: `docs/runbooks/release-production-checklist.md`
 
+## Operational Model
+
+- Deploy trigger: merge na `main` (Render Auto Deploy) ou manual via **Deploy latest commit**.
+- Health endpoint: `/health` retorna `{ ok, version, commit }`.
+  - `version`: usa `APP_VERSION` quando setado (produção), senão fallback `sha-<short>`.
+  - `commit`: resolvido via `RENDER_GIT_COMMIT` (ou fallback) e representa exatamente o código em runtime.
+- CI gates (web): `lint`, `typecheck`, `typecheck:auth`, `test`, `build`.
+- Git tag/release: `vX.Y.Z`.
+- Render `APP_VERSION`: `X.Y.Z` (sem `v`).
+- Runbook: `docs/runbooks/release-production-checklist.md`.
+
 ## Preview
 
 ![Tela principal](docs/images/home.png)
