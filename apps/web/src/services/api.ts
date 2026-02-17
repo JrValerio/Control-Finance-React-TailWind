@@ -17,6 +17,8 @@ type ApiConfigurationError = Error & {
   code: "API_URL_NOT_CONFIGURED";
 };
 
+const normalizeToken = (token: string): string => token.trim();
+
 export const resolveApiUrl = (env: EnvConfig = import.meta.env) => {
   const configuredApiUrl = env?.VITE_API_URL?.trim();
 
@@ -47,7 +49,12 @@ export const getStoredToken = () => {
     return "";
   }
 
-  return window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) || "";
+  const storedToken = window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+  if (!storedToken) {
+    return "";
+  }
+
+  return normalizeToken(storedToken);
 };
 
 export const setStoredToken = (token: string) => {
@@ -55,7 +62,13 @@ export const setStoredToken = (token: string) => {
     return;
   }
 
-  window.localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
+  const normalizedToken = normalizeToken(token);
+  if (!normalizedToken) {
+    clearStoredToken();
+    return;
+  }
+
+  window.localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, normalizedToken);
 };
 
 export const clearStoredToken = () => {
@@ -67,7 +80,7 @@ export const clearStoredToken = () => {
 };
 
 export const setUnauthorizedHandler = (handler: UnauthorizedHandler) => {
-  unauthorizedHandler = handler;
+  unauthorizedHandler = typeof handler === "function" ? handler : undefined;
 };
 
 export const api = axios.create({
