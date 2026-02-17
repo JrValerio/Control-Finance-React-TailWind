@@ -65,7 +65,7 @@ export const listCategoriesByUser = async (userId) => {
       SELECT id, name
       FROM categories
       WHERE user_id = $1
-      ORDER BY name ASC, id ASC
+      ORDER BY LOWER(name) ASC, id ASC
     `,
     [userId],
   );
