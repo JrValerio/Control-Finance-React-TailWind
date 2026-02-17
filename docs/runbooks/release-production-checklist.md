@@ -24,5 +24,10 @@ Invoke-RestMethod -Uri $api -Method Get | ConvertTo-Json -Compress
 ```
 
 Expected:
-- `version` matches the release (`X.Y.Z`).
+- `version` matches the API package version (`apps/api/package.json`).
 - `commit` matches `origin/main` at the release tag.
+
+Note:
+`/health.version` reflects the API package version (`apps/api/package.json`),
+not the Git tag. Release tags may differ when a release is observability-only
+(e.g. no package version bump).
