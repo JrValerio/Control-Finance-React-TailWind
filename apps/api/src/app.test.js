@@ -446,6 +446,7 @@ describe("API auth and transactions", () => {
       description: "Freelance",
       notes: "Projeto mensal",
     });
+    expect(createResponse.body.categoryId).toBeNull();
     expect(Number.isInteger(createResponse.body.id)).toBe(true);
     expect(Number.isInteger(createResponse.body.userId)).toBe(true);
 
@@ -468,8 +469,98 @@ describe("API auth and transactions", () => {
       description: "Freelance",
       notes: "Projeto mensal",
     });
+    expect(listResponse.body.data[0].categoryId).toBeNull();
     expect(listResponse.body.data[0].id).toBe(createResponse.body.id);
     expect(listResponse.body.data[0].userId).toBe(createResponse.body.userId);
+  });
+
+  it("cria transacao com category_id valida do proprio usuario", async () => {
+    const token = await registerAndLogin("transacoes-categoria@controlfinance.dev");
+
+    const categoryResponse = await request(app)
+      .post("/categories")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: "Lazer",
+      });
+
+    const createResponse = await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "Saida",
+        value: 75.9,
+        date: "2026-02-15",
+        description: "Cinema",
+        category_id: categoryResponse.body.id,
+      });
+
+    expect(categoryResponse.status).toBe(201);
+    expect(createResponse.status).toBe(201);
+    expect(createResponse.body).toMatchObject({
+      type: "Saida",
+      value: 75.9,
+      categoryId: categoryResponse.body.id,
+      description: "Cinema",
+    });
+  });
+
+  it("bloqueia criacao de transacao com category_id invalido", async () => {
+    const token = await registerAndLogin("transacoes-categoria-invalida@controlfinance.dev");
+
+    const response = await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "Saida",
+        value: 20,
+        category_id: "abc",
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      message: "Categoria invalida. Informe um inteiro maior que zero.",
+    });
+  });
+
+  it("retorna 404 quando category_id nao pertence ao usuario autenticado", async () => {
+    const tokenUserA = await registerAndLogin("category-owner@controlfinance.dev");
+    const tokenUserB = await registerAndLogin("category-guest@controlfinance.dev");
+
+    const categoryUserAResponse = await request(app)
+      .post("/categories")
+      .set("Authorization", `Bearer ${tokenUserA}`)
+      .send({
+        name: "Transporte",
+      });
+
+    const createByOtherUserResponse = await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${tokenUserB}`)
+      .send({
+        type: "Saida",
+        value: 30,
+        category_id: categoryUserAResponse.body.id,
+      });
+
+    const createWithUnknownCategoryResponse = await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${tokenUserB}`)
+      .send({
+        type: "Saida",
+        value: 30,
+        category_id: 999999,
+      });
+
+    expect(categoryUserAResponse.status).toBe(201);
+    expect(createByOtherUserResponse.status).toBe(404);
+    expect(createByOtherUserResponse.body).toEqual({
+      message: "Categoria nao encontrada.",
+    });
+    expect(createWithUnknownCategoryResponse.status).toBe(404);
+    expect(createWithUnknownCategoryResponse.body).toEqual({
+      message: "Categoria nao encontrada.",
+    });
   });
 
   it("pagina transacoes com meta consistente", async () => {
@@ -507,6 +598,94 @@ describe("API auth and transactions", () => {
     expect(secondPageResponse.body.data).toHaveLength(2);
     expect(secondPageResponse.body.data[0].description).toBe("Lancamento 3");
     expect(secondPageResponse.body.data[1].description).toBe("Lancamento 4");
+  });
+
+  it("filtra transacoes por categoryId", async () => {
+    const token = await registerAndLogin("filtro-categoria@controlfinance.dev");
+
+    const foodCategoryResponse = await request(app)
+      .post("/categories")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: "Alimentacao",
+      });
+
+    const transportCategoryResponse = await request(app)
+      .post("/categories")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: "Transporte",
+      });
+
+    await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "Saida",
+        value: 45,
+        date: "2026-02-10",
+        description: "Mercado",
+        category_id: foodCategoryResponse.body.id,
+      });
+
+    await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "Saida",
+        value: 20,
+        date: "2026-02-11",
+        description: "Onibus",
+        category_id: transportCategoryResponse.body.id,
+      });
+
+    await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "Entrada",
+        value: 100,
+        date: "2026-02-12",
+        description: "Freela",
+      });
+
+    const filteredResponse = await request(app)
+      .get("/transactions")
+      .query({
+        categoryId: foodCategoryResponse.body.id,
+      })
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(foodCategoryResponse.status).toBe(201);
+    expect(transportCategoryResponse.status).toBe(201);
+    expect(filteredResponse.status).toBe(200);
+    expect(filteredResponse.body.meta).toEqual({
+      page: 1,
+      limit: 20,
+      total: 1,
+      totalPages: 1,
+    });
+    expect(filteredResponse.body.data).toHaveLength(1);
+    expect(filteredResponse.body.data[0]).toMatchObject({
+      description: "Mercado",
+      categoryId: foodCategoryResponse.body.id,
+    });
+  });
+
+  it("retorna 400 para filtro categoryId invalido", async () => {
+    const token = await registerAndLogin("filtro-categoria-invalido@controlfinance.dev");
+
+    const response = await request(app)
+      .get("/transactions")
+      .query({
+        categoryId: "abc",
+      })
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      message: "Categoria invalida. Informe um inteiro maior que zero.",
+    });
   });
 
   it("filtra transacoes por tipo, periodo e busca", async () => {
