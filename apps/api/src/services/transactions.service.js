@@ -139,6 +139,66 @@ const normalizePositiveInteger = (
   return Math.min(parsedValue, maximumValue);
 };
 
+const normalizeCategoryId = (value) => {
+  const parsedValue = Number(value);
+
+  if (!Number.isInteger(parsedValue) || parsedValue <= 0) {
+    throw createError(400, "Categoria invalida. Informe um inteiro maior que zero.");
+  }
+
+  return parsedValue;
+};
+
+const normalizeOptionalFilterCategoryId = (value) => {
+  if (typeof value === "undefined" || value === null || value === "") {
+    return undefined;
+  }
+
+  return normalizeCategoryId(value);
+};
+
+const normalizeOptionalPayloadCategoryId = (value) => {
+  if (typeof value === "undefined" || value === null) {
+    return null;
+  }
+
+  return normalizeCategoryId(value);
+};
+
+const resolveCategoryIdFromPayload = (payload = {}) => {
+  if (Object.prototype.hasOwnProperty.call(payload, "category_id")) {
+    return payload.category_id;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(payload, "categoryId")) {
+    return payload.categoryId;
+  }
+
+  return undefined;
+};
+
+const ensureCategoryBelongsToUser = async (userId, categoryId) => {
+  if (categoryId === null) {
+    return null;
+  }
+
+  const result = await dbQuery(
+    `
+      SELECT id
+      FROM categories
+      WHERE id = $1 AND user_id = $2
+      LIMIT 1
+    `,
+    [categoryId, userId],
+  );
+
+  if (result.rows.length === 0) {
+    throw createError(404, "Categoria nao encontrada.");
+  }
+
+  return categoryId;
+};
+
 const normalizeText = (value, fieldName) => {
   if (typeof value !== "string") {
     throw createError(400, `${fieldName} invalido.`);
@@ -162,6 +222,7 @@ const normalizeOptionalText = (value, fieldName) => {
 const mapTransaction = (row) => ({
   id: Number(row.id),
   userId: Number(row.user_id),
+  categoryId: row.category_id === null ? null : Number(row.category_id),
   value: Number(row.value),
   type: row.type,
   description: row.description || "",
@@ -189,6 +250,7 @@ const normalizeListFilters = (options = {}) => {
   let from = normalizeOptionalFilterDate(options.from);
   let to = normalizeOptionalFilterDate(options.to);
   const query = normalizeOptionalSearchQuery(options.q);
+  const categoryId = normalizeOptionalFilterCategoryId(options.categoryId);
   const page = normalizePositiveInteger(options.page, "Pagina", DEFAULT_PAGE);
   const limit = normalizePositiveInteger(
     options.limit,
@@ -207,6 +269,7 @@ const normalizeListFilters = (options = {}) => {
     from,
     to,
     query,
+    categoryId,
     page,
     limit,
   };
@@ -245,6 +308,12 @@ const buildListTransactionsFilters = (userId, filters) => {
     parameterIndex += 1;
   }
 
+  if (typeof filters.categoryId !== "undefined") {
+    conditions.push(`category_id = $${parameterIndex}`);
+    values.push(filters.categoryId);
+    parameterIndex += 1;
+  }
+
   return {
     whereClause: conditions.join("\n        AND "),
     values,
@@ -272,7 +341,7 @@ const runListTransactions = async (
 
   const result = await dbQuery(
     `
-      SELECT id, user_id, value, type, date, description, notes, deleted_at, created_at
+      SELECT id, user_id, category_id, value, type, date, description, notes, deleted_at, created_at
       FROM transactions
       WHERE ${statement.whereClause}
       ORDER BY date ASC, id ASC
@@ -403,12 +472,16 @@ export const createTransactionForUser = async (userId, payload = {}) => {
   const normalizedDescription =
     normalizeOptionalText(payload.description, "Descricao") ?? "";
   const normalizedNotes = normalizeOptionalText(payload.notes, "Observacoes") ?? "";
+  const normalizedCategoryId = await ensureCategoryBelongsToUser(
+    userId,
+    normalizeOptionalPayloadCategoryId(resolveCategoryIdFromPayload(payload)),
+  );
 
   const result = await dbQuery(
     `
-      INSERT INTO transactions (user_id, type, value, date, description, notes)
-      VALUES ($1, $2, $3, $4, $5, $6)
-      RETURNING id, user_id, value, type, date, description, notes, deleted_at, created_at
+      INSERT INTO transactions (user_id, type, value, date, description, notes, category_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING id, user_id, category_id, value, type, date, description, notes, deleted_at, created_at
     `,
     [
       userId,
@@ -417,6 +490,7 @@ export const createTransactionForUser = async (userId, payload = {}) => {
       normalizeDate(payload.date),
       normalizedDescription,
       normalizedNotes,
+      normalizedCategoryId,
     ],
   );
 
@@ -484,7 +558,7 @@ export const updateTransactionForUser = async (userId, transactionId, payload = 
       WHERE id = $${parameterIndex}
         AND user_id = $${parameterIndex + 1}
         AND deleted_at IS NULL
-      RETURNING id, user_id, value, type, date, description, notes, deleted_at, created_at
+      RETURNING id, user_id, category_id, value, type, date, description, notes, deleted_at, created_at
     `,
     queryParams,
   );
@@ -508,7 +582,7 @@ export const deleteTransactionForUser = async (userId, transactionId) => {
       UPDATE transactions
       SET deleted_at = NOW()
       WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
-      RETURNING id, user_id, value, type, date, description, notes, deleted_at, created_at
+      RETURNING id, user_id, category_id, value, type, date, description, notes, deleted_at, created_at
     `,
     [id, userId],
   );
@@ -532,7 +606,7 @@ export const restoreTransactionForUser = async (userId, transactionId) => {
       UPDATE transactions
       SET deleted_at = NULL
       WHERE id = $1 AND user_id = $2 AND deleted_at IS NOT NULL
-      RETURNING id, user_id, value, type, date, description, notes, deleted_at, created_at
+      RETURNING id, user_id, category_id, value, type, date, description, notes, deleted_at, created_at
     `,
     [id, userId],
   );

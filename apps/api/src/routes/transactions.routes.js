@@ -21,6 +21,8 @@ const getListFiltersFromQuery = (query = {}, options = {}) => {
     from: query.from,
     to: query.to,
     q: query.q,
+    categoryId:
+      typeof query.categoryId !== "undefined" ? query.categoryId : query.category_id,
   };
 
   if (includePagination) {
