@@ -45,6 +45,25 @@ const validatePasswordStrength = (password) => {
   }
 };
 
+const issueAuthToken = (user) =>
+  jwt.sign(
+    {
+      sub: String(user.id),
+      email: user.email,
+    },
+    getJwtSecret(),
+    { expiresIn: getJwtExpiresIn() },
+  );
+
+const createAuthResult = (user) => {
+  const sanitizedUser = sanitizeUser(user);
+
+  return {
+    token: issueAuthToken(sanitizedUser),
+    user: sanitizedUser,
+  };
+};
+
 export const registerUser = async ({ name = "", email, password }) => {
   const { normalizedEmail, normalizedPassword } = validateCredentials({
     email,
@@ -65,7 +84,7 @@ export const registerUser = async ({ name = "", email, password }) => {
       [normalizedName, normalizedEmail, passwordHash],
     );
 
-    return sanitizeUser(result.rows[0]);
+    return createAuthResult(result.rows[0]);
   } catch (error) {
     if (error.code === "23505") {
       throw createError(409, "Usuario ja cadastrado.");
@@ -76,12 +95,10 @@ export const registerUser = async ({ name = "", email, password }) => {
 };
 
 export const loginUser = async ({ email, password }) => {
-  const normalizedEmail = getNormalizedEmail(email);
-  const normalizedPassword = typeof password === "string" ? password : "";
-
-  if (!normalizedEmail || !normalizedPassword) {
-    throw createError(400, "Email e senha sao obrigatorios.");
-  }
+  const { normalizedEmail, normalizedPassword } = validateCredentials({
+    email,
+    password,
+  });
 
   const result = await dbQuery(
     `
@@ -107,19 +124,7 @@ export const loginUser = async ({ email, password }) => {
     throw createError(401, "Credenciais invalidas.");
   }
 
-  const token = jwt.sign(
-    {
-      sub: String(user.id),
-      email: user.email,
-    },
-    getJwtSecret(),
-    { expiresIn: getJwtExpiresIn() },
-  );
-
-  return {
-    token,
-    user: sanitizeUser(user),
-  };
+  return createAuthResult(user);
 };
 
 export const verifyAuthToken = (token) => jwt.verify(token, getJwtSecret());
