@@ -35,27 +35,44 @@ describe("version config", () => {
     expect(commit).toBe("unknown");
   });
 
-  it("prioriza APP_VERSION para versao", () => {
+  it("prioriza versao do package quando disponivel", () => {
     const version = resolveApiVersion({
-      APP_VERSION: "1.6.10",
+      APP_VERSION: "9.9.9",
       RENDER_GIT_COMMIT: "render-commit",
+    }, {
+      packageVersion: "1.7.0",
     });
 
-    expect(version).toBe("1.6.10");
+    expect(version).toBe("1.7.0");
   });
 
-  it("usa fallback sha curto quando APP_VERSION nao existe", () => {
+  it("usa APP_VERSION quando package version nao pode ser resolvida", () => {
+    const version = resolveApiVersion(
+      {
+        APP_VERSION: "1.7.0",
+        RENDER_GIT_COMMIT: "render-commit",
+      },
+      {
+        packageVersion: "",
+      },
+    );
+
+    expect(version).toBe("1.7.0");
+  });
+
+  it("usa fallback sha curto quando package version e APP_VERSION nao existem", () => {
     const version = resolveApiVersion({
       RENDER_GIT_COMMIT: "2e0ec31e19777924f4c5dfd59dcd240456d28c5e",
+    }, {
+      packageVersion: "",
     });
 
     expect(version).toBe("sha-2e0ec31");
   });
 
-  it("retorna unknown quando versao e commit nao existem", () => {
-    const version = resolveApiVersion({});
+  it("retorna unknown quando nenhuma fonte de versao e commit existem", () => {
+    const version = resolveApiVersion({}, { packageVersion: "" });
 
     expect(version).toBe("unknown");
   });
 });
-

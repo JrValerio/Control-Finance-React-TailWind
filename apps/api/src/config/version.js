@@ -1,3 +1,7 @@
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
 const normalizeEnvValue = (value) => {
   if (typeof value !== "string") {
     return "";
@@ -5,6 +9,22 @@ const normalizeEnvValue = (value) => {
 
   return value.trim();
 };
+
+const resolvePackageVersion = () => {
+  try {
+    const currentFilePath = fileURLToPath(import.meta.url);
+    const currentDirectory = path.dirname(currentFilePath);
+    const packageJsonPath = path.resolve(currentDirectory, "..", "..", "package.json");
+    const packageJsonContent = fs.readFileSync(packageJsonPath, "utf-8");
+    const packageJson = JSON.parse(packageJsonContent);
+
+    return normalizeEnvValue(packageJson?.version);
+  } catch {
+    return "";
+  }
+};
+
+const API_PACKAGE_VERSION = resolvePackageVersion();
 
 export const resolveApiCommit = (env = process.env) => {
   const commitFromRenderEnv = normalizeEnvValue(env.RENDER_GIT_COMMIT);
@@ -28,7 +48,16 @@ export const resolveApiCommit = (env = process.env) => {
   return "unknown";
 };
 
-export const resolveApiVersion = (env = process.env) => {
+export const resolveApiVersion = (
+  env = process.env,
+  options = {},
+) => {
+  const packageVersion = normalizeEnvValue(options.packageVersion ?? API_PACKAGE_VERSION);
+
+  if (packageVersion) {
+    return packageVersion;
+  }
+
   const appVersionFromEnv = normalizeEnvValue(env.APP_VERSION);
 
   if (appVersionFromEnv) {
@@ -43,4 +72,3 @@ export const resolveApiVersion = (env = process.env) => {
 
   return "unknown";
 };
-

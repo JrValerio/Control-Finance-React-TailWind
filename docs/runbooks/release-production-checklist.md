@@ -12,8 +12,8 @@ Keep release, deploy, and runtime (`/health`) consistent.
 - Publish GitHub Release for the same tag.
 
 3. Render (API service)
-- Set `APP_VERSION=X.Y.Z`.
 - Click **Deploy latest commit** (optionally: clear cache if needed).
+- Optional: set `APP_VERSION=X.Y.Z` only if you want an explicit runtime override.
 
 4. Verify runtime
 Run:
@@ -26,4 +26,3 @@ Invoke-RestMethod -Uri $api -Method Get | ConvertTo-Json -Compress
 Expected:
 - `version` matches the release (`X.Y.Z`).
 - `commit` matches `origin/main` at the release tag.
-
