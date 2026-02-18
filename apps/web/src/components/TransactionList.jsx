@@ -28,6 +28,9 @@ const TransactionList = ({ transactions, onDelete, onEdit }) => {
               {formatValue(transaction.value)}
             </span>
             <span className="text-xs text-gray-200">{formatDate(transaction.date)}</span>
+            <span className="text-xs text-gray-200">
+              Categoria: {transaction.categoryName || "Sem categoria"}
+            </span>
             {transaction.notes ? (
               <span className="text-xs text-gray-200">{transaction.notes}</span>
             ) : null}
@@ -73,6 +76,7 @@ TransactionList.propTypes = {
       value: PropTypes.number.isRequired,
       type: PropTypes.string.isRequired,
       date: PropTypes.string.isRequired,
+      categoryName: PropTypes.string,
       description: PropTypes.string,
       notes: PropTypes.string,
     }),

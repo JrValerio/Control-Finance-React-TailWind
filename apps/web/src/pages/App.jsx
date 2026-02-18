@@ -125,6 +125,7 @@ const App = ({ onLogout = undefined }) => {
   const [isLoadingSummary, setLoadingSummary] = useState(false);
   const [isExportingCsv, setExportingCsv] = useState(false);
   const [monthlySummary, setMonthlySummary] = useState(DEFAULT_MONTHLY_SUMMARY);
+  const [summaryError, setSummaryError] = useState("");
   const [requestError, setRequestError] = useState("");
   const undoTimeoutRef = useRef(null);
 
@@ -181,6 +182,7 @@ const App = ({ onLogout = undefined }) => {
 
   const loadMonthlySummary = useCallback(async () => {
     setLoadingSummary(true);
+    setSummaryError("");
 
     try {
       const summary = await transactionsService.getMonthlySummary(selectedSummaryMonth);
@@ -191,11 +193,12 @@ const App = ({ onLogout = undefined }) => {
         balance: Number(summary.balance) || 0,
         byCategory: Array.isArray(summary.byCategory) ? summary.byCategory : [],
       });
-    } catch {
+    } catch (error) {
       setMonthlySummary({
         ...DEFAULT_MONTHLY_SUMMARY,
         month: selectedSummaryMonth,
       });
+      setSummaryError(getApiErrorMessage(error, "Nao foi possivel carregar o resumo mensal."));
     } finally {
       setLoadingSummary(false);
     }
@@ -255,6 +258,24 @@ const App = ({ onLogout = undefined }) => {
   const filteredTransactions = useMemo(() => {
     return transactions;
   }, [transactions]);
+
+  const categoryNameById = useMemo(() => {
+    const map = new Map();
+    categories.forEach((category) => {
+      map.set(Number(category.id), category.name);
+    });
+    return map;
+  }, [categories]);
+
+  const transactionsWithCategoryName = useMemo(() => {
+    return filteredTransactions.map((transaction) => ({
+      ...transaction,
+      categoryName:
+        transaction.categoryId === null
+          ? "Sem categoria"
+          : categoryNameById.get(transaction.categoryId) || "Categoria nao encontrada",
+    }));
+  }, [categoryNameById, filteredTransactions]);
 
   const chartData = useMemo(() => {
     return [
@@ -455,6 +476,10 @@ const App = ({ onLogout = undefined }) => {
     selectedCategory !== CATEGORY_ALL ||
     selectedPeriod !== PERIOD_ALL ||
     Boolean(selectedTransactionCategoryId);
+  const hasMonthlySummaryData =
+    monthlySummary.income > 0 ||
+    monthlySummary.expense > 0 ||
+    monthlySummary.byCategory.length > 0;
   const rangeStart =
     paginationMeta.total === 0 ? 0 : (paginationMeta.page - 1) * paginationMeta.limit + 1;
   const rangeEnd = Math.min(paginationMeta.page * paginationMeta.limit, paginationMeta.total);
@@ -631,6 +656,22 @@ const App = ({ onLogout = undefined }) => {
             className="rounded border border-gray-300 bg-white px-2 py-1 text-sm text-gray-100"
           />
         </div>
+        {summaryError ? (
+          <div
+            className="mx-auto mb-3 flex max-w-700 items-center justify-between gap-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+            role="status"
+            aria-live="polite"
+          >
+            <span>{summaryError}</span>
+            <button
+              type="button"
+              onClick={loadMonthlySummary}
+              className="rounded border border-red-300 px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-100"
+            >
+              Tentar novamente
+            </button>
+          </div>
+        ) : null}
         <div className="mx-auto grid max-w-700 gap-3 sm:grid-cols-3">
           <div className="rounded border border-brand-1 bg-gray-400 px-4 py-3.5">
             <p className="text-xs font-medium uppercase text-gray-200">Saldo</p>
@@ -651,6 +692,11 @@ const App = ({ onLogout = undefined }) => {
             </p>
           </div>
         </div>
+        {!isLoadingSummary && !summaryError && !hasMonthlySummaryData ? (
+          <div className="mx-auto mt-2 max-w-700 rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-600">
+            Sem dados para o mes selecionado.
+          </div>
+        ) : null}
       </section>
 
       <section className="mx-auto mt-2 max-w-700 p-4">
@@ -707,7 +753,7 @@ const App = ({ onLogout = undefined }) => {
           )
         ) : (
           <TransactionList
-            transactions={filteredTransactions}
+            transactions={transactionsWithCategoryName}
             onDelete={requestDeleteTransaction}
             onEdit={openEditModal}
           />

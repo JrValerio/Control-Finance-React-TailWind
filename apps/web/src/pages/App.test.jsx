@@ -135,6 +135,7 @@ describe("App", () => {
     expect(await screen.findByText("Inicial")).toBeInTheDocument();
     await user.selectOptions(screen.getByLabelText("Categoria"), "1");
     expect(await screen.findByText("Filtrada")).toBeInTheDocument();
+    expect(screen.getByText("Categoria: Alimentacao")).toBeInTheDocument();
     expect(transactionsService.listPage).toHaveBeenLastCalledWith({
       page: 1,
       limit: 20,
@@ -143,6 +144,45 @@ describe("App", () => {
       type: undefined,
       categoryId: 1,
     });
+  });
+
+  it("exibe estado vazio no resumo mensal quando nao ha dados", async () => {
+    transactionsService.getMonthlySummary.mockResolvedValueOnce(
+      buildSummaryResponse({
+        income: 0,
+        expense: 0,
+        balance: 0,
+        byCategory: [],
+      }),
+    );
+
+    render(<App />);
+
+    expect(await screen.findByText("Sem dados para o mes selecionado.")).toBeInTheDocument();
+  });
+
+  it("exibe erro no resumo mensal e permite tentar novamente", async () => {
+    const user = userEvent.setup();
+    transactionsService.getMonthlySummary
+      .mockRejectedValueOnce({})
+      .mockResolvedValueOnce(
+        buildSummaryResponse({
+          income: 900,
+          expense: 200,
+          balance: 700,
+        }),
+      );
+
+    render(<App />);
+
+    expect(
+      await screen.findByText("Nao foi possivel carregar o resumo mensal."),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Tentar novamente" }));
+
+    expect(await screen.findByText("R$ 700.00")).toBeInTheDocument();
+    expect(screen.queryByText("Nao foi possivel carregar o resumo mensal.")).not.toBeInTheDocument();
   });
 
   it("navega para a proxima pagina", async () => {
