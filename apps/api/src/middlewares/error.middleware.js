@@ -28,7 +28,7 @@ export const errorHandler = (error, req, res, next) => {
     return next(error);
   }
 
-  const requestId = req.requestId || req.headers["x-request-id"] || null;
+  const requestId = req.requestId || null;
   const status = resolveStatusCode(error);
   const message = resolveErrorMessage(error, status);
   const errorLogPayload = {
@@ -44,7 +44,9 @@ export const errorHandler = (error, req, res, next) => {
     errorLogPayload.stack = error.stack;
   }
 
-  console.error(JSON.stringify(errorLogPayload));
+  if (process.env.NODE_ENV !== "test") {
+    console.error(JSON.stringify(errorLogPayload));
+  }
 
   return res.status(status).json({ message, requestId });
 };
