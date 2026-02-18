@@ -7,6 +7,7 @@ const CATEGORY_EXIT = "Saida";
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const IMPORT_TTL_MINUTES = 30;
+const DEFAULT_IMPORT_CSV_MAX_ROWS = 2000;
 const REQUIRED_HEADERS = ["date", "type", "value", "description"];
 const OPTIONAL_HEADERS = ["notes", "category"];
 const ALLOWED_HEADERS = new Set([...REQUIRED_HEADERS, ...OPTIONAL_HEADERS]);
@@ -23,6 +24,19 @@ const normalizeHeader = (value) => String(value || "").trim().toLowerCase();
 
 const normalizeRawCell = (value) =>
   typeof value === "undefined" || value === null ? "" : String(value);
+
+const parsePositiveInteger = (value, fallbackValue) => {
+  const parsedValue = Number(value);
+
+  if (!Number.isInteger(parsedValue) || parsedValue <= 0) {
+    return fallbackValue;
+  }
+
+  return parsedValue;
+};
+
+const getImportCsvMaxRows = () =>
+  parsePositiveInteger(process.env.IMPORT_CSV_MAX_ROWS, DEFAULT_IMPORT_CSV_MAX_ROWS);
 
 const ensureValidCsvHeaders = (headerRow) => {
   const normalizedHeaders = headerRow.map(normalizeHeader);
@@ -82,6 +96,11 @@ const parseCsvFileRows = (fileBuffer) => {
   }
 
   const normalizedHeaders = ensureValidCsvHeaders(headerRow);
+  const maxRows = getImportCsvMaxRows();
+
+  if (dataRows.length > maxRows) {
+    throw createError(400, `CSV excede o limite de ${maxRows} linhas.`);
+  }
 
   return dataRows.map((rowValues, rowIndex) => {
     const sourceValues = Array.isArray(rowValues) ? rowValues : [rowValues];

@@ -8,6 +8,7 @@ import {
   LOGIN_THROTTLE_MESSAGE,
   resetLoginProtectionState,
 } from "./middlewares/login-protection.middleware.js";
+import { resetImportRateLimiterState } from "./middlewares/rate-limit.middleware.js";
 
 const registerAndLogin = async (email, password = "Senha123") => {
   await request(app).post("/auth/register").send({
@@ -75,6 +76,7 @@ describe("API auth and transactions", () => {
 
   beforeEach(async () => {
     resetLoginProtectionState();
+    resetImportRateLimiterState();
     await dbQuery("DELETE FROM transactions");
     await dbQuery("DELETE FROM users");
   });
@@ -496,6 +498,60 @@ describe("API auth and transactions", () => {
     });
   });
 
+  it("POST /transactions/import/dry-run retorna 400 quando CSV excede o limite de linhas", async () => {
+    const token = await registerAndLogin("import-linhas-maximo@controlfinance.dev");
+    const rows = ["date,type,value,description"];
+
+    for (let lineNumber = 1; lineNumber <= 2001; lineNumber += 1) {
+      rows.push(`2026-03-01,Entrada,1,Linha ${lineNumber}`);
+    }
+
+    const oversizedRowsCsv = csvFile(rows.join("\n"));
+
+    const response = await request(app)
+      .post("/transactions/import/dry-run")
+      .set("Authorization", `Bearer ${token}`)
+      .attach("file", oversizedRowsCsv.buffer, {
+        filename: oversizedRowsCsv.fileName,
+        contentType: "text/csv",
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      message: "CSV excede o limite de 2000 linhas.",
+    });
+  });
+
+  it("POST /transactions/import/dry-run retorna 429 quando excede o limite de requisicoes", async () => {
+    const token = await registerAndLogin("import-rate-limit@controlfinance.dev");
+    const validCsv = csvFile("date,type,value,description\n2026-03-01,Entrada,100,Teste");
+
+    for (let attempt = 1; attempt <= 10; attempt += 1) {
+      const allowedResponse = await request(app)
+        .post("/transactions/import/dry-run")
+        .set("Authorization", `Bearer ${token}`)
+        .attach("file", validCsv.buffer, {
+          filename: validCsv.fileName,
+          contentType: "text/csv",
+        });
+
+      expect(allowedResponse.status).toBe(200);
+    }
+
+    const throttledResponse = await request(app)
+      .post("/transactions/import/dry-run")
+      .set("Authorization", `Bearer ${token}`)
+      .attach("file", validCsv.buffer, {
+        filename: validCsv.fileName,
+        contentType: "text/csv",
+      });
+
+    expect(throttledResponse.status).toBe(429);
+    expect(throttledResponse.body).toEqual({
+      message: "Muitas requisicoes. Tente novamente em instantes.",
+    });
+  });
+
   it("POST /transactions/import/dry-run retorna 400 para cabecalho invalido", async () => {
     const token = await registerAndLogin("import-cabecalho@controlfinance.dev");
     const invalidHeaderCsv = csvFile("tipo,valor,descricao\nSaida,100,Mercado");
@@ -691,6 +747,33 @@ describe("API auth and transactions", () => {
     });
 
     expect(response.status).toBe(401);
+  });
+
+  it("POST /transactions/import/commit retorna 429 quando excede o limite de requisicoes", async () => {
+    const token = await registerAndLogin("import-commit-rate-limit@controlfinance.dev");
+    const invalidPayload = { importId: "abc" };
+
+    for (let attempt = 1; attempt <= 10; attempt += 1) {
+      const allowedResponse = await request(app)
+        .post("/transactions/import/commit")
+        .set("Authorization", `Bearer ${token}`)
+        .send(invalidPayload);
+
+      expect(allowedResponse.status).toBe(400);
+      expect(allowedResponse.body).toEqual({
+        message: "importId invalido.",
+      });
+    }
+
+    const throttledResponse = await request(app)
+      .post("/transactions/import/commit")
+      .set("Authorization", `Bearer ${token}`)
+      .send(invalidPayload);
+
+    expect(throttledResponse.status).toBe(429);
+    expect(throttledResponse.body).toEqual({
+      message: "Muitas requisicoes. Tente novamente em instantes.",
+    });
   });
 
   it("POST /transactions/import/commit retorna 400 sem importId", async () => {
