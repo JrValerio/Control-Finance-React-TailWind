@@ -52,6 +52,22 @@ const csvFile = (content, fileName = "import.csv") => ({
   fileName,
 });
 
+const createTransactionsForUser = async (token, count) => {
+  await Promise.all(
+    Array.from({ length: count }, (_, index) =>
+      request(app)
+        .post("/transactions")
+        .set("Authorization", `Bearer ${token}`)
+        .send({
+          type: "Entrada",
+          value: (index + 1) * 10,
+          date: `2026-01-${String(index + 1).padStart(2, "0")}`,
+          description: `Lancamento ${index + 1}`,
+        }),
+    ),
+  );
+};
+
 const AUTH_SECURITY_ENV_KEYS = [
   "AUTH_BRUTE_FORCE_MAX_ATTEMPTS",
   "AUTH_BRUTE_FORCE_WINDOW_MS",
@@ -1640,6 +1656,67 @@ describe("API auth and transactions", () => {
     expect(secondPageResponse.body.data).toHaveLength(2);
     expect(secondPageResponse.body.data[0].description).toBe("Lancamento 3");
     expect(secondPageResponse.body.data[1].description).toBe("Lancamento 4");
+  });
+
+  it("aplica limit=20 e offset=0 por padrao em GET /transactions", async () => {
+    const token = await registerAndLogin("pagination-default@controlfinance.dev");
+    await createTransactionsForUser(token, 25);
+
+    const response = await request(app)
+      .get("/transactions")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.meta).toEqual({
+      page: 1,
+      limit: 20,
+      total: 25,
+      totalPages: 2,
+    });
+    expect(response.body.data).toHaveLength(20);
+    expect(response.body.data[0].description).toBe("Lancamento 1");
+    expect(response.body.data[19].description).toBe("Lancamento 20");
+  });
+
+  it("aplica offset=0 quando limit e explicito em GET /transactions", async () => {
+    const token = await registerAndLogin("pagination-limit@controlfinance.dev");
+    await createTransactionsForUser(token, 25);
+
+    const response = await request(app)
+      .get("/transactions")
+      .query({
+        limit: 10,
+      })
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.meta).toEqual({
+      page: 1,
+      limit: 10,
+      total: 25,
+      totalPages: 3,
+    });
+    expect(response.body.data).toHaveLength(10);
+    expect(response.body.data[0].description).toBe("Lancamento 1");
+    expect(response.body.data[9].description).toBe("Lancamento 10");
+  });
+
+  it.each([
+    { limit: "101" },
+    { offset: "-1" },
+    { limit: "10.5" },
+    { offset: "abc" },
+  ])("retorna 400 para paginacao invalida em GET /transactions (%o)", async (query) => {
+    const token = await registerAndLogin(
+      `pagination-invalid-${Object.keys(query)[0]}-${String(Object.values(query)[0])}@controlfinance.dev`,
+    );
+
+    const response = await request(app)
+      .get("/transactions")
+      .query(query)
+      .set("Authorization", `Bearer ${token}`);
+
+    expectErrorResponseWithRequestId(response, 400, "Paginacao invalida.");
   });
 
   it("filtra transacoes por categoryId", async () => {

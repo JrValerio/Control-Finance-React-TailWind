@@ -79,6 +79,7 @@ const getListFiltersFromQuery = (query = {}, options = {}) => {
   if (includePagination) {
     filters.page = query.page;
     filters.limit = query.limit;
+    filters.offset = query.offset;
   }
 
   return filters;
