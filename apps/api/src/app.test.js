@@ -28,6 +28,11 @@ const sleep = (durationInMs) =>
     setTimeout(resolve, durationInMs);
   });
 
+const csvFile = (content, fileName = "import.csv") => ({
+  buffer: Buffer.from(content, "utf8"),
+  fileName,
+});
+
 const AUTH_SECURITY_ENV_KEYS = [
   "AUTH_BRUTE_FORCE_MAX_ATTEMPTS",
   "AUTH_BRUTE_FORCE_WINDOW_MS",
@@ -428,6 +433,256 @@ describe("API auth and transactions", () => {
     const response = await request(app).get("/transactions/summary");
 
     expect(response.status).toBe(401);
+  });
+
+  it("POST /transactions/import/dry-run bloqueia sem token", async () => {
+    const response = await request(app)
+      .post("/transactions/import/dry-run")
+      .attach("file", csvFile("date,type,value,description\n2026-02-01,Entrada,100,Teste").buffer, {
+        filename: "import.csv",
+        contentType: "text/csv",
+      });
+
+    expect(response.status).toBe(401);
+  });
+
+  it("POST /transactions/import/dry-run retorna 400 sem arquivo", async () => {
+    const token = await registerAndLogin("import-sem-arquivo@controlfinance.dev");
+
+    const response = await request(app)
+      .post("/transactions/import/dry-run")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      message: "Arquivo CSV (file) e obrigatorio.",
+    });
+  });
+
+  it("POST /transactions/import/dry-run retorna 400 para arquivo sem formato CSV", async () => {
+    const token = await registerAndLogin("import-arquivo-invalido@controlfinance.dev");
+    const invalidFile = csvFile("conteudo sem cabecalho", "import.txt");
+
+    const response = await request(app)
+      .post("/transactions/import/dry-run")
+      .set("Authorization", `Bearer ${token}`)
+      .attach("file", invalidFile.buffer, {
+        filename: invalidFile.fileName,
+        contentType: "text/plain",
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      message: "Arquivo invalido. Envie um CSV.",
+    });
+  });
+
+  it("POST /transactions/import/dry-run retorna 413 quando arquivo excede limite", async () => {
+    const token = await registerAndLogin("import-arquivo-grande@controlfinance.dev");
+    const oversizedContent = `date,type,value,description\n${"a".repeat(2 * 1024 * 1024 + 1)}`;
+    const oversizedCsvFile = csvFile(oversizedContent, "oversized.csv");
+
+    const response = await request(app)
+      .post("/transactions/import/dry-run")
+      .set("Authorization", `Bearer ${token}`)
+      .attach("file", oversizedCsvFile.buffer, {
+        filename: oversizedCsvFile.fileName,
+        contentType: "text/csv",
+      });
+
+    expect(response.status).toBe(413);
+    expect(response.body).toEqual({
+      message: "Arquivo muito grande.",
+    });
+  });
+
+  it("POST /transactions/import/dry-run retorna 400 para cabecalho invalido", async () => {
+    const token = await registerAndLogin("import-cabecalho@controlfinance.dev");
+    const invalidHeaderCsv = csvFile("tipo,valor,descricao\nSaida,100,Mercado");
+
+    const response = await request(app)
+      .post("/transactions/import/dry-run")
+      .set("Authorization", `Bearer ${token}`)
+      .attach("file", invalidHeaderCsv.buffer, {
+        filename: invalidHeaderCsv.fileName,
+        contentType: "text/csv",
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      message:
+        "CSV invalido. Cabecalho esperado: date,type,value,description,notes,category",
+    });
+  });
+
+  it("POST /transactions/import/dry-run valida linhas e persiste sessao", async () => {
+    const token = await registerAndLogin("import-sessao@controlfinance.dev");
+    const categoryResponse = await request(app)
+      .post("/categories")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: "Alimentacao",
+      });
+
+    const mixedCsv = csvFile(
+      [
+        "date,type,value,description,notes,category",
+        "2026-02-01,Entrada,1000,Salario,,",
+        "2026-02-10,Saida,220.50,Mercado,,alimentacao",
+        "2026-02-11,Saida,0,Cafe,,Alimentacao",
+        "2026-02-12,Saida,30,,Lanche,Transporte",
+      ].join("\n"),
+    );
+
+    const response = await request(app)
+      .post("/transactions/import/dry-run")
+      .set("Authorization", `Bearer ${token}`)
+      .attach("file", mixedCsv.buffer, {
+        filename: mixedCsv.fileName,
+        contentType: "text/csv",
+      });
+
+    expect(response.status).toBe(200);
+    expect(typeof response.body.importId).toBe("string");
+    expect(response.body.importId.length).toBeGreaterThan(10);
+    expect(typeof response.body.expiresAt).toBe("string");
+    expect(response.body.summary).toEqual({
+      totalRows: 4,
+      validRows: 2,
+      invalidRows: 2,
+      income: 1000,
+      expense: 220.5,
+    });
+    expect(response.body.rows).toEqual([
+      {
+        line: 2,
+        status: "valid",
+        raw: {
+          date: "2026-02-01",
+          type: "Entrada",
+          value: "1000",
+          description: "Salario",
+          notes: "",
+          category: "",
+        },
+        normalized: {
+          date: "2026-02-01",
+          type: "Entrada",
+          value: 1000,
+          description: "Salario",
+          notes: "",
+          categoryId: null,
+        },
+        errors: [],
+      },
+      {
+        line: 3,
+        status: "valid",
+        raw: {
+          date: "2026-02-10",
+          type: "Saida",
+          value: "220.50",
+          description: "Mercado",
+          notes: "",
+          category: "alimentacao",
+        },
+        normalized: {
+          date: "2026-02-10",
+          type: "Saida",
+          value: 220.5,
+          description: "Mercado",
+          notes: "",
+          categoryId: categoryResponse.body.id,
+        },
+        errors: [],
+      },
+      {
+        line: 4,
+        status: "invalid",
+        raw: {
+          date: "2026-02-11",
+          type: "Saida",
+          value: "0",
+          description: "Cafe",
+          notes: "",
+          category: "Alimentacao",
+        },
+        normalized: null,
+        errors: [{ field: "value", message: "Valor invalido. Informe um numero maior que zero." }],
+      },
+      {
+        line: 5,
+        status: "invalid",
+        raw: {
+          date: "2026-02-12",
+          type: "Saida",
+          value: "30",
+          description: "",
+          notes: "Lanche",
+          category: "Transporte",
+        },
+        normalized: null,
+        errors: [
+          { field: "description", message: "Descricao e obrigatoria." },
+          { field: "category", message: "Categoria nao encontrada." },
+        ],
+      },
+    ]);
+
+    const persistedSessionResult = await dbQuery(
+      `
+        SELECT id, user_id, payload_json, committed_at, expires_at
+        FROM transaction_import_sessions
+        WHERE id = $1
+      `,
+      [response.body.importId],
+    );
+    const persistedSession = persistedSessionResult.rows[0];
+
+    expect(persistedSession.id).toBe(response.body.importId);
+    expect(Number(persistedSession.user_id)).toBeGreaterThan(0);
+    expect(persistedSession.committed_at).toBeNull();
+    expect(new Date(persistedSession.expires_at).getTime()).toBeGreaterThan(Date.now());
+    expect(Array.isArray(persistedSession.payload_json.normalizedRows)).toBe(true);
+    expect(persistedSession.payload_json.normalizedRows).toHaveLength(2);
+  });
+
+  it("POST /transactions/import/dry-run marca date e type invalidos por linha", async () => {
+    const token = await registerAndLogin("import-date-type@controlfinance.dev");
+    const invalidCsv = csvFile(
+      [
+        "date,type,value,description,notes,category",
+        "2026-02-31,Saida,10,Cafe,,",
+        "2026-02-20,Transferencia,20,Pix,,",
+      ].join("\n"),
+    );
+
+    const response = await request(app)
+      .post("/transactions/import/dry-run")
+      .set("Authorization", `Bearer ${token}`)
+      .attach("file", invalidCsv.buffer, {
+        filename: invalidCsv.fileName,
+        contentType: "text/csv",
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.summary).toEqual({
+      totalRows: 2,
+      validRows: 0,
+      invalidRows: 2,
+      income: 0,
+      expense: 0,
+    });
+    expect(response.body.rows[0]).toMatchObject({
+      line: 2,
+      status: "invalid",
+      errors: [{ field: "date", message: "Data invalida. Use YYYY-MM-DD." }],
+    });
+    expect(response.body.rows[1]).toMatchObject({
+      line: 3,
+      status: "invalid",
+      errors: [{ field: "type", message: "Tipo invalido. Use Entrada ou Saida." }],
+    });
   });
 
   it("GET /transactions/summary retorna 400 quando month nao e informado", async () => {
