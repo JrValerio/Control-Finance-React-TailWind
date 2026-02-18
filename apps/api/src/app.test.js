@@ -685,6 +685,226 @@ describe("API auth and transactions", () => {
     });
   });
 
+  it("POST /transactions/import/commit bloqueia sem token", async () => {
+    const response = await request(app).post("/transactions/import/commit").send({
+      importId: "11111111-1111-4111-8111-111111111111",
+    });
+
+    expect(response.status).toBe(401);
+  });
+
+  it("POST /transactions/import/commit retorna 400 sem importId", async () => {
+    const token = await registerAndLogin("import-commit-sem-id@controlfinance.dev");
+
+    const response = await request(app)
+      .post("/transactions/import/commit")
+      .set("Authorization", `Bearer ${token}`)
+      .send({});
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      message: "importId e obrigatorio.",
+    });
+  });
+
+  it("POST /transactions/import/commit retorna 400 com importId invalido", async () => {
+    const token = await registerAndLogin("import-commit-id-invalido@controlfinance.dev");
+
+    const response = await request(app)
+      .post("/transactions/import/commit")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        importId: "abc",
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      message: "importId invalido.",
+    });
+  });
+
+  it("POST /transactions/import/commit importa linhas validas e marca sessao como confirmada", async () => {
+    const token = await registerAndLogin("import-commit-sucesso@controlfinance.dev");
+    const categoryResponse = await request(app)
+      .post("/categories")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: "Alimentacao",
+      });
+
+    const dryRunCsv = csvFile(
+      [
+        "date,type,value,description,notes,category",
+        "2026-03-01,Entrada,1000,Salario,,",
+        "2026-03-05,Saida,220.5,Mercado,,Alimentacao",
+        "2026-03-10,Saida,0,Cafe,,Alimentacao",
+      ].join("\n"),
+    );
+
+    const dryRunResponse = await request(app)
+      .post("/transactions/import/dry-run")
+      .set("Authorization", `Bearer ${token}`)
+      .attach("file", dryRunCsv.buffer, {
+        filename: dryRunCsv.fileName,
+        contentType: "text/csv",
+      });
+
+    expect(dryRunResponse.status).toBe(200);
+    expect(dryRunResponse.body.summary.validRows).toBe(2);
+
+    const commitResponse = await request(app)
+      .post("/transactions/import/commit")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        importId: dryRunResponse.body.importId,
+      });
+
+    expect(commitResponse.status).toBe(200);
+    expect(commitResponse.body).toEqual({
+      imported: 2,
+      summary: {
+        income: 1000,
+        expense: 220.5,
+        balance: 779.5,
+      },
+    });
+
+    const listResponse = await request(app)
+      .get("/transactions")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(listResponse.status).toBe(200);
+    expect(listResponse.body.meta.total).toBe(2);
+    expect(listResponse.body.data).toEqual([
+      expect.objectContaining({
+        description: "Salario",
+        type: "Entrada",
+        value: 1000,
+        categoryId: null,
+      }),
+      expect.objectContaining({
+        description: "Mercado",
+        type: "Saida",
+        value: 220.5,
+        categoryId: categoryResponse.body.id,
+      }),
+    ]);
+
+    const persistedSessionResult = await dbQuery(
+      `
+        SELECT committed_at
+        FROM transaction_import_sessions
+        WHERE id = $1
+      `,
+      [dryRunResponse.body.importId],
+    );
+    expect(persistedSessionResult.rows[0].committed_at).toBeTruthy();
+  });
+
+  it("POST /transactions/import/commit retorna 404 para sessao de outro usuario", async () => {
+    const ownerToken = await registerAndLogin("import-commit-owner@controlfinance.dev");
+    const guestToken = await registerAndLogin("import-commit-guest@controlfinance.dev");
+
+    const dryRunCsv = csvFile(
+      ["date,type,value,description,notes,category", "2026-03-01,Entrada,100,Freela,,"].join(
+        "\n",
+      ),
+    );
+
+    const ownerDryRunResponse = await request(app)
+      .post("/transactions/import/dry-run")
+      .set("Authorization", `Bearer ${ownerToken}`)
+      .attach("file", dryRunCsv.buffer, {
+        filename: dryRunCsv.fileName,
+        contentType: "text/csv",
+      });
+
+    const response = await request(app)
+      .post("/transactions/import/commit")
+      .set("Authorization", `Bearer ${guestToken}`)
+      .send({
+        importId: ownerDryRunResponse.body.importId,
+      });
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({
+      message: "Sessao de importacao nao encontrada.",
+    });
+  });
+
+  it("POST /transactions/import/commit retorna 409 quando sessao ja foi confirmada", async () => {
+    const token = await registerAndLogin("import-commit-duplicado@controlfinance.dev");
+    const dryRunCsv = csvFile(
+      ["date,type,value,description,notes,category", "2026-03-02,Saida,50,Mercado,,"].join(
+        "\n",
+      ),
+    );
+
+    const dryRunResponse = await request(app)
+      .post("/transactions/import/dry-run")
+      .set("Authorization", `Bearer ${token}`)
+      .attach("file", dryRunCsv.buffer, {
+        filename: dryRunCsv.fileName,
+        contentType: "text/csv",
+      });
+
+    const firstCommitResponse = await request(app)
+      .post("/transactions/import/commit")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        importId: dryRunResponse.body.importId,
+      });
+
+    const secondCommitResponse = await request(app)
+      .post("/transactions/import/commit")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        importId: dryRunResponse.body.importId,
+      });
+
+    expect(firstCommitResponse.status).toBe(200);
+    expect(secondCommitResponse.status).toBe(409);
+    expect(secondCommitResponse.body).toEqual({
+      message: "Importacao ja confirmada.",
+    });
+  });
+
+  it("POST /transactions/import/commit retorna 410 quando sessao expirou", async () => {
+    const token = await registerAndLogin("import-commit-expirado@controlfinance.dev");
+    const dryRunCsv = csvFile(
+      ["date,type,value,description,notes,category", "2026-03-03,Saida,30,Lanche,,"].join("\n"),
+    );
+
+    const dryRunResponse = await request(app)
+      .post("/transactions/import/dry-run")
+      .set("Authorization", `Bearer ${token}`)
+      .attach("file", dryRunCsv.buffer, {
+        filename: dryRunCsv.fileName,
+        contentType: "text/csv",
+      });
+
+    await dbQuery(
+      `
+        UPDATE transaction_import_sessions
+        SET expires_at = NOW() - INTERVAL '1 minute'
+        WHERE id = $1
+      `,
+      [dryRunResponse.body.importId],
+    );
+
+    const commitResponse = await request(app)
+      .post("/transactions/import/commit")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        importId: dryRunResponse.body.importId,
+      });
+
+    expect(commitResponse.status).toBe(410);
+    expect(commitResponse.body).toEqual({
+      message: "Sessao de importacao expirada.",
+    });
+  });
+
   it("GET /transactions/summary retorna 400 quando month nao e informado", async () => {
     const token = await registerAndLogin("summary-sem-mes@controlfinance.dev");
 

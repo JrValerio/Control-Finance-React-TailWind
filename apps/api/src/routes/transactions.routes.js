@@ -11,7 +11,10 @@ import {
   restoreTransactionForUser,
   updateTransactionForUser,
 } from "../services/transactions.service.js";
-import { dryRunTransactionsImportForUser } from "../services/transactions-import.service.js";
+import {
+  commitTransactionsImportForUser,
+  dryRunTransactionsImportForUser,
+} from "../services/transactions-import.service.js";
 
 const router = Router();
 const CSV_MAX_FILE_SIZE_BYTES = Number(process.env.IMPORT_CSV_MAX_FILE_SIZE_BYTES || 2 * 1024 * 1024);
@@ -171,6 +174,18 @@ router.post("/import/dry-run", (req, res, next) => {
       return next(serviceError);
     }
   });
+});
+
+router.post("/import/commit", async (req, res, next) => {
+  try {
+    const commitResult = await commitTransactionsImportForUser(
+      req.user.id,
+      req.body?.importId,
+    );
+    res.status(200).json(commitResult);
+  } catch (error) {
+    next(error);
+  }
 });
 
 export default router;

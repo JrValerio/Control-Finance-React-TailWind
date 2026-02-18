@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { parse as parseCsv } from "csv-parse/sync";
-import { dbQuery } from "../db/index.js";
+import { dbQuery, withDbTransaction } from "../db/index.js";
 
 const CATEGORY_ENTRY = "Entrada";
 const CATEGORY_EXIT = "Saida";
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const IMPORT_TTL_MINUTES = 30;
 const REQUIRED_HEADERS = ["date", "type", "value", "description"];
 const OPTIONAL_HEADERS = ["notes", "category"];
@@ -318,6 +319,62 @@ const persistImportSession = async (userId, payload) => {
   };
 };
 
+const normalizeImportId = (value) => {
+  if (typeof value === "undefined" || value === null || value === "") {
+    throw createError(400, "importId e obrigatorio.");
+  }
+
+  if (typeof value !== "string") {
+    throw createError(400, "importId invalido.");
+  }
+
+  const normalizedValue = value.trim();
+
+  if (!UUID_REGEX.test(normalizedValue)) {
+    throw createError(400, "importId invalido.");
+  }
+
+  return normalizedValue;
+};
+
+const loadImportSessionById = async (importId) => {
+  const result = await dbQuery(
+    `
+      SELECT id, user_id, payload_json, expires_at, committed_at
+      FROM transaction_import_sessions
+      WHERE id = $1
+      LIMIT 1
+    `,
+    [importId],
+  );
+
+  return result.rows[0] || null;
+};
+
+const assertSessionOwnership = (session, userId) => {
+  if (!session || Number(session.user_id) !== Number(userId)) {
+    throw createError(404, "Sessao de importacao nao encontrada.");
+  }
+};
+
+const isSessionExpired = (session) => {
+  const expiresAt = new Date(session.expires_at);
+
+  return Number.isFinite(expiresAt.getTime()) && expiresAt.getTime() <= Date.now();
+};
+
+const assertSessionReadyForCommit = (session, userId) => {
+  assertSessionOwnership(session, userId);
+
+  if (session.committed_at) {
+    throw createError(409, "Importacao ja confirmada.");
+  }
+
+  if (isSessionExpired(session)) {
+    throw createError(410, "Sessao de importacao expirada.");
+  }
+};
+
 export const dryRunTransactionsImportForUser = async (userId, csvFileBuffer) => {
   const parsedRows = parseCsvFileRows(csvFileBuffer);
   const categoryMap = await loadCategoryMapForUser(userId);
@@ -348,5 +405,111 @@ export const dryRunTransactionsImportForUser = async (userId, csvFileBuffer) => 
     expiresAt: persistedSession.expiresAt,
     summary,
     rows,
+  };
+};
+
+export const commitTransactionsImportForUser = async (userId, importId) => {
+  const normalizedImportId = normalizeImportId(importId);
+  const importSession = await loadImportSessionById(normalizedImportId);
+
+  assertSessionReadyForCommit(importSession, userId);
+
+  const payload =
+    typeof importSession.payload_json === "string"
+      ? JSON.parse(importSession.payload_json)
+      : importSession.payload_json || {};
+  const normalizedRows = Array.isArray(payload.normalizedRows)
+    ? payload.normalizedRows
+    : [];
+
+  const commitOutcome = await withDbTransaction(async (transactionClient) => {
+    const sessionUpdateResult = await transactionClient.query(
+      `
+        UPDATE transaction_import_sessions
+        SET committed_at = NOW()
+        WHERE id = $1
+          AND user_id = $2
+          AND committed_at IS NULL
+          AND expires_at > NOW()
+        RETURNING id
+      `,
+      [normalizedImportId, userId],
+    );
+
+    const updatedSessions = Number(sessionUpdateResult.rowCount || 0);
+
+    if (updatedSessions === 0) {
+      const refreshedSession = await loadImportSessionById(normalizedImportId);
+      assertSessionReadyForCommit(refreshedSession, userId);
+      throw createError(409, "Importacao ja confirmada.");
+    }
+
+    if (normalizedRows.length === 0) {
+      return {
+        imported: 0,
+        income: 0,
+        expense: 0,
+      };
+    }
+
+    const insertValuesPlaceholders = normalizedRows
+      .map((_, rowIndex) => {
+        const startParameter = rowIndex * 6 + 2;
+        return `($1, $${startParameter}, $${startParameter + 1}, $${startParameter + 2}::date, $${startParameter + 3}, $${startParameter + 4}, $${startParameter + 5})`;
+      })
+      .join(", ");
+
+    const insertParams = [userId];
+
+    normalizedRows.forEach((row) => {
+      insertParams.push(
+        row.type,
+        row.value,
+        row.date,
+        row.description,
+        row.notes || "",
+        row.categoryId,
+      );
+    });
+
+    const insertResult = await transactionClient.query(
+      `
+        INSERT INTO transactions (user_id, type, value, date, description, notes, category_id)
+        VALUES ${insertValuesPlaceholders}
+        RETURNING type, value
+      `,
+      insertParams,
+    );
+
+    const imported = Number(insertResult.rowCount || 0);
+    const income = insertResult.rows.reduce((total, insertedRow) => {
+      if (insertedRow.type !== CATEGORY_ENTRY) {
+        return total;
+      }
+
+      return total + Number(insertedRow.value || 0);
+    }, 0);
+    const expense = insertResult.rows.reduce((total, insertedRow) => {
+      if (insertedRow.type !== CATEGORY_EXIT) {
+        return total;
+      }
+
+      return total + Number(insertedRow.value || 0);
+    }, 0);
+
+    return {
+      imported,
+      income,
+      expense,
+    };
+  });
+
+  return {
+    imported: commitOutcome.imported,
+    summary: {
+      income: commitOutcome.income,
+      expense: commitOutcome.expense,
+      balance: commitOutcome.income - commitOutcome.expense,
+    },
   };
 };
