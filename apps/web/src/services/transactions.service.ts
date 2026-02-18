@@ -75,6 +75,61 @@ export interface MonthlySummary {
   byCategory: MonthlySummaryByCategory[];
 }
 
+export interface ImportDryRunError {
+  field: string;
+  message: string;
+}
+
+export interface ImportDryRunRawRow {
+  date: string;
+  type: string;
+  value: string;
+  description: string;
+  notes: string;
+  category: string;
+}
+
+export interface ImportDryRunNormalizedRow {
+  date: string;
+  type: TransactionType;
+  value: number;
+  description: string;
+  notes: string;
+  categoryId: number | null;
+}
+
+export interface ImportDryRunRow {
+  line: number;
+  status: "valid" | "invalid";
+  raw: ImportDryRunRawRow;
+  normalized: ImportDryRunNormalizedRow | null;
+  errors: ImportDryRunError[];
+}
+
+export interface ImportDryRunSummary {
+  totalRows: number;
+  validRows: number;
+  invalidRows: number;
+  income: number;
+  expense: number;
+}
+
+export interface ImportDryRunResult {
+  importId: string;
+  expiresAt: string;
+  summary: ImportDryRunSummary;
+  rows: ImportDryRunRow[];
+}
+
+export interface ImportCommitResult {
+  imported: number;
+  summary: {
+    income: number;
+    expense: number;
+    balance: number;
+  };
+}
+
 interface TransactionsApiResponse {
   data?: unknown;
   meta?: {
@@ -100,6 +155,51 @@ interface MonthlySummaryApiResponse {
     categoryName?: unknown;
     expense?: unknown;
   }>;
+}
+
+interface ImportDryRunApiResponse {
+  importId?: unknown;
+  expiresAt?: unknown;
+  summary?: {
+    totalRows?: unknown;
+    validRows?: unknown;
+    invalidRows?: unknown;
+    income?: unknown;
+    expense?: unknown;
+  };
+  rows?: Array<{
+    line?: unknown;
+    status?: unknown;
+    raw?: {
+      date?: unknown;
+      type?: unknown;
+      value?: unknown;
+      description?: unknown;
+      notes?: unknown;
+      category?: unknown;
+    };
+    normalized?: {
+      date?: unknown;
+      type?: unknown;
+      value?: unknown;
+      description?: unknown;
+      notes?: unknown;
+      categoryId?: unknown;
+    } | null;
+    errors?: Array<{
+      field?: unknown;
+      message?: unknown;
+    }>;
+  }>;
+}
+
+interface ImportCommitApiResponse {
+  imported?: unknown;
+  summary?: {
+    income?: unknown;
+    expense?: unknown;
+    balance?: unknown;
+  };
 }
 
 const buildTransactionParams = (options: TransactionListOptions = {}): Record<string, string> => {
@@ -256,6 +356,81 @@ export const transactionsService = {
     return {
       blob: response.data as Blob,
       fileName: resolveCsvFilename(response.headers?.["content-disposition"]),
+    };
+  },
+  dryRunImportCsv: async (file: File): Promise<ImportDryRunResult> => {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const { data } = await api.post("/transactions/import/dry-run", formData);
+    const responseBody = data as ImportDryRunApiResponse;
+    const rows = Array.isArray(responseBody.rows)
+      ? responseBody.rows.map((row) => {
+          const numericLine = Number(row?.line);
+          const normalized = row?.normalized;
+          const normalizedType = String(normalized?.type || "").trim();
+          const numericNormalizedCategoryId = Number(normalized?.categoryId);
+
+          return {
+            line: Number.isInteger(numericLine) && numericLine >= 2 ? numericLine : 0,
+            status: row?.status === "valid" ? "valid" : "invalid",
+            raw: {
+              date: String(row?.raw?.date || ""),
+              type: String(row?.raw?.type || ""),
+              value: String(row?.raw?.value || ""),
+              description: String(row?.raw?.description || ""),
+              notes: String(row?.raw?.notes || ""),
+              category: String(row?.raw?.category || ""),
+            },
+            normalized:
+              normalized && (normalizedType === "Entrada" || normalizedType === "Saida")
+                ? {
+                    date: String(normalized.date || ""),
+                    type: normalizedType as TransactionType,
+                    value: Number(normalized.value) || 0,
+                    description: String(normalized.description || ""),
+                    notes: String(normalized.notes || ""),
+                    categoryId:
+                      Number.isInteger(numericNormalizedCategoryId) &&
+                      numericNormalizedCategoryId > 0
+                        ? numericNormalizedCategoryId
+                        : null,
+                  }
+                : null,
+            errors: Array.isArray(row?.errors)
+              ? row.errors.map((error) => ({
+                  field: String(error?.field || ""),
+                  message: String(error?.message || ""),
+                }))
+              : [],
+          };
+        })
+      : [];
+
+    return {
+      importId: String(responseBody.importId || ""),
+      expiresAt: String(responseBody.expiresAt || ""),
+      summary: {
+        totalRows: Number(responseBody.summary?.totalRows) || 0,
+        validRows: Number(responseBody.summary?.validRows) || 0,
+        invalidRows: Number(responseBody.summary?.invalidRows) || 0,
+        income: Number(responseBody.summary?.income) || 0,
+        expense: Number(responseBody.summary?.expense) || 0,
+      },
+      rows,
+    };
+  },
+  commitImportCsv: async (importId: string): Promise<ImportCommitResult> => {
+    const { data } = await api.post("/transactions/import/commit", { importId });
+    const responseBody = data as ImportCommitApiResponse;
+
+    return {
+      imported: Number(responseBody.imported) || 0,
+      summary: {
+        income: Number(responseBody.summary?.income) || 0,
+        expense: Number(responseBody.summary?.expense) || 0,
+        balance: Number(responseBody.summary?.balance) || 0,
+      },
     };
   },
 };
