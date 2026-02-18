@@ -476,6 +476,85 @@ describe("API auth and transactions", () => {
     expect(response.status).toBe(401);
   });
 
+  it("GET /transactions/imports/metrics bloqueia sem token", async () => {
+    const response = await request(app).get("/transactions/imports/metrics");
+
+    expect(response.status).toBe(401);
+  });
+
+  it("GET /transactions/imports/metrics retorna zeros quando usuario nao possui sessoes", async () => {
+    const token = await registerAndLogin("imports-metrics-empty@controlfinance.dev");
+    const response = await request(app)
+      .get("/transactions/imports/metrics")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      total: 0,
+      last30Days: 0,
+      lastImportAt: null,
+    });
+  });
+
+  it("GET /transactions/imports/metrics retorna total, last30Days e lastImportAt por usuario", async () => {
+    const userAEmail = "imports-metrics-user-a@controlfinance.dev";
+    const userBEmail = "imports-metrics-user-b@controlfinance.dev";
+    const tokenUserA = await registerAndLogin(userAEmail);
+    await registerAndLogin(userBEmail);
+
+    const userAId = await getUserIdByEmail(userAEmail);
+    const userBId = await getUserIdByEmail(userBEmail);
+    const recentCreatedAt = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString();
+    const oldCreatedAt = new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString();
+    const otherUserCreatedAt = new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString();
+
+    await dbQuery(
+      `
+        INSERT INTO transaction_import_sessions (
+          id,
+          user_id,
+          payload_json,
+          created_at,
+          expires_at,
+          committed_at
+        )
+        VALUES
+          ($1, $2, $3::jsonb, $4, $5, $6),
+          ($7, $8, $9::jsonb, $10, $11, $12),
+          ($13, $14, $15::jsonb, $16, $17, $18)
+      `,
+      [
+        "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1",
+        userAId,
+        JSON.stringify({ summary: { totalRows: 2, validRows: 2, invalidRows: 0 } }),
+        recentCreatedAt,
+        new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
+        null,
+        "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2",
+        userAId,
+        JSON.stringify({ summary: { totalRows: 1, validRows: 1, invalidRows: 0 } }),
+        oldCreatedAt,
+        new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
+        null,
+        "cccccccc-cccc-4ccc-8ccc-ccccccccccc3",
+        userBId,
+        JSON.stringify({ summary: { totalRows: 5, validRows: 4, invalidRows: 1 } }),
+        otherUserCreatedAt,
+        new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
+        null,
+      ],
+    );
+
+    const response = await request(app)
+      .get("/transactions/imports/metrics")
+      .set("Authorization", `Bearer ${tokenUserA}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.total).toBe(2);
+    expect(response.body.last30Days).toBe(1);
+    expect(response.body.lastImportAt).toBe(recentCreatedAt);
+  });
+
   it.each([
     { limit: "0" },
     { limit: "101" },
