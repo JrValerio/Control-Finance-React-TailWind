@@ -14,6 +14,8 @@ vi.mock("../services/transactions.service", () => ({
     listPage: vi.fn(),
     listCategories: vi.fn(),
     getMonthlySummary: vi.fn(),
+    dryRunImportCsv: vi.fn(),
+    commitImportCsv: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
     remove: vi.fn(),
@@ -42,6 +44,56 @@ const buildSummaryResponse = (summary = {}) => ({
   ...summary,
 });
 
+const buildImportDryRunResponse = (payload = {}) => ({
+  importId: "11111111-1111-4111-8111-111111111111",
+  expiresAt: "2026-03-01T10:00:00.000Z",
+  summary: {
+    totalRows: 2,
+    validRows: 1,
+    invalidRows: 1,
+    income: 100,
+    expense: 0,
+  },
+  rows: [
+    {
+      line: 2,
+      status: "valid",
+      raw: {
+        date: "2026-03-01",
+        type: "Entrada",
+        value: "100",
+        description: "Salario",
+        notes: "",
+        category: "",
+      },
+      normalized: {
+        date: "2026-03-01",
+        type: "Entrada",
+        value: 100,
+        description: "Salario",
+        notes: "",
+        categoryId: null,
+      },
+      errors: [],
+    },
+    {
+      line: 3,
+      status: "invalid",
+      raw: {
+        date: "2026-03-05",
+        type: "Saida",
+        value: "0",
+        description: "Cafe",
+        notes: "",
+        category: "Lazer",
+      },
+      normalized: null,
+      errors: [{ field: "value", message: "Valor invalido." }],
+    },
+  ],
+  ...payload,
+});
+
 describe("App", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -49,6 +101,15 @@ describe("App", () => {
     transactionsService.listPage.mockResolvedValue(buildPageResponse());
     transactionsService.listCategories.mockResolvedValue([]);
     transactionsService.getMonthlySummary.mockResolvedValue(buildSummaryResponse());
+    transactionsService.dryRunImportCsv.mockResolvedValue(buildImportDryRunResponse());
+    transactionsService.commitImportCsv.mockResolvedValue({
+      imported: 1,
+      summary: {
+        income: 100,
+        expense: 0,
+        balance: 100,
+      },
+    });
     transactionsService.update.mockResolvedValue({});
     transactionsService.restore.mockResolvedValue({});
     transactionsService.exportCsv.mockResolvedValue({
@@ -183,6 +244,138 @@ describe("App", () => {
 
     expect(await screen.findByText("R$ 700.00")).toBeInTheDocument();
     expect(screen.queryByText("Nao foi possivel carregar o resumo mensal.")).not.toBeInTheDocument();
+  });
+
+  it("abre importacao CSV, processa dry-run e exibe preview", async () => {
+    const user = userEvent.setup();
+    const csvFile = new File(
+      ["date,type,value,description\n2026-03-01,Entrada,100,Salario"],
+      "import.csv",
+      {
+        type: "text/csv",
+      },
+    );
+
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Importar CSV" }));
+    await user.upload(screen.getByLabelText("Arquivo CSV"), csvFile);
+    await user.click(screen.getByRole("button", { name: "Pre-visualizar" }));
+
+    expect(transactionsService.dryRunImportCsv).toHaveBeenCalledTimes(1);
+    expect(transactionsService.dryRunImportCsv.mock.calls[0][0]).toBe(csvFile);
+    expect(await screen.findByText("Salario")).toBeInTheDocument();
+    expect(screen.getByText("Valor invalido.")).toBeInTheDocument();
+    expect(screen.getByText("Sessao expira em: 2026-03-01T10:00:00.000Z")).toBeInTheDocument();
+  });
+
+  it("mantem botao importar desabilitado quando dry-run nao tem linhas validas", async () => {
+    const user = userEvent.setup();
+    const csvFile = new File(
+      ["date,type,value,description\n2026-03-01,Saida,0,Cafe"],
+      "import.csv",
+      {
+        type: "text/csv",
+      },
+    );
+    transactionsService.dryRunImportCsv.mockResolvedValueOnce(
+      buildImportDryRunResponse({
+        summary: {
+          totalRows: 1,
+          validRows: 0,
+          invalidRows: 1,
+          income: 0,
+          expense: 0,
+        },
+      }),
+    );
+
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Importar CSV" }));
+    await user.upload(screen.getByLabelText("Arquivo CSV"), csvFile);
+    await user.click(screen.getByRole("button", { name: "Pre-visualizar" }));
+    expect(await screen.findByText("Cafe")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Importar" })).toBeDisabled();
+  });
+
+  it("confirma importacao CSV e recarrega listagem e resumo", async () => {
+    const user = userEvent.setup();
+    const csvFile = new File(
+      ["date,type,value,description\n2026-03-01,Entrada,100,Salario"],
+      "import.csv",
+      {
+        type: "text/csv",
+      },
+    );
+    transactionsService.dryRunImportCsv.mockResolvedValueOnce(buildImportDryRunResponse());
+
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Importar CSV" }));
+    await user.upload(screen.getByLabelText("Arquivo CSV"), csvFile);
+    await user.click(screen.getByRole("button", { name: "Pre-visualizar" }));
+    await screen.findByText("Salario");
+    await user.click(screen.getByRole("button", { name: "Importar" }));
+
+    await waitFor(() => {
+      expect(transactionsService.commitImportCsv).toHaveBeenCalledWith(
+        "11111111-1111-4111-8111-111111111111",
+      );
+      expect(transactionsService.listPage).toHaveBeenCalledTimes(2);
+      expect(transactionsService.getMonthlySummary).toHaveBeenCalledTimes(2);
+    });
+
+    expect(screen.queryByLabelText("Arquivo CSV")).not.toBeInTheDocument();
+  });
+
+  it("exibe mensagem de erro quando dry-run falha", async () => {
+    const user = userEvent.setup();
+    const csvFile = new File(
+      ["date,type,value,description\n2026-03-01,Entrada,100,Salario"],
+      "import.csv",
+      {
+        type: "text/csv",
+      },
+    );
+    transactionsService.dryRunImportCsv.mockRejectedValueOnce({
+      response: { data: { message: "Arquivo invalido. Envie um CSV." } },
+    });
+
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Importar CSV" }));
+    await user.upload(screen.getByLabelText("Arquivo CSV"), csvFile);
+    await user.click(screen.getByRole("button", { name: "Pre-visualizar" }));
+
+    expect(await screen.findByText("Arquivo invalido. Envie um CSV.")).toBeInTheDocument();
+  });
+
+  it("exibe orientacao para sessao expirada durante commit", async () => {
+    const user = userEvent.setup();
+    const csvFile = new File(
+      ["date,type,value,description\n2026-03-01,Entrada,100,Salario"],
+      "import.csv",
+      {
+        type: "text/csv",
+      },
+    );
+    transactionsService.dryRunImportCsv.mockResolvedValueOnce(buildImportDryRunResponse());
+    transactionsService.commitImportCsv.mockRejectedValueOnce({
+      response: { data: { message: "Sessao de importacao expirada." } },
+    });
+
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Importar CSV" }));
+    await user.upload(screen.getByLabelText("Arquivo CSV"), csvFile);
+    await user.click(screen.getByRole("button", { name: "Pre-visualizar" }));
+    await screen.findByText("Salario");
+    await user.click(screen.getByRole("button", { name: "Importar" }));
+
+    expect(
+      await screen.findByText("Sessao de importacao expirada. Rode a pre-visualizacao novamente."),
+    ).toBeInTheDocument();
   });
 
   it("navega para a proxima pagina", async () => {

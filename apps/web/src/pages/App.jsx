@@ -1,6 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PropTypes from "prop-types";
 import Modal from "../components/Modal";
+import ImportCsvModal from "../components/ImportCsvModal";
 import TransactionList from "../components/TransactionList";
 import { transactionsService } from "../services/transactions.service";
 import {
@@ -117,6 +118,7 @@ const App = ({ onLogout = undefined }) => {
     totalPages: 1,
   }));
   const [isModalOpen, setModalOpen] = useState(false);
+  const [isImportModalOpen, setImportModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [pendingDeleteTransactionId, setPendingDeleteTransactionId] = useState(null);
   const [undoState, setUndoState] = useState(null);
@@ -414,6 +416,12 @@ const App = ({ onLogout = undefined }) => {
     }
   };
 
+  const handleImportCommitted = useCallback(async () => {
+    await loadTransactions();
+    await loadMonthlySummary();
+    setImportModalOpen(false);
+  }, [loadMonthlySummary, loadTransactions]);
+
   const scrollToListTop = () => {
     const scrollTarget = listSectionRef.current;
 
@@ -508,6 +516,13 @@ const App = ({ onLogout = undefined }) => {
               className="rounded border border-gray-300 bg-white px-4 py-2 font-semibold text-gray-100 hover:bg-gray-400 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isExportingCsv ? "Exportando CSV..." : "Exportar CSV"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setImportModalOpen(true)}
+              className="rounded border border-gray-300 bg-white px-4 py-2 font-semibold text-gray-100 hover:bg-gray-400"
+            >
+              Importar CSV
             </button>
             <button
               onClick={openCreateModal}
@@ -883,6 +898,12 @@ const App = ({ onLogout = undefined }) => {
         onSave={handleSaveTransaction}
         categories={categories}
         initialTransaction={editingTransaction}
+      />
+
+      <ImportCsvModal
+        isOpen={isImportModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        onImported={handleImportCommitted}
       />
     </div>
   );
