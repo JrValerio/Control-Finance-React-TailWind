@@ -186,7 +186,10 @@ Quando uma linha e invalida, a resposta traz erros por campo:
 - `POST /auth/register` cria usuario no Postgres
 - `POST /auth/login` retorna `{ token, user }`
 - `/auth/login` aplica rate limit por IP e bloqueio temporario por brute force
-- `GET /transactions` lista transacoes do usuario autenticado com filtros opcionais (`type`, `from`, `to`, `q`, `includeDeleted`, `page`, `limit`)
+- `GET /transactions` lista transacoes do usuario autenticado com filtros opcionais (`type`, `from`, `to`, `q`, `includeDeleted`, `page`, `limit`, `offset`)
+  - defaults: `limit=20`, `offset=0`
+  - validacao: `limit` inteiro entre `1` e `100`; `offset` inteiro `>= 0`
+  - regra de precedencia: quando `offset` e enviado, ele tem precedencia sobre `page`
   - resposta paginada: `{ data, meta: { page, limit, total, totalPages } }`
 - `POST /transactions` cria transacao para o usuario autenticado
 - `PATCH /transactions/:id` atualiza transacao do usuario autenticado
