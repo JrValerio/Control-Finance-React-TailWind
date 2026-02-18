@@ -1,4 +1,4 @@
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 
 const DEFAULT_IMPORT_RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const DEFAULT_IMPORT_RATE_LIMIT_MAX_REQUESTS = 10;
@@ -36,7 +36,7 @@ export const importRateLimiter = rateLimit({
   max: getImportRateLimitMaxRequests(),
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (request) => String(request.user?.id || "unknown"),
+  keyGenerator: (request) => String(request.user?.id || ipKeyGenerator(request.ip || "")),
   handler: (_request, _response, next) => {
     next(createError(429, "Muitas requisicoes. Tente novamente em instantes."));
   },
