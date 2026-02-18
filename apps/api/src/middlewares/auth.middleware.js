@@ -1,20 +1,25 @@
 import { verifyAuthToken } from "../services/auth.service.js";
 
+const createUnauthorizedResponse = (req, message) => ({
+  message,
+  requestId: req.requestId || null,
+});
+
 export const authMiddleware = (req, res, next) => {
   const authorizationHeader = req.headers.authorization;
 
   if (!authorizationHeader || !authorizationHeader.startsWith("Bearer ")) {
-    return res.status(401).json({
-      message: "Token de autenticacao ausente ou invalido.",
-    });
+    return res
+      .status(401)
+      .json(createUnauthorizedResponse(req, "Token de autenticacao ausente ou invalido."));
   }
 
   const token = authorizationHeader.slice("Bearer ".length).trim();
 
   if (!token) {
-    return res.status(401).json({
-      message: "Token de autenticacao ausente ou invalido.",
-    });
+    return res
+      .status(401)
+      .json(createUnauthorizedResponse(req, "Token de autenticacao ausente ou invalido."));
   }
 
   try {
@@ -27,8 +32,6 @@ export const authMiddleware = (req, res, next) => {
 
     return next();
   } catch {
-    return res.status(401).json({
-      message: "Token invalido ou expirado.",
-    });
+    return res.status(401).json(createUnauthorizedResponse(req, "Token invalido ou expirado."));
   }
 };

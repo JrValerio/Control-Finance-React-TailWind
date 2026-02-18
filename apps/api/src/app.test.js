@@ -490,10 +490,17 @@ describe("API auth and transactions", () => {
     expect(response.status).toBe(401);
   });
 
-  it("GET /transactions/imports/metrics bloqueia sem token", async () => {
-    const response = await request(app).get("/transactions/imports/metrics");
+  it("GET /transactions/imports/metrics bloqueia sem token e retorna requestId", async () => {
+    const response = await request(app)
+      .get("/transactions/imports/metrics")
+      .set("x-request-id", "rid-123");
 
     expect(response.status).toBe(401);
+    expect(response.body).toEqual({
+      message: "Token de autenticacao ausente ou invalido.",
+      requestId: "rid-123",
+    });
+    expect(response.headers["x-request-id"]).toBe("rid-123");
   });
 
   it("GET /transactions/imports/metrics retorna zeros quando usuario nao possui sessoes", async () => {
