@@ -196,6 +196,8 @@ Quando uma linha e invalida, a resposta traz erros por campo:
 - `POST /transactions/import/dry-run` valida CSV por linha e cria sessao de importacao com TTL
 - `POST /transactions/import/commit` confirma sessao de importacao e persiste apenas linhas validas
 - `GET /transactions/imports` lista historico de sessoes de importacao por usuario com `limit`/`offset`
+- `GET /transactions/imports/metrics` retorna metricas por usuario (`total`, `last30Days`, `lastImportAt`)
+- Correlacao de request: aceita `x-request-id` (ou `x-correlation-id`) e ecoa `x-request-id` na resposta
 - Migrations SQL automaticas no startup (`src/db/migrations`)
 - Middleware global de erro e fallback `404`
 
