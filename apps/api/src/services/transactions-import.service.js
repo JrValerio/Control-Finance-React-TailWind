@@ -575,6 +575,12 @@ export const commitTransactionsImportForUser = async (userId, importId) => {
   const normalizedRows = Array.isArray(payload.normalizedRows)
     ? payload.normalizedRows
     : [];
+  const payloadSummary = payload.summary || {};
+  const observabilitySummary = {
+    totalRows: normalizeSummaryInteger(payloadSummary.totalRows, normalizedRows.length),
+    validRows: normalizeSummaryInteger(payloadSummary.validRows, normalizedRows.length),
+    invalidRows: normalizeSummaryInteger(payloadSummary.invalidRows, 0),
+  };
 
   const commitOutcome = await withDbTransaction(async (transactionClient) => {
     const sessionUpdateResult = await transactionClient.query(
@@ -664,6 +670,12 @@ export const commitTransactionsImportForUser = async (userId, importId) => {
       income: commitOutcome.income,
       expense: commitOutcome.expense,
       balance: commitOutcome.income - commitOutcome.expense,
+    },
+    observability: {
+      importId: normalizedImportId,
+      totalRows: observabilitySummary.totalRows,
+      validRows: observabilitySummary.validRows,
+      invalidRows: observabilitySummary.invalidRows,
     },
   };
 };
