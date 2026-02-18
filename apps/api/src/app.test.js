@@ -106,6 +106,25 @@ describe("API auth and transactions", () => {
     expect(response.body.commit.length).toBeGreaterThan(0);
   });
 
+  it("echoa x-request-id quando informado no header", async () => {
+    const response = await request(app)
+      .get("/health")
+      .set("x-request-id", "request-id-test-123");
+
+    expect(response.status).toBe(200);
+    expect(response.headers["x-request-id"]).toBe("request-id-test-123");
+  });
+
+  it("gera x-request-id quando nao informado no header", async () => {
+    const response = await request(app).get("/health");
+    const requestId = response.headers["x-request-id"];
+
+    expect(response.status).toBe(200);
+    expect(typeof requestId).toBe("string");
+    expect(requestId.length).toBeGreaterThan(0);
+    expect(requestId.length).toBeLessThanOrEqual(128);
+  });
+
   it("POST /auth/register cria usuario", async () => {
     const response = await request(app).post("/auth/register").send({
       name: "Junior",

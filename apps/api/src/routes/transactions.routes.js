@@ -114,6 +114,7 @@ router.get("/summary", async (req, res, next) => {
 router.get("/imports", async (req, res, next) => {
   const elapsedTimer = createElapsedTimer();
   const userId = Number(req.user.id);
+  const requestId = req.requestId || null;
 
   try {
     const imports = await listTransactionsImportSessionsByUser(req.user.id, req.query || {});
@@ -131,6 +132,7 @@ router.get("/imports", async (req, res, next) => {
     );
 
     logImportEvent("import.history.list.success", {
+      requestId,
       userId,
       importId: null,
       rowsTotal: importsSummary.rowsTotal,
@@ -146,6 +148,7 @@ router.get("/imports", async (req, res, next) => {
     res.status(200).json(imports);
   } catch (error) {
     logImportEvent("import.history.list.error", {
+      requestId,
       userId,
       importId: null,
       rowsTotal: 0,
@@ -218,6 +221,7 @@ router.post("/:id/restore", async (req, res, next) => {
 router.post("/import/dry-run", importRateLimiter, (req, res, next) => {
   const elapsedTimer = createElapsedTimer();
   const userId = Number(req.user.id);
+  const requestId = req.requestId || null;
 
   upload.single("file")(req, res, async (error) => {
     if (error) {
@@ -228,6 +232,7 @@ router.post("/import/dry-run", importRateLimiter, (req, res, next) => {
       }
 
       logImportEvent("import.dry_run.error", {
+        requestId,
         userId,
         importId: null,
         rowsTotal: 0,
@@ -250,6 +255,7 @@ router.post("/import/dry-run", importRateLimiter, (req, res, next) => {
 
       trackDryRunMetrics({ rowsTotal });
       logImportEvent("import.dry_run.success", {
+        requestId,
         userId,
         importId: dryRunResult.importId || null,
         rowsTotal,
@@ -262,6 +268,7 @@ router.post("/import/dry-run", importRateLimiter, (req, res, next) => {
       return res.status(200).json(dryRunResult);
     } catch (serviceError) {
       logImportEvent("import.dry_run.error", {
+        requestId,
         userId,
         importId: null,
         rowsTotal: 0,
@@ -280,6 +287,7 @@ router.post("/import/dry-run", importRateLimiter, (req, res, next) => {
 router.post("/import/commit", importRateLimiter, async (req, res, next) => {
   const elapsedTimer = createElapsedTimer();
   const userId = Number(req.user.id);
+  const requestId = req.requestId || null;
   const requestImportId = typeof req.body?.importId === "string" ? req.body.importId.trim() : null;
 
   trackCommitAttemptMetrics();
@@ -296,6 +304,7 @@ router.post("/import/commit", importRateLimiter, async (req, res, next) => {
 
     trackCommitSuccessMetrics({ rowsImported: commitResult.imported });
     logImportEvent("import.commit.success", {
+      requestId,
       userId,
       importId: observability.importId || requestImportId || null,
       rowsTotal,
@@ -321,6 +330,7 @@ router.post("/import/commit", importRateLimiter, async (req, res, next) => {
 
     trackCommitFailMetrics();
     logImportEvent(errorEvent, {
+      requestId,
       userId,
       importId: requestImportId,
       rowsTotal: 0,
