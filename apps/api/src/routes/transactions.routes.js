@@ -4,6 +4,7 @@ import {
   createTransactionForUser,
   deleteTransactionForUser,
   exportTransactionsCsvByUser,
+  getMonthlySummaryForUser,
   listTransactionsByUser,
   restoreTransactionForUser,
   updateTransactionForUser,
@@ -46,6 +47,15 @@ router.get("/export.csv", async (req, res, next) => {
     );
 
     res.status(200).send(csvExport.content);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/summary", async (req, res, next) => {
+  try {
+    const summary = await getMonthlySummaryForUser(req.user.id, req.query.month);
+    res.status(200).json(summary);
   } catch (error) {
     next(error);
   }
