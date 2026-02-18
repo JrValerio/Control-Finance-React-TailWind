@@ -27,13 +27,22 @@ vi.mock("../services/transactions.service", () => ({
 
 const buildPageResponse = (transactions = [], meta = {}) => ({
   data: transactions,
-  meta: {
-    page: 1,
-    limit: 20,
-    total: transactions.length,
-    totalPages: 1,
-    ...meta,
-  },
+  meta: (() => {
+    const hasExplicitOffset = Object.prototype.hasOwnProperty.call(meta, "offset");
+    const normalizedMeta = {
+      page: 1,
+      limit: 20,
+      total: transactions.length,
+      totalPages: 1,
+      ...meta,
+    };
+
+    if (!hasExplicitOffset || typeof normalizedMeta.offset !== "number") {
+      normalizedMeta.offset = (normalizedMeta.page - 1) * normalizedMeta.limit;
+    }
+
+    return normalizedMeta;
+  })(),
 });
 
 const buildSummaryResponse = (summary = {}) => ({
@@ -108,6 +117,7 @@ describe("App", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     window.localStorage.clear();
+    window.history.replaceState(null, "", "/app");
     transactionsService.listPage.mockResolvedValue(buildPageResponse());
     transactionsService.listCategories.mockResolvedValue([]);
     transactionsService.getMonthlySummary.mockResolvedValue(buildSummaryResponse());
@@ -141,10 +151,10 @@ describe("App", () => {
 
     expect(await screen.findByText("Freela")).toBeInTheDocument();
     expect(screen.getByText("Pagina 1 de 3")).toBeInTheDocument();
-    expect(screen.getByText("Mostrando 1-20 de 45")).toBeInTheDocument();
+    expect(screen.getByText("Mostrando 1-1 de 45")).toBeInTheDocument();
     expect(transactionsService.listPage).toHaveBeenCalledWith({
-      page: 1,
       limit: 20,
+      offset: 0,
       from: undefined,
       to: undefined,
       type: undefined,
@@ -209,8 +219,8 @@ describe("App", () => {
     expect(await screen.findByText("Filtrada")).toBeInTheDocument();
     expect(screen.getByText("Categoria: Alimentacao")).toBeInTheDocument();
     expect(transactionsService.listPage).toHaveBeenLastCalledWith({
-      page: 1,
       limit: 20,
+      offset: 0,
       from: undefined,
       to: undefined,
       type: undefined,
@@ -564,8 +574,8 @@ describe("App", () => {
     expect(await screen.findByText("Pagina 2")).toBeInTheDocument();
     expect(screen.getByText("Pagina 2 de 2")).toBeInTheDocument();
     expect(transactionsService.listPage).toHaveBeenNthCalledWith(2, {
-      page: 2,
       limit: 20,
+      offset: 20,
       from: undefined,
       to: undefined,
       type: undefined,
@@ -606,10 +616,10 @@ describe("App", () => {
 
     expect(await screen.findByText("P1-L10")).toBeInTheDocument();
     expect(screen.getByText("Pagina 1 de 4")).toBeInTheDocument();
-    expect(screen.getByText("Mostrando 1-10 de 35")).toBeInTheDocument();
+    expect(screen.getByText("Mostrando 1-1 de 35")).toBeInTheDocument();
     expect(transactionsService.listPage).toHaveBeenLastCalledWith({
-      page: 1,
       limit: 10,
+      offset: 0,
       from: undefined,
       to: undefined,
       type: undefined,
@@ -643,8 +653,8 @@ describe("App", () => {
     expect(screen.getByText("Pagina 4 de 4")).toBeInTheDocument();
     expect(screen.getByText("Mostrando 61-61 de 61")).toBeInTheDocument();
     expect(transactionsService.listPage).toHaveBeenNthCalledWith(2, {
-      page: 4,
       limit: 20,
+      offset: 60,
       from: undefined,
       to: undefined,
       type: undefined,
@@ -687,8 +697,8 @@ describe("App", () => {
     expect(await screen.findByText("Entrada filtrada")).toBeInTheDocument();
     expect(screen.getByText("Pagina 1 de 1")).toBeInTheDocument();
     expect(transactionsService.listPage).toHaveBeenLastCalledWith({
-      page: 1,
       limit: 20,
+      offset: 0,
       from: undefined,
       to: undefined,
       type: CATEGORY_ENTRY,

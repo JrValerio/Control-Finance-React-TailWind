@@ -24,11 +24,13 @@ export interface TransactionListOptions {
   q?: string;
   page?: number;
   limit?: number;
+  offset?: number;
 }
 
 export interface PaginationMeta {
   page: number;
   limit: number;
+  offset: number;
   total: number;
   totalPages: number;
 }
@@ -167,6 +169,7 @@ interface TransactionsApiResponse {
   meta?: {
     page?: unknown;
     limit?: unknown;
+    offset?: unknown;
     total?: unknown;
     totalPages?: unknown;
   };
@@ -290,6 +293,10 @@ const buildTransactionParams = (options: TransactionListOptions = {}): Record<st
     params.limit = String(options.limit);
   }
 
+  if (Number.isInteger(options.offset) && options.offset >= 0) {
+    params.offset = String(options.offset);
+  }
+
   return params;
 };
 
@@ -322,14 +329,22 @@ export const transactionsService = {
     const responseBody = data as TransactionsApiResponse;
     const page = Number(responseBody?.meta?.page);
     const limit = Number(responseBody?.meta?.limit);
+    const offset = Number(responseBody?.meta?.offset);
     const total = Number(responseBody?.meta?.total);
     const totalPages = Number(responseBody?.meta?.totalPages);
+    const normalizedPage = Number.isInteger(page) && page > 0 ? page : 1;
+    const normalizedLimit = Number.isInteger(limit) && limit > 0 ? limit : 20;
+    const normalizedOffset =
+      Number.isInteger(offset) && offset >= 0
+        ? offset
+        : (normalizedPage - 1) * normalizedLimit;
 
     return {
       data: Array.isArray(responseBody?.data) ? (responseBody.data as Transaction[]) : [],
       meta: {
-        page: Number.isInteger(page) && page > 0 ? page : 1,
-        limit: Number.isInteger(limit) && limit > 0 ? limit : 20,
+        page: normalizedPage,
+        limit: normalizedLimit,
+        offset: normalizedOffset,
         total: Number.isInteger(total) && total >= 0 ? total : 0,
         totalPages: Number.isInteger(totalPages) && totalPages > 0 ? totalPages : 1,
       },

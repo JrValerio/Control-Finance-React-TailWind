@@ -9,6 +9,7 @@ import {
   CATEGORY_ALL,
   CATEGORY_ENTRY,
   CATEGORY_EXIT,
+  isValidISODate,
   PERIOD_ALL,
   PERIOD_CUSTOM,
   PERIOD_LAST_30_DAYS,
@@ -28,7 +29,7 @@ const PERIOD_OPTIONS = [
   PERIOD_LAST_30_DAYS,
   PERIOD_CUSTOM,
 ];
-const DEFAULT_PAGE = 1;
+const DEFAULT_OFFSET = 0;
 const DEFAULT_LIMIT = 20;
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
 const PAGE_SIZE_STORAGE_KEY = "control_finance.page_size";
@@ -41,6 +42,60 @@ const DEFAULT_MONTHLY_SUMMARY = {
 };
 
 const getCurrentMonth = () => getTodayISODate().slice(0, 7);
+
+const parseIntegerInRange = (value, { min, max }) => {
+  if (typeof value !== "string" || !value.trim()) {
+    return null;
+  }
+
+  const parsedValue = Number(value);
+
+  if (!Number.isInteger(parsedValue) || parsedValue < min || parsedValue > max) {
+    return null;
+  }
+
+  return parsedValue;
+};
+
+const getInitialFilterState = () => {
+  if (typeof window === "undefined") {
+    return {
+      selectedCategory: CATEGORY_ALL,
+      selectedPeriod: PERIOD_ALL,
+      selectedTransactionCategoryId: "",
+      customStartDate: "",
+      customEndDate: "",
+    };
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const queryType = params.get("type");
+  const queryPeriod = params.get("period");
+  const queryFrom = params.get("from");
+  const queryTo = params.get("to");
+  const queryCategoryId = parseIntegerInRange(params.get("categoryId"), {
+    min: 1,
+    max: Number.MAX_SAFE_INTEGER,
+  });
+
+  const selectedCategory =
+    queryType === CATEGORY_ENTRY || queryType === CATEGORY_EXIT ? queryType : CATEGORY_ALL;
+  let selectedPeriod = PERIOD_OPTIONS.includes(queryPeriod) ? queryPeriod : PERIOD_ALL;
+  const customStartDate = isValidISODate(queryFrom) ? queryFrom : "";
+  const customEndDate = isValidISODate(queryTo) ? queryTo : "";
+
+  if (selectedPeriod === PERIOD_ALL && (customStartDate || customEndDate)) {
+    selectedPeriod = PERIOD_CUSTOM;
+  }
+
+  return {
+    selectedCategory,
+    selectedPeriod,
+    selectedTransactionCategoryId: queryCategoryId ? String(queryCategoryId) : "",
+    customStartDate: selectedPeriod === PERIOD_CUSTOM ? customStartDate : "",
+    customEndDate: selectedPeriod === PERIOD_CUSTOM ? customEndDate : "",
+  };
+};
 
 const getApiErrorMessage = (error, fallbackMessage) => {
   return error?.response?.data?.message || error?.message || fallbackMessage;
@@ -89,6 +144,15 @@ const getInitialPageSize = () => {
     return DEFAULT_LIMIT;
   }
 
+  const queryLimit = parseIntegerInRange(new URLSearchParams(window.location.search).get("limit"), {
+    min: 1,
+    max: 100,
+  });
+
+  if (PAGE_SIZE_OPTIONS.includes(queryLimit)) {
+    return queryLimit;
+  }
+
   const storedPageSize = Number.parseInt(
     window.localStorage.getItem(PAGE_SIZE_STORAGE_KEY) || "",
     10,
@@ -101,20 +165,55 @@ const getInitialPageSize = () => {
   return DEFAULT_LIMIT;
 };
 
+const getInitialOffset = () => {
+  if (typeof window === "undefined") {
+    return DEFAULT_OFFSET;
+  }
+
+  const queryOffset = parseIntegerInRange(new URLSearchParams(window.location.search).get("offset"), {
+    min: 0,
+    max: Number.MAX_SAFE_INTEGER,
+  });
+
+  return queryOffset ?? DEFAULT_OFFSET;
+};
+
+const getPageFromOffset = (offset, limit) => {
+  const safeLimit = Number.isInteger(limit) && limit > 0 ? limit : DEFAULT_LIMIT;
+  const safeOffset = Number.isInteger(offset) && offset >= 0 ? offset : DEFAULT_OFFSET;
+  return Math.floor(safeOffset / safeLimit) + 1;
+};
+
+const getInitialPaginationState = () => {
+  const limit = getInitialPageSize();
+  const offset = getInitialOffset();
+
+  return {
+    limit,
+    offset,
+    page: getPageFromOffset(offset, limit),
+  };
+};
+
 const App = ({ onLogout = undefined }) => {
+  const initialFilterState = useMemo(() => getInitialFilterState(), []);
+  const initialPaginationState = useMemo(() => getInitialPaginationState(), []);
   const listSectionRef = useRef(null);
-  const [selectedCategory, setSelectedCategory] = useState(CATEGORY_ALL);
-  const [selectedPeriod, setSelectedPeriod] = useState(PERIOD_ALL);
-  const [selectedTransactionCategoryId, setSelectedTransactionCategoryId] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState(initialFilterState.selectedCategory);
+  const [selectedPeriod, setSelectedPeriod] = useState(initialFilterState.selectedPeriod);
+  const [selectedTransactionCategoryId, setSelectedTransactionCategoryId] = useState(
+    initialFilterState.selectedTransactionCategoryId,
+  );
   const [selectedSummaryMonth, setSelectedSummaryMonth] = useState(() => getCurrentMonth());
   const [categories, setCategories] = useState([]);
-  const [customStartDate, setCustomStartDate] = useState("");
-  const [customEndDate, setCustomEndDate] = useState("");
-  const [currentPage, setCurrentPage] = useState(DEFAULT_PAGE);
-  const [pageSize, setPageSize] = useState(() => getInitialPageSize());
+  const [customStartDate, setCustomStartDate] = useState(initialFilterState.customStartDate);
+  const [customEndDate, setCustomEndDate] = useState(initialFilterState.customEndDate);
+  const [currentOffset, setCurrentOffset] = useState(initialPaginationState.offset);
+  const [pageSize, setPageSize] = useState(initialPaginationState.limit);
   const [paginationMeta, setPaginationMeta] = useState(() => ({
-    page: DEFAULT_PAGE,
-    limit: getInitialPageSize(),
+    page: initialPaginationState.page,
+    limit: initialPaginationState.limit,
+    offset: initialPaginationState.offset,
     total: 0,
     totalPages: 1,
   }));
@@ -218,8 +317,8 @@ const App = ({ onLogout = undefined }) => {
 
     try {
       const response = await transactionsService.listPage({
-        page: currentPage,
         limit: pageSize,
+        offset: currentOffset,
         from: periodRange.startDate || undefined,
         to: periodRange.endDate || undefined,
         type: selectedCategory !== CATEGORY_ALL ? selectedCategory : undefined,
@@ -232,14 +331,17 @@ const App = ({ onLogout = undefined }) => {
       setPaginationMeta({
         page: response.meta.page,
         limit: response.meta.limit,
+        offset: response.meta.offset,
         total: response.meta.total,
         totalPages: response.meta.totalPages,
       });
     } catch (error) {
       setTransactions([]);
+      const fallbackPage = getPageFromOffset(currentOffset, pageSize);
       setPaginationMeta({
-        page: currentPage,
+        page: fallbackPage,
         limit: pageSize,
+        offset: currentOffset,
         total: 0,
         totalPages: 1,
       });
@@ -247,17 +349,80 @@ const App = ({ onLogout = undefined }) => {
     } finally {
       setLoadingTransactions(false);
     }
-  }, [currentPage, pageSize, periodRange, selectedCategory, selectedTransactionCategoryId]);
+  }, [currentOffset, pageSize, periodRange, selectedCategory, selectedTransactionCategoryId]);
 
   useEffect(() => {
     loadTransactions();
   }, [loadTransactions]);
 
   useEffect(() => {
-    if (currentPage > paginationMeta.totalPages) {
-      setCurrentPage(paginationMeta.totalPages);
+    const maxOffset =
+      paginationMeta.total > 0
+        ? Math.max((paginationMeta.totalPages - 1) * paginationMeta.limit, 0)
+        : 0;
+
+    if (currentOffset > maxOffset) {
+      setCurrentOffset(maxOffset);
     }
-  }, [currentPage, paginationMeta.totalPages]);
+  }, [currentOffset, paginationMeta.limit, paginationMeta.total, paginationMeta.totalPages]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    params.set("limit", String(pageSize));
+    params.set("offset", String(currentOffset));
+
+    if (selectedCategory !== CATEGORY_ALL) {
+      params.set("type", selectedCategory);
+    } else {
+      params.delete("type");
+    }
+
+    if (selectedTransactionCategoryId) {
+      params.set("categoryId", selectedTransactionCategoryId);
+    } else {
+      params.delete("categoryId");
+    }
+
+    if (selectedPeriod !== PERIOD_ALL) {
+      params.set("period", selectedPeriod);
+    } else {
+      params.delete("period");
+    }
+
+    if (selectedPeriod === PERIOD_CUSTOM && customStartDate) {
+      params.set("from", customStartDate);
+    } else {
+      params.delete("from");
+    }
+
+    if (selectedPeriod === PERIOD_CUSTOM && customEndDate) {
+      params.set("to", customEndDate);
+    } else {
+      params.delete("to");
+    }
+
+    const nextSearch = params.toString();
+    const currentSearch = window.location.search.startsWith("?")
+      ? window.location.search.slice(1)
+      : window.location.search;
+
+    if (nextSearch !== currentSearch) {
+      const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}`;
+      window.history.replaceState(null, "", nextUrl);
+    }
+  }, [
+    currentOffset,
+    customEndDate,
+    customStartDate,
+    pageSize,
+    selectedCategory,
+    selectedPeriod,
+    selectedTransactionCategoryId,
+  ]);
 
   const filteredTransactions = useMemo(() => {
     return transactions;
@@ -437,31 +602,39 @@ const App = ({ onLogout = undefined }) => {
     });
   };
 
-  const goToPage = (nextPage) => {
-    const clampedPage = Math.min(Math.max(nextPage, 1), paginationMeta.totalPages);
+  const goToOffset = (nextOffset) => {
+    const maxOffset =
+      paginationMeta.total > 0
+        ? Math.max((paginationMeta.totalPages - 1) * paginationMeta.limit, 0)
+        : 0;
+    const clampedOffset = Math.min(Math.max(nextOffset, 0), maxOffset);
 
-    if (clampedPage === currentPage) {
+    if (clampedOffset === currentOffset) {
       return;
     }
 
-    setCurrentPage(clampedPage);
+    setCurrentOffset(clampedOffset);
     scrollToListTop();
   };
 
   const handlePreviousPage = () => {
-    goToPage(currentPage - 1);
+    goToOffset(currentOffset - pageSize);
   };
 
   const handleNextPage = () => {
-    goToPage(currentPage + 1);
+    goToOffset(currentOffset + pageSize);
   };
 
   const handleFirstPage = () => {
-    goToPage(1);
+    goToOffset(DEFAULT_OFFSET);
   };
 
   const handleLastPage = () => {
-    goToPage(paginationMeta.totalPages);
+    const lastOffset =
+      paginationMeta.total > 0
+        ? Math.max((paginationMeta.totalPages - 1) * paginationMeta.limit, 0)
+        : DEFAULT_OFFSET;
+    goToOffset(lastOffset);
   };
 
   const handlePageSizeChange = (nextPageSize) => {
@@ -472,7 +645,7 @@ const App = ({ onLogout = undefined }) => {
     }
 
     setPageSize(parsedPageSize);
-    setCurrentPage(DEFAULT_PAGE);
+    setCurrentOffset(DEFAULT_OFFSET);
 
     if (typeof window !== "undefined") {
       window.localStorage.setItem(PAGE_SIZE_STORAGE_KEY, String(parsedPageSize));
@@ -490,9 +663,12 @@ const App = ({ onLogout = undefined }) => {
     monthlySummary.income > 0 ||
     monthlySummary.expense > 0 ||
     monthlySummary.byCategory.length > 0;
-  const rangeStart =
-    paginationMeta.total === 0 ? 0 : (paginationMeta.page - 1) * paginationMeta.limit + 1;
-  const rangeEnd = Math.min(paginationMeta.page * paginationMeta.limit, paginationMeta.total);
+  const currentPage = paginationMeta.page;
+  const rangeStart = paginationMeta.total === 0 ? 0 : paginationMeta.offset + 1;
+  const rangeEnd = Math.min(
+    paginationMeta.offset + filteredTransactions.length,
+    paginationMeta.total,
+  );
 
   return (
     <div className="App min-h-screen bg-white pb-10">
@@ -556,7 +732,7 @@ const App = ({ onLogout = undefined }) => {
                     key={category}
                     onClick={() => {
                       setSelectedCategory(category);
-                      setCurrentPage(DEFAULT_PAGE);
+                      setCurrentOffset(DEFAULT_OFFSET);
                     }}
                     className={`flex items-center justify-center gap-2.5 rounded border px-4 py-2 text-sm font-semibold transition-colors ${
                       active
@@ -584,7 +760,7 @@ const App = ({ onLogout = undefined }) => {
               onChange={(event) => {
                 const nextPeriod = event.target.value;
                 setSelectedPeriod(nextPeriod);
-                setCurrentPage(DEFAULT_PAGE);
+                setCurrentOffset(DEFAULT_OFFSET);
 
                 if (nextPeriod !== PERIOD_CUSTOM) {
                   setCustomStartDate("");
@@ -612,7 +788,7 @@ const App = ({ onLogout = undefined }) => {
                 value={selectedTransactionCategoryId}
                 onChange={(event) => {
                   setSelectedTransactionCategoryId(event.target.value);
-                  setCurrentPage(DEFAULT_PAGE);
+                  setCurrentOffset(DEFAULT_OFFSET);
                 }}
                 className="w-full rounded border border-gray-400 px-3 py-2 text-sm text-gray-200"
               >
@@ -640,7 +816,7 @@ const App = ({ onLogout = undefined }) => {
                     value={customStartDate}
                     onChange={(event) => {
                       setCustomStartDate(event.target.value);
-                      setCurrentPage(DEFAULT_PAGE);
+                      setCurrentOffset(DEFAULT_OFFSET);
                     }}
                     className="w-full rounded border border-gray-400 px-3 py-2 text-sm text-gray-200"
                   />
@@ -658,7 +834,7 @@ const App = ({ onLogout = undefined }) => {
                     value={customEndDate}
                     onChange={(event) => {
                       setCustomEndDate(event.target.value);
-                      setCurrentPage(DEFAULT_PAGE);
+                      setCurrentOffset(DEFAULT_OFFSET);
                     }}
                     className="w-full rounded border border-gray-400 px-3 py-2 text-sm text-gray-200"
                   />
