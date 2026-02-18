@@ -6,6 +6,7 @@ import authRoutes from "./routes/auth.routes.js";
 import categoriesRoutes from "./routes/categories.routes.js";
 import transactionsRoutes from "./routes/transactions.routes.js";
 import { notFoundHandler, errorHandler } from "./middlewares/error.middleware.js";
+import { requestIdMiddleware } from "./middlewares/request-id.middleware.js";
 
 dotenv.config();
 
@@ -36,6 +37,7 @@ const resolveTrustProxyValue = () => {
 };
 
 app.set("trust proxy", resolveTrustProxyValue());
+app.use(requestIdMiddleware);
 
 const allowedOrigins = (process.env.CORS_ORIGIN || "http://localhost:5173")
   .split(",")
