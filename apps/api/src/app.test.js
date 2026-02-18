@@ -1517,6 +1517,7 @@ describe("API auth and transactions", () => {
     expect(listResponse.body.meta).toEqual({
       page: 1,
       limit: 20,
+      offset: 0,
       total: 1,
       totalPages: 1,
     });
@@ -1650,6 +1651,7 @@ describe("API auth and transactions", () => {
     expect(secondPageResponse.body.meta).toEqual({
       page: 2,
       limit: 2,
+      offset: 2,
       total: 5,
       totalPages: 3,
     });
@@ -1670,6 +1672,7 @@ describe("API auth and transactions", () => {
     expect(response.body.meta).toEqual({
       page: 1,
       limit: 20,
+      offset: 0,
       total: 25,
       totalPages: 2,
     });
@@ -1693,12 +1696,39 @@ describe("API auth and transactions", () => {
     expect(response.body.meta).toEqual({
       page: 1,
       limit: 10,
+      offset: 0,
       total: 25,
       totalPages: 3,
     });
     expect(response.body.data).toHaveLength(10);
     expect(response.body.data[0].description).toBe("Lancamento 1");
     expect(response.body.data[9].description).toBe("Lancamento 10");
+  });
+
+  it("aplica precedencia de offset sobre page em GET /transactions", async () => {
+    const token = await registerAndLogin("pagination-offset-precedence@controlfinance.dev");
+    await createTransactionsForUser(token, 5);
+
+    const response = await request(app)
+      .get("/transactions")
+      .query({
+        page: 3,
+        limit: 2,
+        offset: 1,
+      })
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.meta).toEqual({
+      page: 1,
+      limit: 2,
+      offset: 1,
+      total: 5,
+      totalPages: 3,
+    });
+    expect(response.body.data).toHaveLength(2);
+    expect(response.body.data[0].description).toBe("Lancamento 2");
+    expect(response.body.data[1].description).toBe("Lancamento 3");
   });
 
   it.each([
@@ -1781,6 +1811,7 @@ describe("API auth and transactions", () => {
     expect(filteredResponse.body.meta).toEqual({
       page: 1,
       limit: 20,
+      offset: 0,
       total: 1,
       totalPages: 1,
     });
@@ -1856,6 +1887,7 @@ describe("API auth and transactions", () => {
     expect(filteredResponse.body.meta).toEqual({
       page: 1,
       limit: 20,
+      offset: 0,
       total: 1,
       totalPages: 1,
     });
@@ -1993,6 +2025,7 @@ describe("API auth and transactions", () => {
     expect(listUserB.body.meta).toEqual({
       page: 1,
       limit: 20,
+      offset: 0,
       total: 0,
       totalPages: 1,
     });

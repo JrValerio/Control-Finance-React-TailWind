@@ -436,6 +436,7 @@ const runListTransactions = async (
     meta: {
       page: filters.page,
       limit: filters.limit,
+      offset: filters.offset,
       total,
       totalPages,
     },
