@@ -6,8 +6,10 @@ const VALID_TYPES = new Set([CATEGORY_ENTRY, CATEGORY_EXIT]);
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 const ISO_MONTH_REGEX = /^\d{4}-\d{2}$/;
 const DEFAULT_PAGE = 1;
+const DEFAULT_OFFSET = 0;
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
+const PAGINATION_ERROR_MESSAGE = "Paginacao invalida.";
 
 const createError = (status, message) => {
   const error = new Error(message);
@@ -156,23 +158,53 @@ const normalizeSummaryMonth = (month) => {
   };
 };
 
-const normalizePositiveInteger = (
-  value,
-  fieldName,
-  fallbackValue,
-  maximumValue = Number.POSITIVE_INFINITY,
-) => {
-  if (typeof value === "undefined" || value === null || value === "") {
+const parsePaginationInteger = (value, { fallbackValue, minValue, maxValue }) => {
+  if (typeof value === "undefined" || value === null) {
     return fallbackValue;
   }
 
-  const parsedValue = Number(value);
+  const normalizedValue = String(value).trim();
 
-  if (!Number.isInteger(parsedValue) || parsedValue <= 0) {
-    throw createError(400, `${fieldName} invalido. Informe um inteiro maior que zero.`);
+  if (!normalizedValue) {
+    throw createError(400, PAGINATION_ERROR_MESSAGE);
   }
 
-  return Math.min(parsedValue, maximumValue);
+  const parsedValue = Number(normalizedValue);
+
+  if (!Number.isInteger(parsedValue) || parsedValue < minValue || parsedValue > maxValue) {
+    throw createError(400, PAGINATION_ERROR_MESSAGE);
+  }
+
+  return parsedValue;
+};
+
+const resolveListPagination = (options = {}) => {
+  const limit = parsePaginationInteger(options.limit, {
+    fallbackValue: DEFAULT_LIMIT,
+    minValue: 1,
+    maxValue: MAX_LIMIT,
+  });
+  const hasOffset =
+    !(typeof options.offset === "undefined" || options.offset === null) &&
+    String(options.offset).trim() !== "";
+
+  const page = parsePaginationInteger(options.page, {
+    fallbackValue: DEFAULT_PAGE,
+    minValue: 1,
+    maxValue: Number.MAX_SAFE_INTEGER,
+  });
+  const explicitOffset = parsePaginationInteger(options.offset, {
+    fallbackValue: DEFAULT_OFFSET,
+    minValue: 0,
+    maxValue: Number.MAX_SAFE_INTEGER,
+  });
+  const offset = hasOffset ? explicitOffset : (page - 1) * limit;
+
+  return {
+    limit,
+    offset,
+    page: hasOffset ? Math.floor(offset / limit) + 1 : page,
+  };
 };
 
 const normalizeCategoryId = (value) => {
@@ -287,13 +319,7 @@ const normalizeListFilters = (options = {}) => {
   let to = normalizeOptionalFilterDate(options.to);
   const query = normalizeOptionalSearchQuery(options.q);
   const categoryId = normalizeOptionalFilterCategoryId(options.categoryId);
-  const page = normalizePositiveInteger(options.page, "Pagina", DEFAULT_PAGE);
-  const limit = normalizePositiveInteger(
-    options.limit,
-    "Limite",
-    DEFAULT_LIMIT,
-    MAX_LIMIT,
-  );
+  const pagination = resolveListPagination(options);
 
   if (from && to && from > to) {
     [from, to] = [to, from];
@@ -306,8 +332,9 @@ const normalizeListFilters = (options = {}) => {
     to,
     query,
     categoryId,
-    page,
-    limit,
+    page: pagination.page,
+    limit: pagination.limit,
+    offset: pagination.offset,
   };
 };
 
@@ -372,7 +399,7 @@ const runListTransactions = async (
     `
     : "";
   const queryParams = paginate
-    ? [...statement.values, filters.limit, (filters.page - 1) * filters.limit]
+    ? [...statement.values, filters.limit, filters.offset]
     : statement.values;
 
   const result = await dbQuery(
