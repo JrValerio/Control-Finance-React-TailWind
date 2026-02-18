@@ -12,9 +12,7 @@ import {
   PERIOD_LAST_30_DAYS,
   PERIOD_LAST_7_DAYS,
   PERIOD_TODAY,
-  calculateBalance,
   getTodayISODate,
-  getTotalsByType,
   normalizeTransactionDate,
   resolvePeriodRange,
 } from "../components/DatabaseUtils";
@@ -32,6 +30,15 @@ const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
 const PAGE_SIZE_STORAGE_KEY = "control_finance.page_size";
+const DEFAULT_MONTHLY_SUMMARY = {
+  month: "",
+  income: 0,
+  expense: 0,
+  balance: 0,
+  byCategory: [],
+};
+
+const getCurrentMonth = () => getTodayISODate().slice(0, 7);
 
 const getApiErrorMessage = (error, fallbackMessage) => {
   return error?.response?.data?.message || error?.message || fallbackMessage;
@@ -49,6 +56,9 @@ const normalizeTransactions = (transactions) => {
       id: Number(transaction.id),
       value: Number(transaction.value),
       type: transaction.type,
+      categoryId: Number.isInteger(Number(transaction.categoryId))
+        ? Number(transaction.categoryId)
+        : null,
       date: normalizeTransactionDate(transaction.date, fallbackDate),
       description: typeof transaction.description === "string" ? transaction.description : "",
       notes: typeof transaction.notes === "string" ? transaction.notes : "",
@@ -93,6 +103,9 @@ const App = ({ onLogout = undefined }) => {
   const listSectionRef = useRef(null);
   const [selectedCategory, setSelectedCategory] = useState(CATEGORY_ALL);
   const [selectedPeriod, setSelectedPeriod] = useState(PERIOD_ALL);
+  const [selectedTransactionCategoryId, setSelectedTransactionCategoryId] = useState("");
+  const [selectedSummaryMonth, setSelectedSummaryMonth] = useState(() => getCurrentMonth());
+  const [categories, setCategories] = useState([]);
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
   const [currentPage, setCurrentPage] = useState(DEFAULT_PAGE);
@@ -109,7 +122,9 @@ const App = ({ onLogout = undefined }) => {
   const [undoState, setUndoState] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [isLoadingTransactions, setLoadingTransactions] = useState(false);
+  const [isLoadingSummary, setLoadingSummary] = useState(false);
   const [isExportingCsv, setExportingCsv] = useState(false);
+  const [monthlySummary, setMonthlySummary] = useState(DEFAULT_MONTHLY_SUMMARY);
   const [requestError, setRequestError] = useState("");
   const undoTimeoutRef = useRef(null);
 
@@ -151,6 +166,45 @@ const App = ({ onLogout = undefined }) => {
     };
   }, []);
 
+  const loadCategories = useCallback(async () => {
+    try {
+      const categoryOptions = await transactionsService.listCategories();
+      setCategories(Array.isArray(categoryOptions) ? categoryOptions : []);
+    } catch {
+      setCategories([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadCategories();
+  }, [loadCategories]);
+
+  const loadMonthlySummary = useCallback(async () => {
+    setLoadingSummary(true);
+
+    try {
+      const summary = await transactionsService.getMonthlySummary(selectedSummaryMonth);
+      setMonthlySummary({
+        month: summary.month || selectedSummaryMonth,
+        income: Number(summary.income) || 0,
+        expense: Number(summary.expense) || 0,
+        balance: Number(summary.balance) || 0,
+        byCategory: Array.isArray(summary.byCategory) ? summary.byCategory : [],
+      });
+    } catch {
+      setMonthlySummary({
+        ...DEFAULT_MONTHLY_SUMMARY,
+        month: selectedSummaryMonth,
+      });
+    } finally {
+      setLoadingSummary(false);
+    }
+  }, [selectedSummaryMonth]);
+
+  useEffect(() => {
+    loadMonthlySummary();
+  }, [loadMonthlySummary]);
+
   const loadTransactions = useCallback(async () => {
     setLoadingTransactions(true);
     setRequestError("");
@@ -162,6 +216,9 @@ const App = ({ onLogout = undefined }) => {
         from: periodRange.startDate || undefined,
         to: periodRange.endDate || undefined,
         type: selectedCategory !== CATEGORY_ALL ? selectedCategory : undefined,
+        categoryId: selectedTransactionCategoryId
+          ? Number(selectedTransactionCategoryId)
+          : undefined,
       });
 
       setTransactions(normalizeTransactions(response.data));
@@ -183,7 +240,7 @@ const App = ({ onLogout = undefined }) => {
     } finally {
       setLoadingTransactions(false);
     }
-  }, [currentPage, pageSize, periodRange, selectedCategory]);
+  }, [currentPage, pageSize, periodRange, selectedCategory, selectedTransactionCategoryId]);
 
   useEffect(() => {
     loadTransactions();
@@ -199,20 +256,12 @@ const App = ({ onLogout = undefined }) => {
     return transactions;
   }, [transactions]);
 
-  const balance = useMemo(() => {
-    return calculateBalance(filteredTransactions);
-  }, [filteredTransactions]);
-
-  const totalsByType = useMemo(() => {
-    return getTotalsByType(filteredTransactions);
-  }, [filteredTransactions]);
-
   const chartData = useMemo(() => {
     return [
-      { name: "Entradas", total: totalsByType.entry },
-      { name: "Saidas", total: totalsByType.exit },
+      { name: "Entradas", total: monthlySummary.income },
+      { name: "Saidas", total: monthlySummary.expense },
     ];
-  }, [totalsByType]);
+  }, [monthlySummary.expense, monthlySummary.income]);
 
   const openCreateModal = () => {
     setEditingTransaction(null);
@@ -224,7 +273,14 @@ const App = ({ onLogout = undefined }) => {
     setModalOpen(true);
   };
 
-  const handleSaveTransaction = async ({ value, type, date, description, notes }) => {
+  const handleSaveTransaction = async ({
+    value,
+    type,
+    date,
+    description,
+    notes,
+    categoryId,
+  }) => {
     setRequestError("");
 
     try {
@@ -232,6 +288,7 @@ const App = ({ onLogout = undefined }) => {
         await transactionsService.update(editingTransaction.id, {
           value,
           type,
+          category_id: categoryId,
           date,
           description,
           notes,
@@ -240,6 +297,7 @@ const App = ({ onLogout = undefined }) => {
         await transactionsService.create({
           value,
           type,
+          category_id: categoryId,
           date,
           description,
           notes,
@@ -249,6 +307,8 @@ const App = ({ onLogout = undefined }) => {
       setEditingTransaction(null);
       setModalOpen(false);
       await loadTransactions();
+      await loadMonthlySummary();
+      await loadCategories();
     } catch (error) {
       setRequestError(
         getApiErrorMessage(
@@ -281,6 +341,7 @@ const App = ({ onLogout = undefined }) => {
       scheduleUndo(pendingDeleteTransactionId);
       setPendingDeleteTransactionId(null);
       await loadTransactions();
+      await loadMonthlySummary();
     } catch (error) {
       setRequestError(getApiErrorMessage(error, "Nao foi possivel excluir a transacao."));
     }
@@ -297,6 +358,7 @@ const App = ({ onLogout = undefined }) => {
       await transactionsService.restore(undoState.transactionId);
       clearUndoState();
       await loadTransactions();
+      await loadMonthlySummary();
     } catch (error) {
       setRequestError(getApiErrorMessage(error, "Nao foi possivel desfazer a exclusao."));
     }
@@ -310,6 +372,9 @@ const App = ({ onLogout = undefined }) => {
       from: periodRange.startDate || undefined,
       to: periodRange.endDate || undefined,
       type: selectedCategory !== CATEGORY_ALL ? selectedCategory : undefined,
+      categoryId: selectedTransactionCategoryId
+        ? Number(selectedTransactionCategoryId)
+        : undefined,
     };
 
     try {
@@ -386,7 +451,10 @@ const App = ({ onLogout = undefined }) => {
   };
 
   const filterButtons = [CATEGORY_ALL, CATEGORY_ENTRY, CATEGORY_EXIT];
-  const hasActiveFilters = selectedCategory !== CATEGORY_ALL || selectedPeriod !== PERIOD_ALL;
+  const hasActiveFilters =
+    selectedCategory !== CATEGORY_ALL ||
+    selectedPeriod !== PERIOD_ALL ||
+    Boolean(selectedTransactionCategoryId);
   const rangeStart =
     paginationMeta.total === 0 ? 0 : (paginationMeta.page - 1) * paginationMeta.limit + 1;
   const rangeEnd = Math.min(paginationMeta.page * paginationMeta.limit, paginationMeta.total);
@@ -483,6 +551,31 @@ const App = ({ onLogout = undefined }) => {
               ))}
             </select>
 
+            <div className="mt-3">
+              <label
+                htmlFor="categoria-filtro"
+                className="mb-1 block text-xs font-medium text-gray-100"
+              >
+                Categoria
+              </label>
+              <select
+                id="categoria-filtro"
+                value={selectedTransactionCategoryId}
+                onChange={(event) => {
+                  setSelectedTransactionCategoryId(event.target.value);
+                  setCurrentPage(DEFAULT_PAGE);
+                }}
+                className="w-full rounded border border-gray-400 px-3 py-2 text-sm text-gray-200"
+              >
+                <option value="">Todas</option>
+                {categories.map((categoryOption) => (
+                  <option key={categoryOption.id} value={String(categoryOption.id)}>
+                    {categoryOption.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {selectedPeriod === PERIOD_CUSTOM ? (
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <div>
@@ -528,21 +621,33 @@ const App = ({ onLogout = undefined }) => {
       </section>
 
       <section className="mt-2 p-4">
+        <div className="mx-auto mb-2 flex max-w-700 items-center justify-between gap-2">
+          <h3 className="text-sm font-medium text-gray-100">Resumo mensal</h3>
+          <input
+            type="month"
+            aria-label="Mes do resumo"
+            value={selectedSummaryMonth}
+            onChange={(event) => setSelectedSummaryMonth(event.target.value)}
+            className="rounded border border-gray-300 bg-white px-2 py-1 text-sm text-gray-100"
+          />
+        </div>
         <div className="mx-auto grid max-w-700 gap-3 sm:grid-cols-3">
           <div className="rounded border border-brand-1 bg-gray-400 px-4 py-3.5">
             <p className="text-xs font-medium uppercase text-gray-200">Saldo</p>
-            <p className="text-base font-medium text-gray-100">R$ {balance.toFixed(2)}</p>
+            <p className="text-base font-medium text-gray-100">
+              {isLoadingSummary ? "Carregando..." : `R$ ${monthlySummary.balance.toFixed(2)}`}
+            </p>
           </div>
           <div className="rounded border border-brand-1 bg-gray-400 px-4 py-3.5">
             <p className="text-xs font-medium uppercase text-gray-200">Entradas</p>
             <p className="text-base font-medium text-gray-100">
-              R$ {totalsByType.entry.toFixed(2)}
+              {isLoadingSummary ? "Carregando..." : `R$ ${monthlySummary.income.toFixed(2)}`}
             </p>
           </div>
           <div className="rounded border border-brand-1 bg-gray-400 px-4 py-3.5">
             <p className="text-xs font-medium uppercase text-gray-200">Saidas</p>
             <p className="text-base font-medium text-gray-100">
-              R$ {totalsByType.exit.toFixed(2)}
+              {isLoadingSummary ? "Carregando..." : `R$ ${monthlySummary.expense.toFixed(2)}`}
             </p>
           </div>
         </div>
@@ -730,6 +835,7 @@ const App = ({ onLogout = undefined }) => {
           setEditingTransaction(null);
         }}
         onSave={handleSaveTransaction}
+        categories={categories}
         initialTransaction={editingTransaction}
       />
     </div>

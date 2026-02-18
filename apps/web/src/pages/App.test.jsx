@@ -12,6 +12,8 @@ vi.mock("../components/TransactionChart", () => ({
 vi.mock("../services/transactions.service", () => ({
   transactionsService: {
     listPage: vi.fn(),
+    listCategories: vi.fn(),
+    getMonthlySummary: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
     remove: vi.fn(),
@@ -31,11 +33,22 @@ const buildPageResponse = (transactions = [], meta = {}) => ({
   },
 });
 
+const buildSummaryResponse = (summary = {}) => ({
+  month: "2026-02",
+  income: 1000,
+  expense: 350,
+  balance: 650,
+  byCategory: [],
+  ...summary,
+});
+
 describe("App", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     window.localStorage.clear();
     transactionsService.listPage.mockResolvedValue(buildPageResponse());
+    transactionsService.listCategories.mockResolvedValue([]);
+    transactionsService.getMonthlySummary.mockResolvedValue(buildSummaryResponse());
     transactionsService.update.mockResolvedValue({});
     transactionsService.restore.mockResolvedValue({});
     transactionsService.exportCsv.mockResolvedValue({
@@ -63,6 +76,72 @@ describe("App", () => {
       from: undefined,
       to: undefined,
       type: undefined,
+      categoryId: undefined,
+    });
+  });
+
+  it("carrega resumo mensal e exibe cards com valores da API", async () => {
+    transactionsService.getMonthlySummary.mockResolvedValueOnce(
+      buildSummaryResponse({
+        month: "2026-02",
+        income: 1500,
+        expense: 420.5,
+        balance: 1079.5,
+      }),
+    );
+
+    render(<App />);
+
+    expect(await screen.findByText("R$ 1079.50")).toBeInTheDocument();
+    expect(screen.getByText("R$ 1500.00")).toBeInTheDocument();
+    expect(screen.getByText("R$ 420.50")).toBeInTheDocument();
+    expect(transactionsService.getMonthlySummary).toHaveBeenCalledWith(expect.any(String));
+  });
+
+  it("aplica filtro por categoria e envia categoryId para listagem", async () => {
+    const user = userEvent.setup();
+    transactionsService.listCategories.mockResolvedValueOnce([
+      { id: 1, name: "Alimentacao" },
+      { id: 2, name: "Transporte" },
+    ]);
+    transactionsService.listPage
+      .mockResolvedValueOnce(
+        buildPageResponse([
+          {
+            id: 1,
+            value: 100,
+            type: CATEGORY_EXIT,
+            date: "2026-02-13",
+            description: "Inicial",
+            categoryId: null,
+          },
+        ]),
+      )
+      .mockResolvedValueOnce(
+        buildPageResponse([
+          {
+            id: 2,
+            value: 90,
+            type: CATEGORY_EXIT,
+            date: "2026-02-14",
+            description: "Filtrada",
+            categoryId: 1,
+          },
+        ]),
+      );
+
+    render(<App />);
+
+    expect(await screen.findByText("Inicial")).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText("Categoria"), "1");
+    expect(await screen.findByText("Filtrada")).toBeInTheDocument();
+    expect(transactionsService.listPage).toHaveBeenLastCalledWith({
+      page: 1,
+      limit: 20,
+      from: undefined,
+      to: undefined,
+      type: undefined,
+      categoryId: 1,
     });
   });
 
@@ -102,6 +181,7 @@ describe("App", () => {
       from: undefined,
       to: undefined,
       type: undefined,
+      categoryId: undefined,
     });
   });
 
@@ -145,6 +225,7 @@ describe("App", () => {
       from: undefined,
       to: undefined,
       type: undefined,
+      categoryId: undefined,
     });
   });
 
@@ -179,6 +260,7 @@ describe("App", () => {
       from: undefined,
       to: undefined,
       type: undefined,
+      categoryId: undefined,
     });
   });
 
@@ -222,6 +304,7 @@ describe("App", () => {
       from: undefined,
       to: undefined,
       type: CATEGORY_ENTRY,
+      categoryId: undefined,
     });
   });
 
@@ -264,12 +347,72 @@ describe("App", () => {
     expect(transactionsService.create).toHaveBeenCalledWith({
       value: 100.5,
       type: CATEGORY_ENTRY,
+      category_id: null,
       date: "2026-02-13",
       description: "Extra",
       notes: "",
     });
     expect(await screen.findByText("Extra")).toBeInTheDocument();
     expect(transactionsService.listPage).toHaveBeenCalledTimes(2);
+  });
+
+  it("adiciona transacao com categoria selecionada", async () => {
+    const user = userEvent.setup();
+    transactionsService.listCategories.mockResolvedValueOnce([{ id: 7, name: "Lazer" }]);
+    transactionsService.listPage
+      .mockResolvedValueOnce(buildPageResponse())
+      .mockResolvedValueOnce(
+        buildPageResponse([
+          {
+            id: 7,
+            value: 60,
+            type: CATEGORY_EXIT,
+            categoryId: 7,
+            date: "2026-02-13",
+            description: "Cinema",
+            notes: "",
+          },
+        ]),
+      );
+    transactionsService.create.mockResolvedValueOnce({
+      id: 7,
+      value: 60,
+      type: CATEGORY_EXIT,
+      categoryId: 7,
+      date: "2026-02-13",
+      description: "Cinema",
+      notes: "",
+    });
+
+    render(<App />);
+
+    await screen.findByText("Nenhum valor cadastrado.");
+    await user.click(screen.getByRole("button", { name: "Registrar novo valor" }));
+    const modalForm = screen.getByRole("button", { name: "Inserir valor" }).closest("form");
+
+    if (!modalForm) {
+      throw new Error("Formulario de criacao nao encontrado.");
+    }
+
+    const modalQueries = within(modalForm);
+
+    await user.type(modalQueries.getByLabelText("Valor"), "60,00");
+    await user.type(modalQueries.getByLabelText("Descricao"), "Cinema");
+    await user.click(modalQueries.getByRole("button", { name: "Saida" }));
+    await user.selectOptions(modalQueries.getByLabelText("Categoria"), "7");
+    fireEvent.change(modalQueries.getByLabelText("Data"), {
+      target: { value: "2026-02-13" },
+    });
+    await user.click(modalQueries.getByRole("button", { name: "Inserir valor" }));
+
+    expect(transactionsService.create).toHaveBeenCalledWith({
+      value: 60,
+      type: CATEGORY_EXIT,
+      category_id: 7,
+      date: "2026-02-13",
+      description: "Cinema",
+      notes: "",
+    });
   });
 
   it("edita transacao via API", async () => {
@@ -333,6 +476,7 @@ describe("App", () => {
       expect(transactionsService.update).toHaveBeenCalledWith(1, {
         value: 120.5,
         type: CATEGORY_EXIT,
+        category_id: null,
         date: "2026-02-12",
         description: "Mercado",
         notes: "Compra do mes",
@@ -436,6 +580,7 @@ describe("App", () => {
           from: "2026-02-01",
           to: "2026-02-20",
           type: CATEGORY_EXIT,
+          categoryId: undefined,
         });
       });
       expect(createObjectURLMock).toHaveBeenCalledTimes(1);

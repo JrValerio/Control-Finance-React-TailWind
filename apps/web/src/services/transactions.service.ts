@@ -5,6 +5,7 @@ export type TransactionType = "Entrada" | "Saida";
 export interface Transaction {
   id: number;
   userId?: number;
+  categoryId?: number | null;
   type: TransactionType;
   value: number;
   date: string;
@@ -17,6 +18,7 @@ export interface Transaction {
 export interface TransactionListOptions {
   includeDeleted?: boolean;
   type?: TransactionType;
+  categoryId?: number;
   from?: string;
   to?: string;
   q?: string;
@@ -42,6 +44,7 @@ export interface TransactionCreatePayload {
   date?: string;
   description?: string;
   notes?: string;
+  category_id?: number | null;
 }
 
 export interface TransactionUpdatePayload {
@@ -50,6 +53,26 @@ export interface TransactionUpdatePayload {
   date?: string;
   description?: string;
   notes?: string;
+  category_id?: number | null;
+}
+
+export interface CategoryOption {
+  id: number;
+  name: string;
+}
+
+export interface MonthlySummaryByCategory {
+  categoryId: number | null;
+  categoryName: string;
+  expense: number;
+}
+
+export interface MonthlySummary {
+  month: string;
+  income: number;
+  expense: number;
+  balance: number;
+  byCategory: MonthlySummaryByCategory[];
 }
 
 interface TransactionsApiResponse {
@@ -67,6 +90,18 @@ interface CsvExportResult {
   fileName: string;
 }
 
+interface MonthlySummaryApiResponse {
+  month?: unknown;
+  income?: unknown;
+  expense?: unknown;
+  balance?: unknown;
+  byCategory?: Array<{
+    categoryId?: unknown;
+    categoryName?: unknown;
+    expense?: unknown;
+  }>;
+}
+
 const buildTransactionParams = (options: TransactionListOptions = {}): Record<string, string> => {
   const params: Record<string, string> = {};
 
@@ -76,6 +111,10 @@ const buildTransactionParams = (options: TransactionListOptions = {}): Record<st
 
   if (options.type) {
     params.type = options.type;
+  }
+
+  if (Number.isInteger(options.categoryId) && options.categoryId > 0) {
+    params.categoryId = String(options.categoryId);
   }
 
   if (options.from) {
@@ -141,6 +180,54 @@ export const transactionsService = {
         total: Number.isInteger(total) && total >= 0 ? total : 0,
         totalPages: Number.isInteger(totalPages) && totalPages > 0 ? totalPages : 1,
       },
+    };
+  },
+  listCategories: async (): Promise<CategoryOption[]> => {
+    const { data } = await api.get("/categories");
+
+    if (!Array.isArray(data)) {
+      return [];
+    }
+
+    return data
+      .map((category) => ({
+        id: Number((category as { id?: unknown }).id),
+        name: String((category as { name?: unknown }).name || "").trim(),
+      }))
+      .filter((category) => Number.isInteger(category.id) && category.id > 0 && category.name);
+  },
+  getMonthlySummary: async (month: string): Promise<MonthlySummary> => {
+    const { data } = await api.get("/transactions/summary", {
+      params: { month },
+    });
+    const responseBody = data as MonthlySummaryApiResponse;
+    const byCategory = Array.isArray(responseBody.byCategory)
+      ? responseBody.byCategory.map((item) => {
+          const numericCategoryId = Number(item?.categoryId);
+
+          return {
+            categoryId:
+              Number.isInteger(numericCategoryId) && numericCategoryId > 0
+                ? numericCategoryId
+                : null,
+            categoryName:
+              typeof item?.categoryName === "string" && item.categoryName.trim()
+                ? item.categoryName.trim()
+                : "Sem categoria",
+            expense: Number(item?.expense) || 0,
+          };
+        })
+      : [];
+
+    return {
+      month:
+        typeof responseBody.month === "string" && responseBody.month.trim()
+          ? responseBody.month.trim()
+          : month,
+      income: Number(responseBody.income) || 0,
+      expense: Number(responseBody.expense) || 0,
+      balance: Number(responseBody.balance) || 0,
+      byCategory,
     };
   },
   create: async (payload: TransactionCreatePayload): Promise<Transaction> => {
