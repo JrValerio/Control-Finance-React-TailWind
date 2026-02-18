@@ -5,6 +5,21 @@
 
 Aplicacao web para controle financeiro pessoal com entradas/saidas, filtros por categoria e periodo, grafico de receita x despesa, exportacao CSV e autenticacao JWT.
 
+## Documentation Index
+
+- [Links](#links)
+- [Deploy](#deploy-render--vercel)
+- [Operational Model](#operational-model)
+- [Architecture (Monorepo Foundation)](#monorepo-v130-foundation)
+- [Web Features](#funcionalidades-atuais-web)
+- [Monthly Summary](#monthly-summary)
+- [CSV Import (Dry-run + Commit)](#csv-import-dry-run--commit)
+- [Export CSV (Architecture Doc)](docs/architecture/v1.5.0-export-csv.md)
+- [API (apps/api)](#api-appsapi)
+- [Auth (Architecture Doc)](docs/architecture/v1.3.0-auth.md)
+- [Runbook](docs/runbooks/release-production-checklist.md)
+- [Roadmap](#roadmap)
+
 ## Links
 
 - Producao (Vercel): [control-finance-react-tail-wind.vercel.app](https://control-finance-react-tail-wind.vercel.app/)
@@ -76,6 +91,12 @@ Detalhes tecnicos:
 - Faixa de pagina (`Mostrando X-Y de N`) e seletor de itens por pagina
 - Base TypeScript inicial no `apps/web` com service de transacoes tipado
 - Camada `api` e entrypoints de rotas/web migrados para TypeScript
+
+### Monthly Summary
+
+- Endpoint: `GET /transactions/summary?month=YYYY-MM`
+- Retorna `income`, `expense`, `balance` e `byCategory`
+- Dashboard usa o summary da API para os cards mensais
 
 ## CSV Import (Dry-run + Commit)
 
