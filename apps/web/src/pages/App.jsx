@@ -693,7 +693,7 @@ const App = ({ onLogout = undefined }) => {
           </div>
         </div>
         {!isLoadingSummary && !summaryError && !hasMonthlySummaryData ? (
-          <div className="mx-auto mt-2 max-w-700 rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-200">
+          <div className="mx-auto mt-2 max-w-700 rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-600">
             Sem dados para o mes selecionado.
           </div>
         ) : null}
