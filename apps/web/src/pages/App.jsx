@@ -2,6 +2,7 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } fro
 import PropTypes from "prop-types";
 import Modal from "../components/Modal";
 import ImportCsvModal from "../components/ImportCsvModal";
+import ImportHistoryModal from "../components/ImportHistoryModal";
 import TransactionList from "../components/TransactionList";
 import { transactionsService } from "../services/transactions.service";
 import {
@@ -119,6 +120,7 @@ const App = ({ onLogout = undefined }) => {
   }));
   const [isModalOpen, setModalOpen] = useState(false);
   const [isImportModalOpen, setImportModalOpen] = useState(false);
+  const [isImportHistoryModalOpen, setImportHistoryModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [pendingDeleteTransactionId, setPendingDeleteTransactionId] = useState(null);
   const [undoState, setUndoState] = useState(null);
@@ -525,6 +527,13 @@ const App = ({ onLogout = undefined }) => {
               Importar CSV
             </button>
             <button
+              type="button"
+              onClick={() => setImportHistoryModalOpen(true)}
+              className="rounded border border-gray-300 bg-white px-4 py-2 font-semibold text-gray-100 hover:bg-gray-400"
+            >
+              Historico de imports
+            </button>
+            <button
               onClick={openCreateModal}
               className="rounded bg-brand-1 px-4 py-2 font-semibold text-white hover:bg-brand-2"
             >
@@ -904,6 +913,11 @@ const App = ({ onLogout = undefined }) => {
         isOpen={isImportModalOpen}
         onClose={() => setImportModalOpen(false)}
         onImported={handleImportCommitted}
+      />
+
+      <ImportHistoryModal
+        isOpen={isImportHistoryModalOpen}
+        onClose={() => setImportHistoryModalOpen(false)}
       />
     </div>
   );
