@@ -562,6 +562,36 @@ export const listTransactionsImportSessionsByUser = async (userId, filters = {})
   };
 };
 
+export const getTransactionsImportMetricsByUser = async (userId) => {
+  const result = await dbQuery(
+    `
+      SELECT
+        COUNT(*)::int AS total,
+        COALESCE(
+          SUM(
+            CASE
+              WHEN created_at >= NOW() - INTERVAL '30 days' THEN 1
+              ELSE 0
+            END
+          ),
+          0
+        )::int AS last30_days,
+        MAX(created_at) AS last_import_at
+      FROM transaction_import_sessions
+      WHERE user_id = $1
+    `,
+    [userId],
+  );
+
+  const row = result.rows[0] || {};
+
+  return {
+    total: normalizeSummaryInteger(row.total, 0),
+    last30Days: normalizeSummaryInteger(row.last30_days, 0),
+    lastImportAt: toIsoDateString(row.last_import_at),
+  };
+};
+
 export const commitTransactionsImportForUser = async (userId, importId) => {
   const normalizedImportId = normalizeImportId(importId);
   const importSession = await loadImportSessionById(normalizedImportId);

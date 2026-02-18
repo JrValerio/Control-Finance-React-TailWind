@@ -23,6 +23,7 @@ import {
 import {
   commitTransactionsImportForUser,
   dryRunTransactionsImportForUser,
+  getTransactionsImportMetricsByUser,
   listTransactionsImportSessionsByUser,
 } from "../services/transactions-import.service.js";
 
@@ -107,6 +108,43 @@ router.get("/summary", async (req, res, next) => {
     const summary = await getMonthlySummaryForUser(req.user.id, req.query.month);
     res.status(200).json(summary);
   } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/imports/metrics", async (req, res, next) => {
+  const elapsedTimer = createElapsedTimer();
+  const userId = Number(req.user.id);
+  const requestId = req.requestId || null;
+
+  try {
+    const metrics = await getTransactionsImportMetricsByUser(req.user.id);
+
+    logImportEvent("import.metrics.success", {
+      requestId,
+      userId,
+      importId: null,
+      total: metrics.total,
+      last30Days: metrics.last30Days,
+      lastImportAt: metrics.lastImportAt,
+      elapsedMs: elapsedTimer(),
+      statusCode: 200,
+    });
+
+    res.status(200).json(metrics);
+  } catch (error) {
+    logImportEvent("import.metrics.error", {
+      requestId,
+      userId,
+      importId: null,
+      total: 0,
+      last30Days: 0,
+      lastImportAt: null,
+      elapsedMs: elapsedTimer(),
+      statusCode: Number.isInteger(error?.status) ? error.status : 500,
+      message: error?.message || "Unexpected error.",
+    });
+
     next(error);
   }
 });
