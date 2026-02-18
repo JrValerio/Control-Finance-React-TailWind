@@ -8,6 +8,8 @@ const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const IMPORT_TTL_MINUTES = 30;
 const DEFAULT_IMPORT_CSV_MAX_ROWS = 2000;
+const DEFAULT_IMPORT_HISTORY_LIMIT = 20;
+const MAX_IMPORT_HISTORY_LIMIT = 100;
 const REQUIRED_HEADERS = ["date", "type", "value", "description"];
 const OPTIONAL_HEADERS = ["notes", "category"];
 const ALLOWED_HEADERS = new Set([...REQUIRED_HEADERS, ...OPTIONAL_HEADERS]);
@@ -37,6 +39,98 @@ const parsePositiveInteger = (value, fallbackValue) => {
 
 const getImportCsvMaxRows = () =>
   parsePositiveInteger(process.env.IMPORT_CSV_MAX_ROWS, DEFAULT_IMPORT_CSV_MAX_ROWS);
+
+const parsePaginationInteger = (value, { fallbackValue, min, max }) => {
+  if (typeof value === "undefined" || value === null) {
+    return fallbackValue;
+  }
+
+  const normalizedValue = String(value).trim();
+
+  if (!normalizedValue) {
+    throw createError(400, "Paginacao invalida.");
+  }
+
+  const parsedValue = Number(normalizedValue);
+
+  if (!Number.isInteger(parsedValue) || parsedValue < min || parsedValue > max) {
+    throw createError(400, "Paginacao invalida.");
+  }
+
+  return parsedValue;
+};
+
+const normalizeImportHistoryPagination = (filters = {}) => {
+  const limit = parsePaginationInteger(filters.limit, {
+    fallbackValue: DEFAULT_IMPORT_HISTORY_LIMIT,
+    min: 1,
+    max: MAX_IMPORT_HISTORY_LIMIT,
+  });
+  const offset = parsePaginationInteger(filters.offset, {
+    fallbackValue: 0,
+    min: 0,
+    max: Number.MAX_SAFE_INTEGER,
+  });
+
+  return {
+    limit,
+    offset,
+  };
+};
+
+const normalizeSummaryNumber = (value, fallbackValue = 0) => {
+  const parsedValue = Number(value);
+
+  if (!Number.isFinite(parsedValue) || parsedValue < 0) {
+    return fallbackValue;
+  }
+
+  return Number(parsedValue.toFixed(2));
+};
+
+const normalizeSummaryInteger = (value, fallbackValue = 0) => {
+  const parsedValue = Number(value);
+
+  if (!Number.isInteger(parsedValue) || parsedValue < 0) {
+    return fallbackValue;
+  }
+
+  return parsedValue;
+};
+
+const toIsoDateString = (value) => {
+  if (!value) {
+    return null;
+  }
+
+  const parsedDate = new Date(value);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return null;
+  }
+
+  return parsedDate.toISOString();
+};
+
+const parsePayloadJson = (payloadJson) => {
+  if (!payloadJson) {
+    return {};
+  }
+
+  if (typeof payloadJson === "string") {
+    try {
+      return JSON.parse(payloadJson);
+    } catch {
+      return {};
+    }
+  }
+
+  if (typeof payloadJson === "object") {
+    return payloadJson;
+  }
+
+  return {};
+};
 
 const ensureValidCsvHeaders = (headerRow) => {
   const normalizedHeaders = headerRow.map(normalizeHeader);
@@ -424,6 +518,47 @@ export const dryRunTransactionsImportForUser = async (userId, csvFileBuffer) => 
     expiresAt: persistedSession.expiresAt,
     summary,
     rows,
+  };
+};
+
+export const listTransactionsImportSessionsByUser = async (userId, filters = {}) => {
+  const pagination = normalizeImportHistoryPagination(filters);
+  const result = await dbQuery(
+    `
+      SELECT id, created_at, expires_at, committed_at, payload_json
+      FROM transaction_import_sessions
+      WHERE user_id = $1
+      ORDER BY created_at DESC
+      LIMIT $2 OFFSET $3
+    `,
+    [userId, pagination.limit, pagination.offset],
+  );
+
+  const items = result.rows.map((row) => {
+    const payload = parsePayloadJson(row.payload_json);
+    const summary = payload.summary || {};
+    const validRows = normalizeSummaryInteger(summary.validRows, 0);
+    const imported = row.committed_at ? validRows : 0;
+
+    return {
+      id: String(row.id),
+      createdAt: toIsoDateString(row.created_at),
+      expiresAt: toIsoDateString(row.expires_at),
+      committedAt: toIsoDateString(row.committed_at),
+      summary: {
+        totalRows: normalizeSummaryInteger(summary.totalRows, 0),
+        validRows,
+        invalidRows: normalizeSummaryInteger(summary.invalidRows, 0),
+        income: normalizeSummaryNumber(summary.income, 0),
+        expense: normalizeSummaryNumber(summary.expense, 0),
+        imported,
+      },
+    };
+  });
+
+  return {
+    items,
+    pagination,
   };
 };
 

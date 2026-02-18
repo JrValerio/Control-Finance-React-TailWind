@@ -24,6 +24,20 @@ const registerAndLogin = async (email, password = "Senha123") => {
   return loginResponse.body.token;
 };
 
+const getUserIdByEmail = async (email) => {
+  const result = await dbQuery(
+    `
+      SELECT id
+      FROM users
+      WHERE email = $1
+      LIMIT 1
+    `,
+    [email],
+  );
+
+  return Number(result.rows[0]?.id);
+};
+
 const sleep = (durationInMs) =>
   new Promise((resolve) => {
     setTimeout(resolve, durationInMs);
@@ -435,6 +449,168 @@ describe("API auth and transactions", () => {
     const response = await request(app).get("/transactions/summary");
 
     expect(response.status).toBe(401);
+  });
+
+  it("GET /transactions/imports bloqueia sem token", async () => {
+    const response = await request(app).get("/transactions/imports");
+
+    expect(response.status).toBe(401);
+  });
+
+  it.each([
+    { limit: "0" },
+    { limit: "101" },
+    { limit: "abc" },
+    { offset: "-1" },
+    { offset: "abc" },
+    { limit: "10.5" },
+  ])("GET /transactions/imports retorna 400 para paginacao invalida (%o)", async (query) => {
+    const token = await registerAndLogin("imports-paginacao@controlfinance.dev");
+    const response = await request(app)
+      .get("/transactions/imports")
+      .query(query)
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      message: "Paginacao invalida.",
+    });
+  });
+
+  it("GET /transactions/imports lista sessoes por usuario com ordem desc e shape consistente", async () => {
+    const userAEmail = "imports-list-user-a@controlfinance.dev";
+    const userBEmail = "imports-list-user-b@controlfinance.dev";
+    const tokenUserA = await registerAndLogin(userAEmail);
+    await registerAndLogin(userBEmail);
+
+    const userAId = await getUserIdByEmail(userAEmail);
+    const userBId = await getUserIdByEmail(userBEmail);
+
+    const olderImportId = "11111111-1111-4111-8111-111111111111";
+    const newerImportId = "22222222-2222-4222-8222-222222222222";
+    const otherUserImportId = "33333333-3333-4333-8333-333333333333";
+
+    await dbQuery(
+      `
+        INSERT INTO transaction_import_sessions (
+          id,
+          user_id,
+          payload_json,
+          created_at,
+          expires_at,
+          committed_at
+        )
+        VALUES
+          ($1, $2, $3::jsonb, $4, $5, $6),
+          ($7, $8, $9::jsonb, $10, $11, $12),
+          ($13, $14, $15::jsonb, $16, $17, $18)
+      `,
+      [
+        olderImportId,
+        userAId,
+        JSON.stringify({
+          summary: {
+            totalRows: 4,
+            validRows: 3,
+            invalidRows: 1,
+            income: 1000,
+            expense: 150.5,
+          },
+        }),
+        "2026-04-01T09:00:00.000Z",
+        "2026-04-01T09:30:00.000Z",
+        null,
+        newerImportId,
+        userAId,
+        JSON.stringify({
+          summary: {
+            totalRows: 2,
+            validRows: 2,
+            invalidRows: 0,
+            income: 700,
+            expense: 220.25,
+          },
+        }),
+        "2026-04-01T10:00:00.000Z",
+        "2026-04-01T10:30:00.000Z",
+        "2026-04-01T10:10:00.000Z",
+        otherUserImportId,
+        userBId,
+        JSON.stringify({
+          summary: {
+            totalRows: 1,
+            validRows: 1,
+            invalidRows: 0,
+            income: 50,
+            expense: 0,
+          },
+        }),
+        "2026-04-01T11:00:00.000Z",
+        "2026-04-01T11:30:00.000Z",
+        null,
+      ],
+    );
+
+    const response = await request(app)
+      .get("/transactions/imports")
+      .query({
+        limit: 20,
+        offset: 0,
+      })
+      .set("Authorization", `Bearer ${tokenUserA}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.pagination).toEqual({
+      limit: 20,
+      offset: 0,
+    });
+    expect(response.body.items).toHaveLength(2);
+    expect(response.body.items.map((item) => item.id)).toEqual([
+      newerImportId,
+      olderImportId,
+    ]);
+
+    expect(response.body.items[0]).toEqual({
+      id: newerImportId,
+      createdAt: "2026-04-01T10:00:00.000Z",
+      expiresAt: "2026-04-01T10:30:00.000Z",
+      committedAt: "2026-04-01T10:10:00.000Z",
+      summary: {
+        totalRows: 2,
+        validRows: 2,
+        invalidRows: 0,
+        income: 700,
+        expense: 220.25,
+        imported: 2,
+      },
+    });
+    expect(response.body.items[1]).toEqual({
+      id: olderImportId,
+      createdAt: "2026-04-01T09:00:00.000Z",
+      expiresAt: "2026-04-01T09:30:00.000Z",
+      committedAt: null,
+      summary: {
+        totalRows: 4,
+        validRows: 3,
+        invalidRows: 1,
+        income: 1000,
+        expense: 150.5,
+        imported: 0,
+      },
+    });
+
+    const pagedResponse = await request(app)
+      .get("/transactions/imports")
+      .query({
+        limit: 1,
+        offset: 1,
+      })
+      .set("Authorization", `Bearer ${tokenUserA}`);
+
+    expect(pagedResponse.status).toBe(200);
+    expect(pagedResponse.body.items).toHaveLength(1);
+    expect(pagedResponse.body.items[0].id).toBe(olderImportId);
+    expect(pagedResponse.body.items.map((item) => item.id)).not.toContain(otherUserImportId);
   });
 
   it("POST /transactions/import/dry-run bloqueia sem token", async () => {
