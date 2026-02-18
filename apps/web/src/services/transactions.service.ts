@@ -130,6 +130,38 @@ export interface ImportCommitResult {
   };
 }
 
+export interface ImportHistorySummary {
+  totalRows: number;
+  validRows: number;
+  invalidRows: number;
+  income: number;
+  expense: number;
+  imported: number;
+}
+
+export interface ImportHistoryItem {
+  id: string;
+  createdAt: string;
+  expiresAt: string;
+  committedAt: string | null;
+  summary: ImportHistorySummary;
+}
+
+export interface ImportHistoryPagination {
+  limit: number;
+  offset: number;
+}
+
+export interface ImportHistoryResponse {
+  items: ImportHistoryItem[];
+  pagination: ImportHistoryPagination;
+}
+
+export interface ImportHistoryOptions {
+  limit?: number;
+  offset?: number;
+}
+
 interface TransactionsApiResponse {
   data?: unknown;
   meta?: {
@@ -199,6 +231,27 @@ interface ImportCommitApiResponse {
     income?: unknown;
     expense?: unknown;
     balance?: unknown;
+  };
+}
+
+interface ImportHistoryApiResponse {
+  items?: Array<{
+    id?: unknown;
+    createdAt?: unknown;
+    expiresAt?: unknown;
+    committedAt?: unknown;
+    summary?: {
+      totalRows?: unknown;
+      validRows?: unknown;
+      invalidRows?: unknown;
+      income?: unknown;
+      expense?: unknown;
+      imported?: unknown;
+    };
+  }>;
+  pagination?: {
+    limit?: unknown;
+    offset?: unknown;
   };
 }
 
@@ -366,6 +419,8 @@ export const transactionsService = {
     const responseBody = data as ImportDryRunApiResponse;
     const rows = Array.isArray(responseBody.rows)
       ? responseBody.rows.map((row) => {
+          const normalizedStatus: ImportDryRunRow["status"] =
+            row?.status === "valid" ? "valid" : "invalid";
           const numericLine = Number(row?.line);
           const normalized = row?.normalized;
           const normalizedType = String(normalized?.type || "").trim();
@@ -373,7 +428,7 @@ export const transactionsService = {
 
           return {
             line: Number.isInteger(numericLine) && numericLine >= 2 ? numericLine : 0,
-            status: row?.status === "valid" ? "valid" : "invalid",
+            status: normalizedStatus,
             raw: {
               date: String(row?.raw?.date || ""),
               type: String(row?.raw?.type || ""),
@@ -430,6 +485,53 @@ export const transactionsService = {
         income: Number(responseBody.summary?.income) || 0,
         expense: Number(responseBody.summary?.expense) || 0,
         balance: Number(responseBody.summary?.balance) || 0,
+      },
+    };
+  },
+  getImportHistory: async (options: ImportHistoryOptions = {}): Promise<ImportHistoryResponse> => {
+    const fallbackLimit =
+      Number.isInteger(options.limit) && (options.limit as number) > 0 ? (options.limit as number) : 20;
+    const fallbackOffset =
+      Number.isInteger(options.offset) && (options.offset as number) >= 0
+        ? (options.offset as number)
+        : 0;
+    const { data } = await api.get("/transactions/imports", {
+      params: {
+        limit: fallbackLimit,
+        offset: fallbackOffset,
+      },
+    });
+    const responseBody = data as ImportHistoryApiResponse;
+    const items = Array.isArray(responseBody.items)
+      ? responseBody.items.map((item) => ({
+          id: String(item?.id || ""),
+          createdAt: String(item?.createdAt || ""),
+          expiresAt: String(item?.expiresAt || ""),
+          committedAt:
+            typeof item?.committedAt === "string" && item.committedAt.trim()
+              ? item.committedAt
+              : null,
+          summary: {
+            totalRows: Number(item?.summary?.totalRows) || 0,
+            validRows: Number(item?.summary?.validRows) || 0,
+            invalidRows: Number(item?.summary?.invalidRows) || 0,
+            income: Number(item?.summary?.income) || 0,
+            expense: Number(item?.summary?.expense) || 0,
+            imported: Number(item?.summary?.imported) || 0,
+          },
+        }))
+      : [];
+    const responseLimit = Number(responseBody.pagination?.limit);
+    const responseOffset = Number(responseBody.pagination?.offset);
+
+    return {
+      items: items.filter((item) => Boolean(item.id)),
+      pagination: {
+        limit: Number.isInteger(responseLimit) && responseLimit > 0 ? responseLimit : fallbackLimit,
+        offset:
+          Number.isInteger(responseOffset) && responseOffset >= 0
+            ? responseOffset
+            : fallbackOffset,
       },
     };
   },

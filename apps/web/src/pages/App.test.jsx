@@ -14,6 +14,7 @@ vi.mock("../services/transactions.service", () => ({
     listPage: vi.fn(),
     listCategories: vi.fn(),
     getMonthlySummary: vi.fn(),
+    getImportHistory: vi.fn(),
     dryRunImportCsv: vi.fn(),
     commitImportCsv: vi.fn(),
     create: vi.fn(),
@@ -94,6 +95,15 @@ const buildImportDryRunResponse = (payload = {}) => ({
   ...payload,
 });
 
+const buildImportHistoryResponse = (payload = {}) => ({
+  items: [],
+  pagination: {
+    limit: 20,
+    offset: 0,
+  },
+  ...payload,
+});
+
 describe("App", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -101,6 +111,7 @@ describe("App", () => {
     transactionsService.listPage.mockResolvedValue(buildPageResponse());
     transactionsService.listCategories.mockResolvedValue([]);
     transactionsService.getMonthlySummary.mockResolvedValue(buildSummaryResponse());
+    transactionsService.getImportHistory.mockResolvedValue(buildImportHistoryResponse());
     transactionsService.dryRunImportCsv.mockResolvedValue(buildImportDryRunResponse());
     transactionsService.commitImportCsv.mockResolvedValue({
       imported: 1,
@@ -244,6 +255,150 @@ describe("App", () => {
 
     expect(await screen.findByText("R$ 700.00")).toBeInTheDocument();
     expect(screen.queryByText("Nao foi possivel carregar o resumo mensal.")).not.toBeInTheDocument();
+  });
+
+  it("abre historico de imports com loading e renderiza itens", async () => {
+    const user = userEvent.setup();
+    let resolveHistoryRequest;
+    const pendingHistoryRequest = new Promise((resolve) => {
+      resolveHistoryRequest = resolve;
+    });
+
+    transactionsService.getImportHistory.mockReturnValueOnce(pendingHistoryRequest);
+
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Historico de imports" }));
+
+    expect(await screen.findByText("Carregando historico...")).toBeInTheDocument();
+
+    resolveHistoryRequest(
+      buildImportHistoryResponse({
+        items: [
+          {
+            id: "import-1",
+            createdAt: "2026-04-01T10:00:00.000Z",
+            expiresAt: "2026-04-01T10:30:00.000Z",
+            committedAt: "2026-04-01T10:10:00.000Z",
+            summary: {
+              totalRows: 2,
+              validRows: 2,
+              invalidRows: 0,
+              income: 200,
+              expense: 0,
+              imported: 2,
+            },
+          },
+        ],
+      }),
+    );
+
+    expect(await screen.findByText("Committed")).toBeInTheDocument();
+    expect(transactionsService.getImportHistory).toHaveBeenCalledWith({
+      limit: 20,
+      offset: 0,
+    });
+  });
+
+  it("exibe estado vazio no historico de imports", async () => {
+    const user = userEvent.setup();
+    transactionsService.getImportHistory.mockResolvedValueOnce(
+      buildImportHistoryResponse({
+        items: [],
+      }),
+    );
+
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Historico de imports" }));
+
+    expect(await screen.findByText("Sem imports para exibir.")).toBeInTheDocument();
+  });
+
+  it("exibe erro ao carregar historico de imports", async () => {
+    const user = userEvent.setup();
+    transactionsService.getImportHistory.mockRejectedValueOnce({
+      response: {
+        data: {
+          message: "Falha ao carregar historico.",
+        },
+      },
+    });
+
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Historico de imports" }));
+
+    expect(await screen.findByText("Falha ao carregar historico.")).toBeInTheDocument();
+  });
+
+  it("pagina historico de imports ao clicar em Proxima", async () => {
+    const user = userEvent.setup();
+    const firstPageItems = Array.from({ length: 20 }, (_unused, index) => ({
+      id: `import-${index + 1}`,
+      createdAt: "2026-04-01T10:00:00.000Z",
+      expiresAt: "2026-04-01T10:30:00.000Z",
+      committedAt: null,
+      summary: {
+        totalRows: 1,
+        validRows: 1,
+        invalidRows: 0,
+        income: 10,
+        expense: 0,
+        imported: 0,
+      },
+    }));
+
+    transactionsService.getImportHistory
+      .mockResolvedValueOnce(
+        buildImportHistoryResponse({
+          items: firstPageItems,
+          pagination: {
+            limit: 20,
+            offset: 0,
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        buildImportHistoryResponse({
+          items: [
+            {
+              id: "import-21",
+              createdAt: "2026-04-01T11:00:00.000Z",
+              expiresAt: "2026-04-01T11:30:00.000Z",
+              committedAt: null,
+              summary: {
+                totalRows: 1,
+                validRows: 1,
+                invalidRows: 0,
+                income: 20,
+                expense: 0,
+                imported: 0,
+              },
+            },
+          ],
+          pagination: {
+            limit: 20,
+            offset: 20,
+          },
+        }),
+      );
+
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Historico de imports" }));
+    expect(await screen.findByText("Mostrando 1-20")).toBeInTheDocument();
+    const historyDialog = screen.getByRole("dialog", { name: "Historico de imports" });
+
+    await user.click(within(historyDialog).getByRole("button", { name: "Proxima" }));
+
+    await waitFor(() => {
+      expect(transactionsService.getImportHistory).toHaveBeenLastCalledWith({
+        limit: 20,
+        offset: 20,
+      });
+    });
+    expect(await screen.findByText("Mostrando 21-21")).toBeInTheDocument();
   });
 
   it("abre importacao CSV, processa dry-run e exibe preview", async () => {
