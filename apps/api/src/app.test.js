@@ -575,6 +575,81 @@ describe("API auth and transactions", () => {
     });
   });
 
+  it("GET /transactions/summary ordena categorias por gasto e mantém Sem categoria no final", async () => {
+    const token = await registerAndLogin("summary-ordem-categoria@controlfinance.dev");
+
+    const housingCategoryResponse = await request(app)
+      .post("/categories")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: "Moradia",
+      });
+    const foodCategoryResponse = await request(app)
+      .post("/categories")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: "Alimentacao",
+      });
+
+    await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "Saida",
+        value: 500,
+        date: "2026-02-02",
+        description: "Sem categoria",
+      });
+
+    await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "Saida",
+        value: 320,
+        date: "2026-02-03",
+        description: "Aluguel",
+        category_id: housingCategoryResponse.body.id,
+      });
+
+    await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "Saida",
+        value: 180,
+        date: "2026-02-04",
+        description: "Mercado",
+        category_id: foodCategoryResponse.body.id,
+      });
+
+    const response = await request(app)
+      .get("/transactions/summary")
+      .query({
+        month: "2026-02",
+      })
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.byCategory).toEqual([
+      {
+        categoryId: housingCategoryResponse.body.id,
+        categoryName: "Moradia",
+        expense: 320,
+      },
+      {
+        categoryId: foodCategoryResponse.body.id,
+        categoryName: "Alimentacao",
+        expense: 180,
+      },
+      {
+        categoryId: null,
+        categoryName: "Sem categoria",
+        expense: 500,
+      },
+    ]);
+  });
+
   it("cria e lista transacoes do usuario autenticado", async () => {
     const token = await registerAndLogin("transacoes@controlfinance.dev");
 

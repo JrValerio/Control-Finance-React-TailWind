@@ -539,7 +539,11 @@ export const getMonthlySummaryForUser = async (userId, month) => {
         AND t.date >= $2
         AND t.date < $3
       GROUP BY t.category_id, c.name
-      ORDER BY expense DESC, t.category_id ASC NULLS LAST
+      ORDER BY
+        (t.category_id IS NULL) ASC,
+        expense DESC,
+        LOWER(COALESCE(c.name, '')) ASC,
+        t.category_id ASC
     `,
     [userId, from, to, CATEGORY_EXIT],
   );
