@@ -1,5 +1,5 @@
 import request from "supertest";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { newDb } from "pg-mem";
 import app from "./app.js";
 import { clearDbClientForTests, dbQuery, setDbClientForTests } from "./db/index.js";
@@ -37,11 +37,6 @@ const getUserIdByEmail = async (email) => {
 
   return Number(result.rows[0]?.id);
 };
-
-const sleep = (durationInMs) =>
-  new Promise((resolve) => {
-    setTimeout(resolve, durationInMs);
-  });
 
 const expectErrorResponseWithRequestId = (response, expectedStatus, expectedMessage) => {
   expect(response.status).toBe(expectedStatus);
@@ -239,9 +234,14 @@ describe("API auth and transactions", () => {
 
   it("aplica bloqueio por brute force e desbloqueia apos janela", async () => {
     const envSnapshot = snapshotAuthSecurityEnv();
+    const lockWindowInMs = 1000;
+    let now = Date.parse("2026-01-01T00:00:00.000Z");
+    const dateNowSpy = vi.spyOn(Date, "now").mockImplementation(() => now);
+
     process.env.AUTH_BRUTE_FORCE_MAX_ATTEMPTS = "2";
-    process.env.AUTH_BRUTE_FORCE_WINDOW_MS = "150";
-    process.env.AUTH_BRUTE_FORCE_LOCK_MS = "150";
+    process.env.AUTH_BRUTE_FORCE_WINDOW_MS = String(lockWindowInMs);
+    process.env.AUTH_BRUTE_FORCE_LOCK_MS = String(lockWindowInMs);
+    resetLoginProtectionState();
 
     try {
       await request(app).post("/auth/register").send({
@@ -267,7 +267,7 @@ describe("API auth and transactions", () => {
       expect(blockedAttempt.status).toBe(429);
       expect(blockedAttempt.body.message).toBe(LOGIN_THROTTLE_MESSAGE);
 
-      await sleep(170);
+      now += lockWindowInMs + 1;
 
       const unlockedAttempt = await request(app)
         .post("/auth/login")
@@ -275,6 +275,7 @@ describe("API auth and transactions", () => {
 
       expect(unlockedAttempt.status).toBe(401);
     } finally {
+      dateNowSpy.mockRestore();
       restoreAuthSecurityEnv(envSnapshot);
       resetLoginProtectionState();
     }
