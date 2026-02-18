@@ -14,6 +14,7 @@ Aplicacao web para controle financeiro pessoal com entradas/saidas, filtros por 
 - [Web Features](#funcionalidades-atuais-web)
 - [Monthly Summary](#monthly-summary)
 - [CSV Import (Dry-run + Commit)](#csv-import-dry-run--commit)
+- [Import History](#import-history)
 - [Export CSV (Architecture Doc)](docs/architecture/v1.5.0-export-csv.md)
 - [API (apps/api)](#api-appsapi)
 - [Auth (Architecture Doc)](docs/architecture/v1.3.0-auth.md)
@@ -164,6 +165,19 @@ Quando uma linha e invalida, a resposta traz erros por campo:
 }
 ```
 
+## Import History
+
+- Endpoint: `GET /transactions/imports?limit=20&offset=0`
+- Retorna sessoes de importacao do usuario autenticado em ordem `createdAt DESC`
+- Campos por item: `id`, `createdAt`, `expiresAt`, `committedAt`, `summary`
+- Regra de `summary.imported`: `committedAt ? validRows : 0`
+
+### Status no Web
+
+- `Committed`: possui `committedAt`
+- `Expired`: nao possui `committedAt` e `Date.now() > Date.parse(expiresAt)`
+- `Pending`: nao possui `committedAt` e nao expirou
+
 ## API (apps/api)
 
 - `GET /health` retorna `{ ok: true, version, commit }`
@@ -181,6 +195,7 @@ Quando uma linha e invalida, a resposta traz erros por campo:
 - `GET /transactions/export.csv` exporta CSV filtrado com totais de entradas, saidas e saldo
 - `POST /transactions/import/dry-run` valida CSV por linha e cria sessao de importacao com TTL
 - `POST /transactions/import/commit` confirma sessao de importacao e persiste apenas linhas validas
+- `GET /transactions/imports` lista historico de sessoes de importacao por usuario com `limit`/`offset`
 - Migrations SQL automaticas no startup (`src/db/migrations`)
 - Middleware global de erro e fallback `404`
 
@@ -243,6 +258,7 @@ npm run dev
 - [x] Persistencia em banco remoto (Postgres) para ambiente de producao
 - [x] Exportacao CSV com filtros e totais
 - [x] Importacao CSV com dry-run + commit
+- [x] Historico de importacoes (API + Web)
 - [ ] Importacao JSON
 
 ## Licenca
