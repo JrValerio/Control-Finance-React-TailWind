@@ -106,6 +106,35 @@ export const dbQuery = async (text, params = []) => {
   return dbClient.query(text, params);
 };
 
+export const withDbTransaction = async (callback) => {
+  const dbClient = getDbClient();
+
+  if (!dbClient || typeof dbClient.connect !== "function") {
+    throw createDatabaseError("Cliente de banco invalido para transacao.");
+  }
+
+  const transactionClient = await dbClient.connect();
+
+  try {
+    await transactionClient.query("BEGIN");
+    const result = await callback(transactionClient);
+    await transactionClient.query("COMMIT");
+    return result;
+  } catch (error) {
+    try {
+      await transactionClient.query("ROLLBACK");
+    } catch {
+      // no-op: preserve original failure
+    }
+
+    throw error;
+  } finally {
+    if (typeof transactionClient.release === "function") {
+      transactionClient.release();
+    }
+  }
+};
+
 export const setDbClientForTests = (dbClient) => {
   dbClientOverride = dbClient;
 };
