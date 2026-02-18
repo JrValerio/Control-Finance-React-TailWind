@@ -43,6 +43,15 @@ const sleep = (durationInMs) =>
     setTimeout(resolve, durationInMs);
   });
 
+const expectErrorResponseWithRequestId = (response, expectedStatus, expectedMessage) => {
+  expect(response.status).toBe(expectedStatus);
+  expect(response.body).toMatchObject({ message: expectedMessage });
+  expect(typeof response.body.requestId).toBe("string");
+  expect(response.body.requestId.length).toBeGreaterThan(0);
+  expect(response.body.requestId.length).toBeLessThanOrEqual(128);
+  expect(response.body.requestId).toBe(response.headers["x-request-id"]);
+};
+
 const csvFile = (content, fileName = "import.csv") => ({
   buffer: Buffer.from(content, "utf8"),
   fileName,
@@ -125,6 +134,22 @@ describe("API auth and transactions", () => {
     expect(requestId.length).toBeLessThanOrEqual(128);
   });
 
+  it("inclui requestId no JSON de erro quando nao informado no header", async () => {
+    const response = await request(app).get("/__not_found__");
+
+    expectErrorResponseWithRequestId(response, 404, "Route not found");
+  });
+
+  it("ecoa x-request-id no JSON de erro quando informado no header", async () => {
+    const response = await request(app)
+      .get("/__not_found__")
+      .set("x-request-id", "rid-123");
+
+    expectErrorResponseWithRequestId(response, 404, "Route not found");
+    expect(response.body.requestId).toBe("rid-123");
+    expect(response.headers["x-request-id"]).toBe("rid-123");
+  });
+
   it("POST /auth/register cria usuario", async () => {
     const response = await request(app).post("/auth/register").send({
       name: "Junior",
@@ -155,8 +180,7 @@ describe("API auth and transactions", () => {
       password: "Senha123",
     });
 
-    expect(response.status).toBe(409);
-    expect(response.body).toEqual({ message: "Usuario ja cadastrado." });
+    expectErrorResponseWithRequestId(response, 409, "Usuario ja cadastrado.");
   });
 
   it("POST /auth/register retorna erro quando email esta vazio", async () => {
@@ -165,8 +189,7 @@ describe("API auth and transactions", () => {
       password: "Senha123",
     });
 
-    expect(response.status).toBe(400);
-    expect(response.body).toEqual({ message: "Email e senha sao obrigatorios." });
+    expectErrorResponseWithRequestId(response, 400, "Email e senha sao obrigatorios.");
   });
 
   it("POST /auth/register retorna erro quando senha esta vazia", async () => {
@@ -175,8 +198,7 @@ describe("API auth and transactions", () => {
       password: "",
     });
 
-    expect(response.status).toBe(400);
-    expect(response.body).toEqual({ message: "Email e senha sao obrigatorios." });
+    expectErrorResponseWithRequestId(response, 400, "Email e senha sao obrigatorios.");
   });
 
   it("POST /auth/login retorna token", async () => {
@@ -203,8 +225,7 @@ describe("API auth and transactions", () => {
       password: "Senha123",
     });
 
-    expect(response.status).toBe(400);
-    expect(response.body).toEqual({ message: "Email e senha sao obrigatorios." });
+    expectErrorResponseWithRequestId(response, 400, "Email e senha sao obrigatorios.");
   });
 
   it("POST /auth/login retorna erro quando senha esta vazia", async () => {
@@ -213,8 +234,7 @@ describe("API auth and transactions", () => {
       password: "",
     });
 
-    expect(response.status).toBe(400);
-    expect(response.body).toEqual({ message: "Email e senha sao obrigatorios." });
+    expectErrorResponseWithRequestId(response, 400, "Email e senha sao obrigatorios.");
   });
 
   it("aplica bloqueio por brute force e desbloqueia apos janela", async () => {
@@ -393,10 +413,7 @@ describe("API auth and transactions", () => {
         name: "   ",
       });
 
-    expect(response.status).toBe(400);
-    expect(response.body).toEqual({
-      message: "Nome da categoria e obrigatorio.",
-    });
+    expectErrorResponseWithRequestId(response, 400, "Nome da categoria e obrigatorio.");
   });
 
   it("POST /categories bloqueia categoria duplicada por usuario (case-insensitive)", async () => {
@@ -417,10 +434,7 @@ describe("API auth and transactions", () => {
       });
 
     expect(firstResponse.status).toBe(201);
-    expect(duplicateResponse.status).toBe(409);
-    expect(duplicateResponse.body).toEqual({
-      message: "Categoria ja existe.",
-    });
+    expectErrorResponseWithRequestId(duplicateResponse, 409, "Categoria ja existe.");
   });
 
   it("GET /categories isola categorias por usuario", async () => {
@@ -569,10 +583,7 @@ describe("API auth and transactions", () => {
       .query(query)
       .set("Authorization", `Bearer ${token}`);
 
-    expect(response.status).toBe(400);
-    expect(response.body).toEqual({
-      message: "Paginacao invalida.",
-    });
+    expectErrorResponseWithRequestId(response, 400, "Paginacao invalida.");
   });
 
   it("GET /transactions/imports lista sessoes por usuario com ordem desc e shape consistente", async () => {
@@ -729,10 +740,7 @@ describe("API auth and transactions", () => {
       .post("/transactions/import/dry-run")
       .set("Authorization", `Bearer ${token}`);
 
-    expect(response.status).toBe(400);
-    expect(response.body).toEqual({
-      message: "Arquivo CSV (file) e obrigatorio.",
-    });
+    expectErrorResponseWithRequestId(response, 400, "Arquivo CSV (file) e obrigatorio.");
   });
 
   it("POST /transactions/import/dry-run retorna 400 para arquivo sem formato CSV", async () => {
@@ -747,10 +755,7 @@ describe("API auth and transactions", () => {
         contentType: "text/plain",
       });
 
-    expect(response.status).toBe(400);
-    expect(response.body).toEqual({
-      message: "Arquivo invalido. Envie um CSV.",
-    });
+    expectErrorResponseWithRequestId(response, 400, "Arquivo invalido. Envie um CSV.");
   });
 
   it("POST /transactions/import/dry-run retorna 413 quando arquivo excede limite", async () => {
@@ -766,10 +771,7 @@ describe("API auth and transactions", () => {
         contentType: "text/csv",
       });
 
-    expect(response.status).toBe(413);
-    expect(response.body).toEqual({
-      message: "Arquivo muito grande.",
-    });
+    expectErrorResponseWithRequestId(response, 413, "Arquivo muito grande.");
   });
 
   it("POST /transactions/import/dry-run retorna 400 quando CSV excede o limite de linhas", async () => {
@@ -790,10 +792,7 @@ describe("API auth and transactions", () => {
         contentType: "text/csv",
       });
 
-    expect(response.status).toBe(400);
-    expect(response.body).toEqual({
-      message: "CSV excede o limite de 2000 linhas.",
-    });
+    expectErrorResponseWithRequestId(response, 400, "CSV excede o limite de 2000 linhas.");
   });
 
   it("POST /transactions/import/dry-run retorna 429 quando excede o limite de requisicoes", async () => {
@@ -820,10 +819,11 @@ describe("API auth and transactions", () => {
         contentType: "text/csv",
       });
 
-    expect(throttledResponse.status).toBe(429);
-    expect(throttledResponse.body).toEqual({
-      message: "Muitas requisicoes. Tente novamente em instantes.",
-    });
+    expectErrorResponseWithRequestId(
+      throttledResponse,
+      429,
+      "Muitas requisicoes. Tente novamente em instantes.",
+    );
   });
 
   it("POST /transactions/import/dry-run retorna 400 para cabecalho invalido", async () => {
@@ -838,11 +838,11 @@ describe("API auth and transactions", () => {
         contentType: "text/csv",
       });
 
-    expect(response.status).toBe(400);
-    expect(response.body).toEqual({
-      message:
-        "CSV invalido. Cabecalho esperado: date,type,value,description,notes,category",
-    });
+    expectErrorResponseWithRequestId(
+      response,
+      400,
+      "CSV invalido. Cabecalho esperado: date,type,value,description,notes,category",
+    );
   });
 
   it("POST /transactions/import/dry-run valida linhas e persiste sessao", async () => {
@@ -1033,10 +1033,7 @@ describe("API auth and transactions", () => {
         .set("Authorization", `Bearer ${token}`)
         .send(invalidPayload);
 
-      expect(allowedResponse.status).toBe(400);
-      expect(allowedResponse.body).toEqual({
-        message: "importId invalido.",
-      });
+      expectErrorResponseWithRequestId(allowedResponse, 400, "importId invalido.");
     }
 
     const throttledResponse = await request(app)
@@ -1044,10 +1041,11 @@ describe("API auth and transactions", () => {
       .set("Authorization", `Bearer ${token}`)
       .send(invalidPayload);
 
-    expect(throttledResponse.status).toBe(429);
-    expect(throttledResponse.body).toEqual({
-      message: "Muitas requisicoes. Tente novamente em instantes.",
-    });
+    expectErrorResponseWithRequestId(
+      throttledResponse,
+      429,
+      "Muitas requisicoes. Tente novamente em instantes.",
+    );
   });
 
   it("POST /transactions/import/commit retorna 400 sem importId", async () => {
@@ -1058,10 +1056,7 @@ describe("API auth and transactions", () => {
       .set("Authorization", `Bearer ${token}`)
       .send({});
 
-    expect(response.status).toBe(400);
-    expect(response.body).toEqual({
-      message: "importId e obrigatorio.",
-    });
+    expectErrorResponseWithRequestId(response, 400, "importId e obrigatorio.");
   });
 
   it("POST /transactions/import/commit retorna 400 com importId invalido", async () => {
@@ -1074,10 +1069,7 @@ describe("API auth and transactions", () => {
         importId: "abc",
       });
 
-    expect(response.status).toBe(400);
-    expect(response.body).toEqual({
-      message: "importId invalido.",
-    });
+    expectErrorResponseWithRequestId(response, 400, "importId invalido.");
   });
 
   it("POST /transactions/import/commit importa linhas validas e marca sessao como confirmada", async () => {
@@ -1183,10 +1175,7 @@ describe("API auth and transactions", () => {
         importId: ownerDryRunResponse.body.importId,
       });
 
-    expect(response.status).toBe(404);
-    expect(response.body).toEqual({
-      message: "Sessao de importacao nao encontrada.",
-    });
+    expectErrorResponseWithRequestId(response, 404, "Sessao de importacao nao encontrada.");
   });
 
   it("POST /transactions/import/commit retorna 409 quando sessao ja foi confirmada", async () => {
@@ -1220,10 +1209,7 @@ describe("API auth and transactions", () => {
       });
 
     expect(firstCommitResponse.status).toBe(200);
-    expect(secondCommitResponse.status).toBe(409);
-    expect(secondCommitResponse.body).toEqual({
-      message: "Importacao ja confirmada.",
-    });
+    expectErrorResponseWithRequestId(secondCommitResponse, 409, "Importacao ja confirmada.");
   });
 
   it("POST /transactions/import/commit retorna 410 quando sessao expirou", async () => {
@@ -1256,10 +1242,7 @@ describe("API auth and transactions", () => {
         importId: dryRunResponse.body.importId,
       });
 
-    expect(commitResponse.status).toBe(410);
-    expect(commitResponse.body).toEqual({
-      message: "Sessao de importacao expirada.",
-    });
+    expectErrorResponseWithRequestId(commitResponse, 410, "Sessao de importacao expirada.");
   });
 
   it("GET /transactions/summary retorna 400 quando month nao e informado", async () => {
@@ -1269,10 +1252,7 @@ describe("API auth and transactions", () => {
       .get("/transactions/summary")
       .set("Authorization", `Bearer ${token}`);
 
-    expect(response.status).toBe(400);
-    expect(response.body).toEqual({
-      message: "Mes e obrigatorio. Use YYYY-MM.",
-    });
+    expectErrorResponseWithRequestId(response, 400, "Mes e obrigatorio. Use YYYY-MM.");
   });
 
   it("GET /transactions/summary retorna 400 quando month e invalido", async () => {
@@ -1285,10 +1265,7 @@ describe("API auth and transactions", () => {
       })
       .set("Authorization", `Bearer ${token}`);
 
-    expect(response.status).toBe(400);
-    expect(response.body).toEqual({
-      message: "Mes invalido. Use YYYY-MM.",
-    });
+    expectErrorResponseWithRequestId(response, 400, "Mes invalido. Use YYYY-MM.");
   });
 
   it("GET /transactions/summary retorna totais zerados quando nao ha transacoes no mes", async () => {
@@ -1575,10 +1552,11 @@ describe("API auth and transactions", () => {
         category_id: "abc",
       });
 
-    expect(response.status).toBe(400);
-    expect(response.body).toEqual({
-      message: "Categoria invalida. Informe um inteiro maior que zero.",
-    });
+    expectErrorResponseWithRequestId(
+      response,
+      400,
+      "Categoria invalida. Informe um inteiro maior que zero.",
+    );
   });
 
   it("retorna 404 quando category_id nao pertence ao usuario autenticado", async () => {
@@ -1611,14 +1589,12 @@ describe("API auth and transactions", () => {
       });
 
     expect(categoryUserAResponse.status).toBe(201);
-    expect(createByOtherUserResponse.status).toBe(404);
-    expect(createByOtherUserResponse.body).toEqual({
-      message: "Categoria nao encontrada.",
-    });
-    expect(createWithUnknownCategoryResponse.status).toBe(404);
-    expect(createWithUnknownCategoryResponse.body).toEqual({
-      message: "Categoria nao encontrada.",
-    });
+    expectErrorResponseWithRequestId(createByOtherUserResponse, 404, "Categoria nao encontrada.");
+    expectErrorResponseWithRequestId(
+      createWithUnknownCategoryResponse,
+      404,
+      "Categoria nao encontrada.",
+    );
   });
 
   it("pagina transacoes com meta consistente", async () => {
@@ -1740,10 +1716,11 @@ describe("API auth and transactions", () => {
       })
       .set("Authorization", `Bearer ${token}`);
 
-    expect(response.status).toBe(400);
-    expect(response.body).toEqual({
-      message: "Categoria invalida. Informe um inteiro maior que zero.",
-    });
+    expectErrorResponseWithRequestId(
+      response,
+      400,
+      "Categoria invalida. Informe um inteiro maior que zero.",
+    );
   });
 
   it("filtra transacoes por tipo, periodo e busca", async () => {
