@@ -2,6 +2,7 @@ import { Router } from "express";
 import path from "node:path";
 import multer from "multer";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
+import { importRateLimiter } from "../middlewares/rate-limit.middleware.js";
 import {
   createTransactionForUser,
   deleteTransactionForUser,
@@ -156,7 +157,7 @@ router.post("/:id/restore", async (req, res, next) => {
   }
 });
 
-router.post("/import/dry-run", (req, res, next) => {
+router.post("/import/dry-run", importRateLimiter, (req, res, next) => {
   upload.single("file")(req, res, async (error) => {
     if (error) {
       if (error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE") {
@@ -176,7 +177,7 @@ router.post("/import/dry-run", (req, res, next) => {
   });
 });
 
-router.post("/import/commit", async (req, res, next) => {
+router.post("/import/commit", importRateLimiter, async (req, res, next) => {
   try {
     const commitResult = await commitTransactionsImportForUser(
       req.user.id,
