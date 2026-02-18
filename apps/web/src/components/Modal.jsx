@@ -18,9 +18,26 @@ const formatValueForInput = (value) => {
   return numericValue.toFixed(2).replace(".", ",");
 };
 
-const Modal = ({ isOpen, onClose, onSave, initialTransaction = null }) => {
+const resolveInitialCategoryId = (transaction) => {
+  const numericCategoryId = Number(transaction?.categoryId);
+
+  if (Number.isInteger(numericCategoryId) && numericCategoryId > 0) {
+    return String(numericCategoryId);
+  }
+
+  return "";
+};
+
+const Modal = ({
+  isOpen,
+  onClose,
+  onSave,
+  initialTransaction = null,
+  categories = [],
+}) => {
   const [value, setValue] = useState("");
-  const [category, setCategory] = useState(CATEGORY_ENTRY);
+  const [transactionType, setTransactionType] = useState(CATEGORY_ENTRY);
+  const [selectedCategoryId, setSelectedCategoryId] = useState("");
   const [transactionDate, setTransactionDate] = useState(getTodayISODate());
   const [description, setDescription] = useState("");
   const [notes, setNotes] = useState("");
@@ -35,7 +52,8 @@ const Modal = ({ isOpen, onClose, onSave, initialTransaction = null }) => {
     setValue(
       initialTransaction ? formatValueForInput(initialTransaction.value) : "",
     );
-    setCategory(initialTransaction?.type || CATEGORY_ENTRY);
+    setTransactionType(initialTransaction?.type || CATEGORY_ENTRY);
+    setSelectedCategoryId(resolveInitialCategoryId(initialTransaction));
     setTransactionDate(initialTransaction?.date || getTodayISODate());
     setDescription(initialTransaction?.description || "");
     setNotes(initialTransaction?.notes || "");
@@ -75,7 +93,8 @@ const Modal = ({ isOpen, onClose, onSave, initialTransaction = null }) => {
 
     onSave({
       value: parsedValue,
-      type: category,
+      type: transactionType,
+      categoryId: selectedCategoryId ? Number(selectedCategoryId) : null,
       date: transactionDate,
       description: description.trim(),
       notes: notes.trim(),
@@ -197,26 +216,48 @@ const Modal = ({ isOpen, onClose, onSave, initialTransaction = null }) => {
               <button
                 type="button"
                 className={`rounded border px-3.5 py-1 text-sm font-semibold transition-colors ${
-                  category === CATEGORY_ENTRY
+                  transactionType === CATEGORY_ENTRY
                     ? "border-brand-1 bg-brand-3 text-brand-1"
                     : "border-gray-300 bg-white text-gray-200"
                 }`}
-                onClick={() => setCategory(CATEGORY_ENTRY)}
+                onClick={() => setTransactionType(CATEGORY_ENTRY)}
               >
                 Entrada
               </button>
               <button
                 type="button"
                 className={`rounded border px-3.5 py-1 text-sm font-semibold transition-colors ${
-                  category === CATEGORY_EXIT
+                  transactionType === CATEGORY_EXIT
                     ? "border-brand-1 bg-brand-3 text-brand-1"
                     : "border-gray-300 bg-white text-gray-200"
                 }`}
-                onClick={() => setCategory(CATEGORY_EXIT)}
+                onClick={() => setTransactionType(CATEGORY_EXIT)}
               >
                 Saida
               </button>
             </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label htmlFor="categoria" className="text-sm font-medium text-gray-100">
+              Categoria
+            </label>
+            <select
+              id="categoria"
+              className="rounded border border-gray-400 px-3 py-2 text-sm text-gray-200"
+              value={selectedCategoryId}
+              onChange={(event) => {
+                setSelectedCategoryId(event.target.value);
+                setErrorMessage("");
+              }}
+            >
+              <option value="">Sem categoria</option>
+              {categories.map((categoryOption) => (
+                <option key={categoryOption.id} value={String(categoryOption.id)}>
+                  {categoryOption.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           {errorMessage ? (
@@ -250,11 +291,18 @@ Modal.propTypes = {
   isOpen: PropTypes.bool.isRequired,
   onClose: PropTypes.func.isRequired,
   onSave: PropTypes.func.isRequired,
+  categories: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.number.isRequired,
+      name: PropTypes.string.isRequired,
+    }),
+  ),
   initialTransaction: PropTypes.shape({
     id: PropTypes.number.isRequired,
     value: PropTypes.number.isRequired,
     type: PropTypes.string.isRequired,
     date: PropTypes.string.isRequired,
+    categoryId: PropTypes.oneOfType([PropTypes.number, PropTypes.oneOf([null])]),
     description: PropTypes.string,
     notes: PropTypes.string,
   }),
