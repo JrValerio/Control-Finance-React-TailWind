@@ -15,6 +15,7 @@ import {
 import {
   commitTransactionsImportForUser,
   dryRunTransactionsImportForUser,
+  listTransactionsImportSessionsByUser,
 } from "../services/transactions-import.service.js";
 
 const router = Router();
@@ -97,6 +98,15 @@ router.get("/summary", async (req, res, next) => {
   try {
     const summary = await getMonthlySummaryForUser(req.user.id, req.query.month);
     res.status(200).json(summary);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/imports", async (req, res, next) => {
+  try {
+    const imports = await listTransactionsImportSessionsByUser(req.user.id, req.query || {});
+    res.status(200).json(imports);
   } catch (error) {
     next(error);
   }
