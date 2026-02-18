@@ -77,6 +77,70 @@ Detalhes tecnicos:
 - Base TypeScript inicial no `apps/web` com service de transacoes tipado
 - Camada `api` e entrypoints de rotas/web migrados para TypeScript
 
+## CSV Import (Dry-run + Commit)
+
+### CSV import flow
+
+A importacao CSV usa um fluxo seguro em duas etapas:
+
+1. Upload do arquivo
+2. Pre-visualizacao/validacao (`dry-run`)
+3. Commit somente das linhas validas
+
+Isso evita persistir dados invalidos no banco.
+
+### Formato aceito
+
+```csv
+date,type,value,description,notes,category
+2026-03-01,Entrada,1000,Salario,,Trabalho
+2026-03-02,Saida,250,Supermercado,Compras do mes,Mercado
+```
+
+| Column      | Required | Description                                          |
+| ----------- | -------- | ---------------------------------------------------- |
+| `date`      | ✅       | Formato `YYYY-MM-DD`                                 |
+| `type`      | ✅       | `Entrada` ou `Saida` (case-insensitive)              |
+| `value`     | ✅       | Numero `> 0` (suporta `.` e `,`)                     |
+| `description` | ✅     | Texto nao vazio                                      |
+| `notes`     | ❌       | Opcional                                             |
+| `category`  | ❌       | Deve existir para o usuario (case-insensitive)       |
+
+### Validacao por linha
+
+Quando uma linha e invalida, a resposta traz erros por campo:
+
+```json
+{
+  "line": 3,
+  "status": "invalid",
+  "errors": [
+    { "field": "date", "message": "Data invalida. Use YYYY-MM-DD." }
+  ]
+}
+```
+
+### Segurança e consistência
+
+- Sessao de dry-run com TTL de 30 minutos
+- Commit em uma unica transacao de banco
+- Commit idempotente (sessao ja confirmada retorna `409`)
+- Sessao expirada retorna `410`
+- Erros padronizados no formato `{ message }`
+
+### API reference (resumo)
+
+- `POST /transactions/import/dry-run`
+  - `multipart/form-data` com campo `file`
+  - resposta com `importId`, `expiresAt`, `summary` e `rows`
+- `POST /transactions/import/commit`
+
+```json
+{
+  "importId": "uuid"
+}
+```
+
 ## API (apps/api)
 
 - `GET /health` retorna `{ ok: true, version, commit }`
@@ -92,6 +156,8 @@ Detalhes tecnicos:
 - `DELETE /transactions/:id` aplica soft delete para o usuario autenticado
 - `POST /transactions/:id/restore` restaura transacao removida
 - `GET /transactions/export.csv` exporta CSV filtrado com totais de entradas, saidas e saldo
+- `POST /transactions/import/dry-run` valida CSV por linha e cria sessao de importacao com TTL
+- `POST /transactions/import/commit` confirma sessao de importacao e persiste apenas linhas validas
 - Migrations SQL automaticas no startup (`src/db/migrations`)
 - Middleware global de erro e fallback `404`
 
@@ -153,7 +219,8 @@ npm run dev
 - [x] PR 3 (v1.3.0): transacoes por usuario no backend + frontend API-first
 - [x] Persistencia em banco remoto (Postgres) para ambiente de producao
 - [x] Exportacao CSV com filtros e totais
-- [ ] Importacao CSV/JSON
+- [x] Importacao CSV com dry-run + commit
+- [ ] Importacao JSON
 
 ## Licenca
 
