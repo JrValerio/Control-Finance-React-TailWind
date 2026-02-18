@@ -84,7 +84,7 @@ Detalhes tecnicos:
 A importacao CSV usa um fluxo seguro em duas etapas:
 
 1. Upload do arquivo
-2. Pre-visualizacao/validacao (`dry-run`)
+2. Pre-visualizacao e validacao (`dry-run`)
 3. Commit somente das linhas validas
 
 Isso evita persistir dados invalidos no banco.
@@ -97,14 +97,14 @@ date,type,value,description,notes,category
 2026-03-02,Saida,250,Supermercado,Compras do mes,Mercado
 ```
 
-| Column      | Required | Description                                          |
-| ----------- | -------- | ---------------------------------------------------- |
-| `date`      | ✅       | Formato `YYYY-MM-DD`                                 |
-| `type`      | ✅       | `Entrada` ou `Saida` (case-insensitive)              |
-| `value`     | ✅       | Numero `> 0` (suporta `.` e `,`)                     |
-| `description` | ✅     | Texto nao vazio                                      |
-| `notes`     | ❌       | Opcional                                             |
-| `category`  | ❌       | Deve existir para o usuario (case-insensitive)       |
+| Column        | Required | Description                                    |
+| ------------- | -------- | ---------------------------------------------- |
+| `date`        | Yes      | Formato `YYYY-MM-DD`                           |
+| `type`        | Yes      | `Entrada` ou `Saida` (case-insensitive)        |
+| `value`       | Yes      | Numero `> 0` (suporta `.` e `,`)               |
+| `description` | Yes      | Texto nao vazio                                |
+| `notes`       | No       | Opcional                                       |
+| `category`    | No       | Deve existir para o usuario (case-insensitive) |
 
 ### Validacao por linha
 
@@ -127,6 +127,7 @@ Quando uma linha e invalida, a resposta traz erros por campo:
 - Commit idempotente (sessao ja confirmada retorna `409`)
 - Sessao expirada retorna `410`
 - Erros padronizados no formato `{ message }`
+- Status de erro: `400` (input invalido), `404` (sessao nao encontrada/sem ownership), `409` (ja confirmada), `410` (expirada)
 
 ### API reference (resumo)
 
@@ -134,6 +135,7 @@ Quando uma linha e invalida, a resposta traz erros por campo:
   - `multipart/form-data` com campo `file`
   - resposta com `importId`, `expiresAt`, `summary` e `rows`
 - `POST /transactions/import/commit`
+  - `application/json` com `{ importId }`
 
 ```json
 {
