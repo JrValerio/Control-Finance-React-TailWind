@@ -900,7 +900,7 @@ describe("App", () => {
     expect(screen.getByText("Filtros ativos (1)")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Limpar filtros" })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: CATEGORY_ENTRY }));
+    await user.click(screen.getByRole("button", { name: "Filtrar entradas" }));
     expect(await screen.findByText("Com dois filtros ativos")).toBeInTheDocument();
     expect(screen.getByText("Filtros ativos (2)")).toBeInTheDocument();
   });
@@ -1527,7 +1527,7 @@ describe("App", () => {
     expect(await screen.findByText("Saida p2")).toBeInTheDocument();
     expect(screen.getByText("Pagina 2 de 2")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: CATEGORY_ENTRY }));
+    await user.click(screen.getByRole("button", { name: "Filtrar entradas" }));
 
     expect(await screen.findByText("Entrada filtrada")).toBeInTheDocument();
     expect(screen.getByText("Pagina 1 de 1")).toBeInTheDocument();
@@ -1806,7 +1806,7 @@ describe("App", () => {
       fireEvent.change(screen.getByLabelText("Data final"), {
         target: { value: "2026-02-20" },
       });
-      await user.click(screen.getByRole("button", { name: CATEGORY_EXIT }));
+      await user.click(screen.getByRole("button", { name: "Filtrar saidas" }));
       await user.click(screen.getByRole("button", { name: "Exportar CSV" }));
 
       await waitFor(() => {
