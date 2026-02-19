@@ -779,6 +779,9 @@ const App = ({ onLogout = undefined }) => {
     monthlySummary.income > 0 ||
     monthlySummary.expense > 0 ||
     monthlySummary.byCategory.length > 0;
+  const visibleFilterPresets = FILTER_PRESETS.filter(
+    (preset) => preset.id !== "clear" || hasActiveFilters,
+  );
   const currentPage = paginationMeta.page;
   const rangeStart = paginationMeta.total === 0 ? 0 : paginationMeta.offset + 1;
   const rangeEnd = Math.min(
@@ -838,14 +841,21 @@ const App = ({ onLogout = undefined }) => {
       <section className="mt-8 p-4 sm:mt-14">
         <div className="mx-auto flex max-w-700 flex-col gap-4">
           <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
-            <h2 className="text-lg font-medium text-gray-100">Resumo financeiro</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-medium text-gray-100">Resumo financeiro</h2>
+              {hasActiveFilters ? (
+                <span className="inline-flex items-center rounded-full border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-900">
+                  Filtros ativos
+                </span>
+              ) : null}
+            </div>
             <div className="flex flex-wrap gap-2">
-              {FILTER_PRESETS.map((preset) => (
+              {visibleFilterPresets.map((preset) => (
                 <button
                   key={preset.id}
                   type="button"
                   onClick={() => applyFilterPreset(preset.id)}
-                  className="flex items-center justify-center gap-2.5 rounded border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-200 transition-colors hover:bg-gray-400"
+                  className="flex items-center justify-center gap-2.5 rounded border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-900 transition-colors hover:bg-gray-100"
                 >
                   {preset.label}
                 </button>
