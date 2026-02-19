@@ -29,6 +29,16 @@ const PERIOD_OPTIONS = [
   PERIOD_LAST_30_DAYS,
   PERIOD_CUSTOM,
 ];
+const SORT_OPTIONS = [
+  { value: "date:asc", label: "Data (mais antigas)" },
+  { value: "date:desc", label: "Data (mais recentes)" },
+  { value: "amount:desc", label: "Valor (maior)" },
+  { value: "amount:asc", label: "Valor (menor)" },
+  { value: "description:asc", label: "Descricao (A-Z)" },
+  { value: "description:desc", label: "Descricao (Z-A)" },
+];
+const SORT_OPTION_VALUES = new Set(SORT_OPTIONS.map((option) => option.value));
+const DEFAULT_SORT = "date:asc";
 const DEFAULT_OFFSET = 0;
 const DEFAULT_LIMIT = 20;
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
@@ -57,11 +67,21 @@ const parseIntegerInRange = (value, { min, max }) => {
   return parsedValue;
 };
 
+const normalizeSortOption = (value) => {
+  if (typeof value !== "string") {
+    return DEFAULT_SORT;
+  }
+
+  const normalizedValue = value.trim().toLowerCase();
+  return SORT_OPTION_VALUES.has(normalizedValue) ? normalizedValue : DEFAULT_SORT;
+};
+
 const getInitialFilterState = () => {
   if (typeof window === "undefined") {
     return {
       selectedCategory: CATEGORY_ALL,
       selectedPeriod: PERIOD_ALL,
+      selectedSort: DEFAULT_SORT,
       selectedTransactionCategoryId: "",
       customStartDate: "",
       customEndDate: "",
@@ -73,6 +93,7 @@ const getInitialFilterState = () => {
   const queryPeriod = params.get("period");
   const queryFrom = params.get("from");
   const queryTo = params.get("to");
+  const querySort = normalizeSortOption(params.get("sort"));
   const queryCategoryId = parseIntegerInRange(params.get("categoryId"), {
     min: 1,
     max: Number.MAX_SAFE_INTEGER,
@@ -91,6 +112,7 @@ const getInitialFilterState = () => {
   return {
     selectedCategory,
     selectedPeriod,
+    selectedSort: querySort,
     selectedTransactionCategoryId: queryCategoryId ? String(queryCategoryId) : "",
     customStartDate: selectedPeriod === PERIOD_CUSTOM ? customStartDate : "",
     customEndDate: selectedPeriod === PERIOD_CUSTOM ? customEndDate : "",
@@ -201,6 +223,7 @@ const App = ({ onLogout = undefined }) => {
   const listSectionRef = useRef(null);
   const [selectedCategory, setSelectedCategory] = useState(initialFilterState.selectedCategory);
   const [selectedPeriod, setSelectedPeriod] = useState(initialFilterState.selectedPeriod);
+  const [selectedSort, setSelectedSort] = useState(initialFilterState.selectedSort || DEFAULT_SORT);
   const [selectedTransactionCategoryId, setSelectedTransactionCategoryId] = useState(
     initialFilterState.selectedTransactionCategoryId,
   );
@@ -319,6 +342,7 @@ const App = ({ onLogout = undefined }) => {
       const response = await transactionsService.listPage({
         limit: pageSize,
         offset: currentOffset,
+        sort: selectedSort,
         from: periodRange.startDate || undefined,
         to: periodRange.endDate || undefined,
         type: selectedCategory !== CATEGORY_ALL ? selectedCategory : undefined,
@@ -349,7 +373,7 @@ const App = ({ onLogout = undefined }) => {
     } finally {
       setLoadingTransactions(false);
     }
-  }, [currentOffset, pageSize, periodRange, selectedCategory, selectedTransactionCategoryId]);
+  }, [currentOffset, pageSize, periodRange, selectedCategory, selectedSort, selectedTransactionCategoryId]);
 
   useEffect(() => {
     loadTransactions();
@@ -374,6 +398,7 @@ const App = ({ onLogout = undefined }) => {
     const params = new URLSearchParams(window.location.search);
     params.set("limit", String(pageSize));
     params.set("offset", String(currentOffset));
+    params.set("sort", selectedSort);
 
     if (selectedCategory !== CATEGORY_ALL) {
       params.set("type", selectedCategory);
@@ -421,6 +446,7 @@ const App = ({ onLogout = undefined }) => {
     pageSize,
     selectedCategory,
     selectedPeriod,
+    selectedSort,
     selectedTransactionCategoryId,
   ]);
 
@@ -796,6 +822,30 @@ const App = ({ onLogout = undefined }) => {
                 {categories.map((categoryOption) => (
                   <option key={categoryOption.id} value={String(categoryOption.id)}>
                     {categoryOption.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="mt-3">
+              <label
+                htmlFor="ordenacao-transacoes"
+                className="mb-1 block text-xs font-medium text-gray-100"
+              >
+                Ordenar por
+              </label>
+              <select
+                id="ordenacao-transacoes"
+                value={selectedSort}
+                onChange={(event) => {
+                  setSelectedSort(normalizeSortOption(event.target.value));
+                  setCurrentOffset(DEFAULT_OFFSET);
+                }}
+                className="w-full rounded border border-gray-400 px-3 py-2 text-sm text-gray-200"
+              >
+                {SORT_OPTIONS.map((sortOption) => (
+                  <option key={sortOption.value} value={sortOption.value}>
+                    {sortOption.label}
                   </option>
                 ))}
               </select>

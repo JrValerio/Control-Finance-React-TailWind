@@ -155,6 +155,7 @@ describe("App", () => {
     expect(transactionsService.listPage).toHaveBeenCalledWith({
       limit: 20,
       offset: 0,
+      sort: "date:asc",
       from: undefined,
       to: undefined,
       type: undefined,
@@ -221,11 +222,109 @@ describe("App", () => {
     expect(transactionsService.listPage).toHaveBeenLastCalledWith({
       limit: 20,
       offset: 0,
+      sort: "date:asc",
       from: undefined,
       to: undefined,
       type: undefined,
       categoryId: 1,
     });
+  });
+
+  it("aplica sort da querystring ao carregar transacoes", async () => {
+    window.history.replaceState(null, "", "/app?sort=amount:desc&limit=20&offset=0");
+    transactionsService.listPage.mockResolvedValueOnce(
+      buildPageResponse([
+        {
+          id: 1,
+          value: 120,
+          type: CATEGORY_ENTRY,
+          date: "2026-02-15",
+          description: "Ordenada por valor",
+        },
+      ]),
+    );
+
+    render(<App />);
+
+    expect(await screen.findByText("Ordenada por valor")).toBeInTheDocument();
+    expect(transactionsService.listPage).toHaveBeenCalledWith({
+      limit: 20,
+      offset: 0,
+      sort: "amount:desc",
+      from: undefined,
+      to: undefined,
+      type: undefined,
+      categoryId: undefined,
+    });
+    expect(screen.getByLabelText("Ordenar por")).toHaveValue("amount:desc");
+  });
+
+  it("altera sort, reseta offset e atualiza querystring", async () => {
+    const user = userEvent.setup();
+    window.history.replaceState(null, "", "/app?limit=20&offset=0&sort=date:asc");
+    transactionsService.listPage
+      .mockResolvedValueOnce(
+        buildPageResponse(
+          [
+            {
+              id: 3,
+              value: 10,
+              type: CATEGORY_ENTRY,
+              date: "2026-02-13",
+              description: "Pagina inicial",
+            },
+          ],
+          { page: 1, limit: 20, offset: 0, total: 45, totalPages: 3 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        buildPageResponse(
+          [
+            {
+              id: 2,
+              value: 50,
+              type: CATEGORY_ENTRY,
+              date: "2026-02-15",
+              description: "Antes do sort",
+            },
+          ],
+          { page: 2, limit: 20, offset: 20, total: 45, totalPages: 3 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        buildPageResponse(
+          [
+            {
+              id: 1,
+              value: 120,
+              type: CATEGORY_ENTRY,
+              date: "2026-02-14",
+              description: "Apos sort",
+            },
+          ],
+          { page: 1, limit: 20, offset: 0, total: 45, totalPages: 3 },
+        ),
+      );
+
+    render(<App />);
+
+    expect(await screen.findByText("Pagina inicial")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Proxima" }));
+    expect(await screen.findByText("Antes do sort")).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText("Ordenar por"), "amount:desc");
+
+    expect(await screen.findByText("Apos sort")).toBeInTheDocument();
+    expect(transactionsService.listPage).toHaveBeenLastCalledWith({
+      limit: 20,
+      offset: 0,
+      sort: "amount:desc",
+      from: undefined,
+      to: undefined,
+      type: undefined,
+      categoryId: undefined,
+    });
+    expect(window.location.search).toContain("sort=amount%3Adesc");
+    expect(window.location.search).toContain("offset=0");
   });
 
   it("exibe estado vazio no resumo mensal quando nao ha dados", async () => {
@@ -576,6 +675,7 @@ describe("App", () => {
     expect(transactionsService.listPage).toHaveBeenNthCalledWith(2, {
       limit: 20,
       offset: 20,
+      sort: "date:asc",
       from: undefined,
       to: undefined,
       type: undefined,
@@ -620,6 +720,7 @@ describe("App", () => {
     expect(transactionsService.listPage).toHaveBeenLastCalledWith({
       limit: 10,
       offset: 0,
+      sort: "date:asc",
       from: undefined,
       to: undefined,
       type: undefined,
@@ -655,6 +756,7 @@ describe("App", () => {
     expect(transactionsService.listPage).toHaveBeenNthCalledWith(2, {
       limit: 20,
       offset: 60,
+      sort: "date:asc",
       from: undefined,
       to: undefined,
       type: undefined,
@@ -699,6 +801,7 @@ describe("App", () => {
     expect(transactionsService.listPage).toHaveBeenLastCalledWith({
       limit: 20,
       offset: 0,
+      sort: "date:asc",
       from: undefined,
       to: undefined,
       type: CATEGORY_ENTRY,

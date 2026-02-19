@@ -22,6 +22,7 @@ export interface TransactionListOptions {
   from?: string;
   to?: string;
   q?: string;
+  sort?: string;
   page?: number;
   limit?: number;
   offset?: number;
@@ -283,6 +284,10 @@ const buildTransactionParams = (options: TransactionListOptions = {}): Record<st
 
   if (typeof options.q === "string" && options.q.trim()) {
     params.q = options.q.trim();
+  }
+
+  if (typeof options.sort === "string" && options.sort.trim()) {
+    params.sort = options.sort.trim();
   }
 
   if (Number.isInteger(options.page) && options.page > 0) {
