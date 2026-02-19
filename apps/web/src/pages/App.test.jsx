@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import App from "./App";
 import { CATEGORY_ENTRY, CATEGORY_EXIT } from "../components/DatabaseUtils";
@@ -811,7 +811,7 @@ describe("App", () => {
     render(<App />);
 
     expect(await screen.findByText("Com filtros")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Limpar filtros" }));
+    await user.click(screen.getByRole("button", { name: "Limpar tudo" }));
 
     expect(await screen.findByText("Sem filtros")).toBeInTheDocument();
     expect(transactionsService.listPage).toHaveBeenLastCalledWith({
@@ -891,14 +891,14 @@ describe("App", () => {
 
     expect(await screen.findByText("Sem filtros ativos")).toBeInTheDocument();
     expect(screen.queryByText(/Filtros ativos \(\d+\)/)).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Limpar filtros" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Limpar tudo" })).not.toBeInTheDocument();
 
     await user.type(screen.getByLabelText("Buscar"), "mercado");
     await user.click(screen.getByRole("button", { name: "Aplicar" }));
 
     expect(await screen.findByText("Com filtros ativos")).toBeInTheDocument();
     expect(screen.getByText("Filtros ativos (1)")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Limpar filtros" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Limpar tudo" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Filtrar entradas" }));
     expect(await screen.findByText("Com dois filtros ativos")).toBeInTheDocument();
@@ -927,17 +927,12 @@ describe("App", () => {
     render(<App />);
 
     expect(await screen.findByText("Aluguel recebido")).toBeInTheDocument();
-    expect(screen.getByText("Aplicado:")).toBeInTheDocument();
-
-    const appliedSummary = screen.getByText("Aplicado:").parentElement;
-    expect(appliedSummary).not.toBeNull();
-
-    const appliedSummaryScope = within(appliedSummary);
-    expect(appliedSummaryScope.getByText('Busca: "aluguel"')).toBeInTheDocument();
-    expect(appliedSummaryScope.getByText("Tipo: Entradas")).toBeInTheDocument();
-    expect(appliedSummaryScope.getByText("Periodo: 2026-02-01 -> 2026-02-28")).toBeInTheDocument();
-    expect(appliedSummaryScope.getByText("Categoria: #3")).toBeInTheDocument();
-    expect(appliedSummaryScope.getByText("Ordenacao: Valor (maior)")).toBeInTheDocument();
+    expect(screen.getByText("Filtros ativos (4)")).toBeInTheDocument();
+    expect(screen.getByText('Busca: "aluguel"')).toBeInTheDocument();
+    expect(screen.getByText("Tipo: Entradas")).toBeInTheDocument();
+    expect(screen.getByText("Periodo: 2026-02-01 -> 2026-02-28")).toBeInTheDocument();
+    expect(screen.getByText("Categoria: #3")).toBeInTheDocument();
+    expect(screen.getByText("Ordenacao: Valor (maior)")).toBeInTheDocument();
   });
 
   it("remove chip de busca, reseta offset e atualiza URL", async () => {
@@ -1241,6 +1236,51 @@ describe("App", () => {
       });
     });
     expect(await screen.findByText("Mostrando 21-21")).toBeInTheDocument();
+  });
+
+  it("abre menu de acoes no mobile e fecha ao clicar fora sem disparar logout", async () => {
+    const user = userEvent.setup();
+    const onLogout = vi.fn();
+    const originalInnerWidth = window.innerWidth;
+
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      writable: true,
+      value: 360,
+    });
+    act(() => {
+      fireEvent(window, new Event("resize"));
+    });
+
+    try {
+      render(<App onLogout={onLogout} />);
+
+      expect(screen.queryByRole("button", { name: "Sair" })).not.toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Acoes" }));
+      expect(await screen.findByRole("menu", { name: "Acoes rapidas" })).toBeInTheDocument();
+      expect(screen.getByRole("menuitem", { name: "Sair" })).toBeInTheDocument();
+
+      await waitFor(() => {
+        expect(screen.getByRole("menuitem", { name: "Exportar CSV" })).toHaveFocus();
+      });
+
+      expect(onLogout).not.toHaveBeenCalled();
+
+      fireEvent.mouseDown(document.body);
+
+      await waitFor(() => {
+        expect(screen.queryByRole("menu", { name: "Acoes rapidas" })).not.toBeInTheDocument();
+      });
+    } finally {
+      Object.defineProperty(window, "innerWidth", {
+        configurable: true,
+        writable: true,
+        value: originalInnerWidth,
+      });
+      act(() => {
+        fireEvent(window, new Event("resize"));
+      });
+    }
   });
 
   it("abre importacao CSV, processa dry-run e exibe preview", async () => {
