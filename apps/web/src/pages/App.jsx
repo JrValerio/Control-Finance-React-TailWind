@@ -1135,43 +1135,45 @@ const App = ({ onLogout = undefined }) => {
 
   return (
     <div className="App min-h-screen bg-white pb-10">
-      <header className="w-full bg-gray-500 p-2 shadow-md sm:p-4">
-        <div className="mx-auto flex max-w-700 flex-col items-center justify-between gap-3 sm:flex-row">
+      <header className="w-full bg-gray-500 py-3 shadow-md sm:py-4">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
           <h1 className="text-4xl font-semibold">
             <span className="text-brand-1">Control</span>
             <span className="text-gray-100">Finance</span>
           </h1>
-          <div className="flex items-center gap-2">
-            {onLogout ? (
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <div className="flex flex-wrap items-center gap-2 rounded border border-gray-300 bg-white/70 p-1">
+              {onLogout ? (
+                <button
+                  onClick={onLogout}
+                  className="rounded border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-100 hover:bg-gray-400"
+                >
+                  Sair
+                </button>
+              ) : null}
               <button
-                onClick={onLogout}
-                className="rounded border border-gray-300 bg-white px-4 py-2 font-semibold text-gray-100 hover:bg-gray-400"
+                type="button"
+                onClick={handleExportCsv}
+                disabled={isExportingCsv}
+                className="rounded border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-100 hover:bg-gray-400 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Sair
+                {isExportingCsv ? "Exportando CSV..." : "Exportar CSV"}
               </button>
-            ) : null}
-            <button
-              type="button"
-              onClick={handleExportCsv}
-              disabled={isExportingCsv}
-              className="rounded border border-gray-300 bg-white px-4 py-2 font-semibold text-gray-100 hover:bg-gray-400 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isExportingCsv ? "Exportando CSV..." : "Exportar CSV"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setImportModalOpen(true)}
-              className="rounded border border-gray-300 bg-white px-4 py-2 font-semibold text-gray-100 hover:bg-gray-400"
-            >
-              Importar CSV
-            </button>
-            <button
-              type="button"
-              onClick={() => setImportHistoryModalOpen(true)}
-              className="rounded border border-gray-300 bg-white px-4 py-2 font-semibold text-gray-100 hover:bg-gray-400"
-            >
-              Historico de imports
-            </button>
+              <button
+                type="button"
+                onClick={() => setImportModalOpen(true)}
+                className="rounded border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-100 hover:bg-gray-400"
+              >
+                Importar CSV
+              </button>
+              <button
+                type="button"
+                onClick={() => setImportHistoryModalOpen(true)}
+                className="rounded border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-100 hover:bg-gray-400"
+              >
+                Historico de imports
+              </button>
+            </div>
             <button
               onClick={openCreateModal}
               className="rounded bg-brand-1 px-4 py-2 font-semibold text-white hover:bg-brand-2"
@@ -1182,8 +1184,9 @@ const App = ({ onLogout = undefined }) => {
         </div>
       </header>
 
-      <section className="mt-8 p-4 sm:mt-14">
-        <div className="mx-auto flex max-w-700 flex-col gap-4">
+      <main className="mx-auto mt-8 grid w-full max-w-6xl gap-6 px-4 sm:mt-10 sm:px-6 lg:grid-cols-12">
+        <section className="lg:col-span-4">
+          <div className="space-y-4 rounded border border-gray-300 bg-white p-4">
           <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-2">
@@ -1413,11 +1416,12 @@ const App = ({ onLogout = undefined }) => {
               </div>
             ) : null}
           </div>
-        </div>
-      </section>
+          </div>
+        </section>
 
-      <section className="mt-2 p-4">
-        <div className="mx-auto mb-2 flex max-w-700 items-center justify-between gap-2">
+        <div className="space-y-6 lg:col-span-8">
+          <section>
+            <div className="mb-2 flex items-center justify-between gap-2">
           <h3 className="text-sm font-medium text-gray-100">Resumo mensal</h3>
           <input
             type="month"
@@ -1426,24 +1430,24 @@ const App = ({ onLogout = undefined }) => {
             onChange={(event) => setSelectedSummaryMonth(event.target.value)}
             className="rounded border border-gray-300 bg-white px-2 py-1 text-sm text-gray-100"
           />
-        </div>
-        {summaryError ? (
-          <div
-            className="mx-auto mb-3 flex max-w-700 items-center justify-between gap-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
-            role="status"
-            aria-live="polite"
-          >
-            <span>{summaryError}</span>
-            <button
-              type="button"
-              onClick={loadMonthlySummary}
-              className="rounded border border-red-300 px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-100"
-            >
-              Tentar novamente
-            </button>
-          </div>
-        ) : null}
-        <div className="mx-auto grid max-w-700 gap-3 sm:grid-cols-3">
+            </div>
+            {summaryError ? (
+              <div
+                className="mb-3 flex items-center justify-between gap-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+                role="status"
+                aria-live="polite"
+              >
+                <span>{summaryError}</span>
+                <button
+                  type="button"
+                  onClick={loadMonthlySummary}
+                  className="rounded border border-red-300 px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-100"
+                >
+                  Tentar novamente
+                </button>
+              </div>
+            ) : null}
+            <div className="grid gap-3 sm:grid-cols-3">
           <div className="rounded border border-brand-1 bg-gray-400 px-4 py-3.5">
             <p className="text-xs font-medium uppercase text-gray-200">Saldo</p>
             <p className="text-base font-medium text-gray-100">
@@ -1462,16 +1466,16 @@ const App = ({ onLogout = undefined }) => {
               {isLoadingSummary ? "Carregando..." : formatCurrency(monthlySummary.expense)}
             </p>
           </div>
-        </div>
-        {!isLoadingSummary && !summaryError && !hasMonthlySummaryData ? (
-          <div className="mx-auto mt-2 max-w-700 rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-600">
-            Sem dados para o mes selecionado.
-          </div>
-        ) : null}
-      </section>
+            </div>
+            {!isLoadingSummary && !summaryError && !hasMonthlySummaryData ? (
+              <div className="mt-2 rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-600">
+                Sem dados para o mes selecionado.
+              </div>
+            ) : null}
+          </section>
 
-      <section className="mt-2 p-4">
-        <div className="mx-auto max-w-700 rounded border border-gray-300 bg-white p-3">
+      <section>
+        <div className="rounded border border-gray-300 bg-white p-3">
           <div className="mb-2 flex items-center justify-between gap-2">
             <div>
               <h3 className="text-sm font-medium text-gray-100">Metas do mes</h3>
@@ -1596,7 +1600,7 @@ const App = ({ onLogout = undefined }) => {
         </div>
       </section>
 
-      <section className="mx-auto mt-2 max-w-700 p-4">
+      <section>
         <Suspense
           fallback={
             <div className="rounded border border-brand-1 bg-gray-500 p-4 text-sm text-gray-100">
@@ -1608,10 +1612,7 @@ const App = ({ onLogout = undefined }) => {
         </Suspense>
       </section>
 
-      <section
-        ref={listSectionRef}
-        className="mx-auto mt-2 max-w-700 rounded border border-brand-1 bg-gray-500 px-4 py-3.5"
-      >
+      <section ref={listSectionRef} className="rounded border border-brand-1 bg-gray-500 px-4 py-3.5">
         {requestError ? (
           <div className="p-4 text-center">
             <p className="text-sm font-medium text-red-300">{requestError}</p>
@@ -1728,6 +1729,8 @@ const App = ({ onLogout = undefined }) => {
           </div>
         ) : null}
       </section>
+        </div>
+      </main>
 
       {undoState ? (
         <div className="fixed bottom-4 left-1/2 z-40 w-[calc(100%-2rem)] max-w-500 -translate-x-1/2 rounded border border-brand-1 bg-white px-4 py-3 shadow-lg">
