@@ -243,6 +243,7 @@ const App = ({ onLogout = undefined }) => {
   const initialFilterState = useMemo(() => getInitialFilterState(), []);
   const initialPaginationState = useMemo(() => getInitialPaginationState(), []);
   const listSectionRef = useRef(null);
+  const searchInputRef = useRef(null);
   const [selectedCategory, setSelectedCategory] = useState(initialFilterState.selectedCategory);
   const [selectedPeriod, setSelectedPeriod] = useState(initialFilterState.selectedPeriod);
   const [selectedSort, setSelectedSort] = useState(initialFilterState.selectedSort || DEFAULT_SORT);
@@ -768,10 +769,41 @@ const App = ({ onLogout = undefined }) => {
     setSelectedQuery(normalizedQuery);
     setCurrentOffset(DEFAULT_OFFSET);
   };
+  const handleQueryInputKeyDown = (event) => {
+    if (event.key !== "Escape") {
+      return;
+    }
+
+    const normalizedInput = queryInput.trim();
+    const normalizedSelectedQuery = selectedQuery.trim();
+
+    if (!normalizedInput && !normalizedSelectedQuery) {
+      return;
+    }
+
+    event.preventDefault();
+
+    if (normalizedSelectedQuery && normalizedInput === normalizedSelectedQuery) {
+      handleRemoveAppliedChip("q");
+      return;
+    }
+
+    if (normalizedInput) {
+      setQueryInput("");
+      return;
+    }
+
+    if (normalizedSelectedQuery) {
+      handleRemoveAppliedChip("q");
+    }
+  };
   const handleRemoveAppliedChip = (chipId) => {
+    let shouldFocusSearchInput = false;
+
     if (chipId === "q") {
       setQueryInput("");
       setSelectedQuery("");
+      shouldFocusSearchInput = true;
     } else if (chipId === "type") {
       setSelectedCategory(CATEGORY_ALL);
     } else if (chipId === "period") {
@@ -788,6 +820,16 @@ const App = ({ onLogout = undefined }) => {
 
     setCurrentOffset(DEFAULT_OFFSET);
     scrollToListTop();
+
+    if (shouldFocusSearchInput) {
+      if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
+        window.requestAnimationFrame(() => {
+          searchInputRef.current?.focus();
+        });
+      } else {
+        searchInputRef.current?.focus();
+      }
+    }
   };
 
   const filterButtons = [CATEGORY_ALL, CATEGORY_ENTRY, CATEGORY_EXIT];
@@ -1144,10 +1186,12 @@ const App = ({ onLogout = undefined }) => {
               </label>
               <form onSubmit={handleApplyQueryFilter} className="flex gap-2">
                 <input
+                  ref={searchInputRef}
                   id="busca-transacoes"
                   type="text"
                   value={queryInput}
                   onChange={(event) => setQueryInput(event.target.value)}
+                  onKeyDown={handleQueryInputKeyDown}
                   placeholder="Descricao ou observacoes"
                   className="w-full rounded border border-gray-400 px-3 py-2 text-sm text-gray-200"
                 />

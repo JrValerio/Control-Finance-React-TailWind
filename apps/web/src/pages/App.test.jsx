@@ -428,6 +428,93 @@ describe("App", () => {
     expect(window.location.search).toContain("offset=0");
   });
 
+  it("pressiona Escape para limpar busca digitada sem reaplicar filtros", async () => {
+    const user = userEvent.setup();
+    transactionsService.listPage.mockResolvedValueOnce(
+      buildPageResponse([
+        {
+          id: 31,
+          value: 120,
+          type: CATEGORY_ENTRY,
+          date: "2026-02-16",
+          description: "Lista inicial",
+        },
+      ]),
+    );
+
+    render(<App />);
+
+    expect(await screen.findByText("Lista inicial")).toBeInTheDocument();
+
+    const searchInput = screen.getByLabelText("Buscar");
+    const initialCallCount = transactionsService.listPage.mock.calls.length;
+
+    await user.type(searchInput, "mercado");
+    expect(searchInput).toHaveValue("mercado");
+
+    await user.keyboard("{Escape}");
+
+    expect(searchInput).toHaveValue("");
+    expect(transactionsService.listPage).toHaveBeenCalledTimes(initialCallCount);
+    expect(new URLSearchParams(window.location.search).get("q")).toBeNull();
+  });
+
+  it("pressiona Escape para remover busca aplicada e resetar offset", async () => {
+    const user = userEvent.setup();
+    window.history.replaceState(null, "", "/app?limit=20&offset=20&sort=date:asc&q=mercado");
+    const withQueryResponse = buildPageResponse(
+      [
+        {
+          id: 32,
+          value: 95,
+          type: CATEGORY_EXIT,
+          date: "2026-02-14",
+          description: "Com busca aplicada",
+        },
+      ],
+      { page: 2, limit: 20, offset: 20, total: 45, totalPages: 3 },
+    );
+    const withoutQueryResponse = buildPageResponse(
+      [
+        {
+          id: 33,
+          value: 70,
+          type: CATEGORY_EXIT,
+          date: "2026-02-15",
+          description: "Sem busca aplicada",
+        },
+      ],
+      { page: 1, limit: 20, offset: 0, total: 1, totalPages: 1 },
+    );
+
+    transactionsService.listPage.mockImplementation((params) => {
+      if (!Object.prototype.hasOwnProperty.call(params, "q") && params.offset === 0) {
+        return Promise.resolve(withoutQueryResponse);
+      }
+
+      return Promise.resolve(withQueryResponse);
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText("Com busca aplicada")).toBeInTheDocument();
+
+    const searchInput = screen.getByLabelText("Buscar");
+    searchInput.focus();
+    await user.keyboard("{Escape}");
+
+    expect(await screen.findByText("Sem busca aplicada")).toBeInTheDocument();
+    const lastCallParams =
+      transactionsService.listPage.mock.calls[transactionsService.listPage.mock.calls.length - 1][0];
+    expect(lastCallParams).not.toHaveProperty("q");
+    expect(lastCallParams.offset).toBe(0);
+    expect(searchInput).toHaveFocus();
+
+    const params = new URLSearchParams(window.location.search);
+    expect(params.get("q")).toBeNull();
+    expect(params.get("offset")).toBe("0");
+  });
+
   it("aplica preset Este mes com periodo personalizado e offset 0", async () => {
     const user = userEvent.setup();
     window.history.replaceState(null, "", "/app?limit=20&offset=40&sort=date:asc");
