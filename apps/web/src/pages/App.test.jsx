@@ -1293,6 +1293,121 @@ describe("App", () => {
     }
   });
 
+  it("mantem filtros colapsados por padrao no mobile sem filtros ativos", async () => {
+    const user = userEvent.setup();
+    const originalInnerWidth = window.innerWidth;
+
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      writable: true,
+      value: 360,
+    });
+    act(() => {
+      fireEvent(window, new Event("resize"));
+    });
+
+    try {
+      render(<App />);
+
+      expect(await screen.findByText("Resumo financeiro")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Filtros" })).toHaveAttribute(
+        "aria-expanded",
+        "false",
+      );
+      expect(screen.queryByLabelText("Periodo")).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Filtros" }));
+
+      expect(screen.getByRole("button", { name: "Ocultar" })).toHaveAttribute(
+        "aria-expanded",
+        "true",
+      );
+      expect(screen.getByLabelText("Periodo")).toBeInTheDocument();
+    } finally {
+      Object.defineProperty(window, "innerWidth", {
+        configurable: true,
+        writable: true,
+        value: originalInnerWidth,
+      });
+      act(() => {
+        fireEvent(window, new Event("resize"));
+      });
+    }
+  });
+
+  it("abre painel de filtros automaticamente no mobile quando existem filtros ativos", async () => {
+    const originalInnerWidth = window.innerWidth;
+    window.history.replaceState(null, "", "/app?q=mercado");
+
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      writable: true,
+      value: 360,
+    });
+    act(() => {
+      fireEvent(window, new Event("resize"));
+    });
+
+    try {
+      render(<App />);
+
+      expect(await screen.findByText("Filtros ativos (1)")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Ocultar" })).toHaveAttribute(
+        "aria-expanded",
+        "true",
+      );
+      expect(screen.getByLabelText("Periodo")).toBeInTheDocument();
+    } finally {
+      Object.defineProperty(window, "innerWidth", {
+        configurable: true,
+        writable: true,
+        value: originalInnerWidth,
+      });
+      act(() => {
+        fireEvent(window, new Event("resize"));
+      });
+    }
+  });
+
+  it("abre painel de filtros e foca busca ao clicar em editar filtros no mobile", async () => {
+    const user = userEvent.setup();
+    const originalInnerWidth = window.innerWidth;
+    window.history.replaceState(null, "", "/app?q=mercado");
+
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      writable: true,
+      value: 360,
+    });
+    act(() => {
+      fireEvent(window, new Event("resize"));
+    });
+
+    try {
+      render(<App />);
+
+      expect(await screen.findByText("Filtros ativos (1)")).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Ocultar" }));
+      expect(screen.queryByLabelText("Buscar")).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Editar filtros" }));
+
+      const searchInput = await screen.findByLabelText("Buscar");
+      await waitFor(() => {
+        expect(searchInput).toHaveFocus();
+      });
+    } finally {
+      Object.defineProperty(window, "innerWidth", {
+        configurable: true,
+        writable: true,
+        value: originalInnerWidth,
+      });
+      act(() => {
+        fireEvent(window, new Event("resize"));
+      });
+    }
+  });
+
   it("abre importacao CSV, processa dry-run e exibe preview", async () => {
     const user = userEvent.setup();
     const csvFile = new File(

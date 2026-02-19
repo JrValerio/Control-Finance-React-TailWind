@@ -58,6 +58,7 @@ const DEFAULT_SORT = "date:asc";
 const DEFAULT_OFFSET = 0;
 const DEFAULT_LIMIT = 20;
 const MOBILE_HEADER_ACTIONS_BREAKPOINT = 420;
+const MOBILE_FILTERS_BREAKPOINT = 640;
 const MOBILE_ACTIONS_MENU_ID = "mobile-header-actions-menu";
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
 const PAGE_SIZE_STORAGE_KEY = "control_finance.page_size";
@@ -275,11 +276,23 @@ const formatCurrency = (value) => `R$ ${Number(value || 0).toFixed(2)}`;
 const formatPercentage = (value) => `${Number(value || 0).toFixed(2)}%`;
 const isCompactHeaderActionsMode = () =>
   typeof window !== "undefined" && window.innerWidth < MOBILE_HEADER_ACTIONS_BREAKPOINT;
+const isCompactFiltersPanelMode = () =>
+  typeof window !== "undefined" && window.innerWidth < MOBILE_FILTERS_BREAKPOINT;
+const hasInitialActiveFilters = (filters) =>
+  filters.selectedCategory !== CATEGORY_ALL ||
+  filters.selectedPeriod !== PERIOD_ALL ||
+  Boolean(filters.selectedTransactionCategoryId) ||
+  Boolean(filters.selectedQuery);
 
 const App = ({ onLogout = undefined }) => {
   const initialFilterState = useMemo(() => getInitialFilterState(), []);
+  const initialFiltersAreActive = useMemo(
+    () => hasInitialActiveFilters(initialFilterState),
+    [initialFilterState],
+  );
   const initialPaginationState = useMemo(() => getInitialPaginationState(), []);
   const listSectionRef = useRef(null);
+  const filtersPanelRef = useRef(null);
   const searchInputRef = useRef(null);
   const mobileActionsButtonRef = useRef(null);
   const mobileActionsMenuRef = useRef(null);
@@ -311,6 +324,12 @@ const App = ({ onLogout = undefined }) => {
   const [isMobileActionsMenuOpen, setMobileActionsMenuOpen] = useState(false);
   const [useMobileActionsMenu, setUseMobileActionsMenu] = useState(() =>
     isCompactHeaderActionsMode(),
+  );
+  const [isMobileFiltersPanel, setIsMobileFiltersPanel] = useState(() =>
+    isCompactFiltersPanelMode(),
+  );
+  const [isFiltersPanelOpen, setIsFiltersPanelOpen] = useState(() =>
+    !isCompactFiltersPanelMode() || initialFiltersAreActive,
   );
   const [isBudgetModalOpen, setBudgetModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
@@ -390,6 +409,28 @@ const App = ({ onLogout = undefined }) => {
 
     return () => {
       window.removeEventListener("resize", syncMobileActionsMode);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return undefined;
+    }
+
+    const syncMobileFiltersMode = () => {
+      const isMobileMode = isCompactFiltersPanelMode();
+      setIsMobileFiltersPanel(isMobileMode);
+
+      if (!isMobileMode) {
+        setIsFiltersPanelOpen(true);
+      }
+    };
+
+    syncMobileFiltersMode();
+    window.addEventListener("resize", syncMobileFiltersMode);
+
+    return () => {
+      window.removeEventListener("resize", syncMobileFiltersMode);
     };
   }, []);
 
@@ -1119,6 +1160,31 @@ const App = ({ onLogout = undefined }) => {
       }
     }
   };
+  const handleEditFilters = useCallback(() => {
+    if (isMobileFiltersPanel) {
+      setIsFiltersPanelOpen(true);
+    }
+
+    const focusSearchInput = () => {
+      searchInputRef.current?.focus();
+    };
+
+    if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
+      window.requestAnimationFrame(() => {
+        if (isMobileFiltersPanel) {
+          filtersPanelRef.current?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+        }
+        window.requestAnimationFrame(focusSearchInput);
+      });
+      return;
+    }
+
+    if (isMobileFiltersPanel) {
+      filtersPanelRef.current?.scrollIntoView?.({ block: "start" });
+    }
+
+    focusSearchInput();
+  }, [isMobileFiltersPanel]);
 
   const filterButtons = [CATEGORY_ALL, CATEGORY_ENTRY, CATEGORY_EXIT];
   const todayISO = getTodayISODate();
@@ -1148,6 +1214,7 @@ const App = ({ onLogout = undefined }) => {
     return count;
   }, [selectedCategory, selectedPeriod, selectedQuery, selectedTransactionCategoryId]);
   const hasActiveFilters = activeFiltersCount > 0;
+  const isFiltersContentVisible = !isMobileFiltersPanel || isFiltersPanelOpen;
   const shouldShowPresets = !hasActiveFilters;
   const hasMonthlySummaryData =
     monthlySummary.income > 0 ||
@@ -1253,6 +1320,16 @@ const App = ({ onLogout = undefined }) => {
     paginationMeta.offset + filteredTransactions.length,
     paginationMeta.total,
   );
+
+  useEffect(() => {
+    if (!isMobileFiltersPanel) {
+      return;
+    }
+
+    if (hasActiveFilters) {
+      setIsFiltersPanelOpen(true);
+    }
+  }, [hasActiveFilters, isMobileFiltersPanel]);
 
   return (
     <div className="App min-h-screen bg-white pb-10">
@@ -1371,120 +1448,134 @@ const App = ({ onLogout = undefined }) => {
       </header>
 
       <main className="mx-auto mt-8 w-full max-w-6xl space-y-6 px-4 sm:mt-10 sm:px-6">
-        <section>
+        <section ref={filtersPanelRef}>
           <div className="space-y-4 rounded border border-gray-300 bg-white p-4">
-          <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
-            <div className="flex w-full min-w-0 flex-col gap-2">
+            <div className="flex items-start justify-between gap-3">
               <h2 className="text-lg font-medium text-gray-100">Resumo financeiro</h2>
-              {hasActiveFilters && appliedChips.length > 0 ? (
-                <div className="w-full max-w-full space-y-2 overflow-hidden rounded border border-gray-200 bg-gray-50 p-2">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-xs font-semibold text-gray-700">
-                      Filtros ativos ({activeFiltersCount})
-                    </span>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => searchInputRef.current?.focus()}
-                        className="rounded border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100"
-                      >
-                        Editar filtros
-                      </button>
-                      <button
-                        type="button"
-                        className="rounded border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100"
-                        onClick={() => applyFilterPreset("clear")}
-                      >
-                        Limpar tudo
-                      </button>
-                    </div>
+              {isMobileFiltersPanel ? (
+                <button
+                  type="button"
+                  onClick={() => setIsFiltersPanelOpen((currentValue) => !currentValue)}
+                  aria-expanded={isFiltersPanelOpen}
+                  className="whitespace-nowrap rounded border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100"
+                >
+                  {isFiltersPanelOpen ? "Ocultar" : "Filtros"}
+                </button>
+              ) : null}
+            </div>
+
+            {hasActiveFilters && appliedChips.length > 0 ? (
+              <div className="w-full max-w-full space-y-2 overflow-hidden rounded border border-gray-200 bg-gray-50 p-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs font-semibold text-gray-700">
+                    Filtros ativos ({activeFiltersCount})
+                  </span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleEditFilters}
+                      className="rounded border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100"
+                    >
+                      Editar filtros
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100"
+                      onClick={() => applyFilterPreset("clear")}
+                    >
+                      Limpar tudo
+                    </button>
                   </div>
-                  <div className="w-full max-w-full overflow-x-auto">
-                    <div className="flex flex-nowrap items-center gap-2 pb-1">
-                      {appliedChips.map((chip) => (
-                        <span
-                          key={chip.id}
-                          className="inline-flex whitespace-nowrap items-center gap-1 rounded-full border border-gray-300 bg-white py-1 pl-2.5 pr-1.5 text-xs font-medium text-gray-700"
-                        >
-                          {chip.text}
-                          {chip.removable ? (
-                            <button
-                              type="button"
-                              aria-label={`Remover filtro: ${chip.removeLabel}`}
-                              className="inline-flex h-5 w-5 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-1 focus:ring-offset-1"
-                              onClick={() => handleRemoveAppliedChip(chip.id)}
+                </div>
+                <div className="w-full max-w-full overflow-x-auto">
+                  <div className="flex flex-nowrap items-center gap-2 pb-1">
+                    {appliedChips.map((chip) => (
+                      <span
+                        key={chip.id}
+                        className="inline-flex whitespace-nowrap items-center gap-1 rounded-full border border-gray-300 bg-white py-1 pl-2.5 pr-1.5 text-xs font-medium text-gray-700"
+                      >
+                        {chip.text}
+                        {chip.removable ? (
+                          <button
+                            type="button"
+                            aria-label={`Remover filtro: ${chip.removeLabel}`}
+                            className="inline-flex h-5 w-5 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-1 focus:ring-offset-1"
+                            onClick={() => handleRemoveAppliedChip(chip.id)}
+                          >
+                            <svg
+                              aria-hidden="true"
+                              viewBox="0 0 16 16"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              className="h-3.5 w-3.5"
                             >
-                              <svg
-                                aria-hidden="true"
-                                viewBox="0 0 16 16"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                className="h-3.5 w-3.5"
-                              >
-                                <path d="M4 4L12 12" />
-                                <path d="M12 4L4 12" />
-                              </svg>
-                            </button>
-                          ) : null}
-                        </span>
+                              <path d="M4 4L12 12" />
+                              <path d="M12 4L4 12" />
+                            </svg>
+                          </button>
+                        ) : null}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {isFiltersContentVisible ? (
+              <div className="space-y-4">
+                <div className="space-y-3 rounded border border-gray-300 bg-gray-50 p-2">
+                  {shouldShowPresets ? (
+                    <div className="flex flex-wrap gap-2">
+                      {visibleFilterPresets.map((preset) => (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          aria-pressed={isPresetActive(preset.id)}
+                          onClick={() => applyFilterPreset(preset.id)}
+                          className={`flex items-center justify-center gap-2.5 rounded border px-4 py-2 text-sm font-semibold transition-colors ${
+                            isPresetActive(preset.id)
+                              ? "border-brand-1 bg-brand-3 text-brand-1"
+                              : "border-gray-300 bg-white text-gray-900 hover:bg-gray-100"
+                          }`}
+                        >
+                          {preset.label}
+                        </button>
                       ))}
+                    </div>
+                  ) : null}
+                  <div className="flex flex-col gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-gray-200">
+                      Filtrar lista
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      {filterButtons.map((category) => {
+                        const active = selectedCategory === category;
+
+                        return (
+                          <button
+                            key={category}
+                            aria-label={FILTER_BUTTON_ARIA_LABELS[category]}
+                            onClick={() => {
+                              setSelectedCategory(category);
+                              setCurrentOffset(DEFAULT_OFFSET);
+                            }}
+                            className={`flex items-center justify-center gap-2.5 rounded border px-4 py-2 text-sm font-semibold transition-colors ${
+                              active
+                                ? "border-brand-1 bg-brand-3 text-brand-1"
+                                : "border-gray-300 bg-white text-gray-200"
+                            }`}
+                          >
+                            {FILTER_BUTTON_LABELS[category]}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
-              ) : null}
-            </div>
-            {shouldShowPresets ? (
-              <div className="flex flex-wrap gap-2">
-                {visibleFilterPresets.map((preset) => (
-                  <button
-                    key={preset.id}
-                    type="button"
-                    aria-pressed={isPresetActive(preset.id)}
-                    onClick={() => applyFilterPreset(preset.id)}
-                    className={`flex items-center justify-center gap-2.5 rounded border px-4 py-2 text-sm font-semibold transition-colors ${
-                      isPresetActive(preset.id)
-                        ? "border-brand-1 bg-brand-3 text-brand-1"
-                        : "border-gray-300 bg-white text-gray-900 hover:bg-gray-100"
-                    }`}
-                  >
-                    {preset.label}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-            <div className="flex flex-col gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wide text-gray-200">
-                Filtrar lista
-              </span>
-              <div className="flex flex-wrap gap-2">
-                {filterButtons.map((category) => {
-                  const active = selectedCategory === category;
 
-                  return (
-                    <button
-                      key={category}
-                      aria-label={FILTER_BUTTON_ARIA_LABELS[category]}
-                      onClick={() => {
-                        setSelectedCategory(category);
-                        setCurrentOffset(DEFAULT_OFFSET);
-                      }}
-                      className={`flex items-center justify-center gap-2.5 rounded border px-4 py-2 text-sm font-semibold transition-colors ${
-                        active
-                          ? "border-brand-1 bg-brand-3 text-brand-1"
-                          : "border-gray-300 bg-white text-gray-200"
-                      }`}
-                    >
-                      {FILTER_BUTTON_LABELS[category]}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded border border-gray-300 bg-white p-3">
+                <div className="rounded border border-gray-300 bg-white p-3">
             <label
               htmlFor="periodo"
               className="mb-2 block text-sm font-medium text-gray-100"
@@ -1586,47 +1677,49 @@ const App = ({ onLogout = undefined }) => {
               </form>
             </div>
 
-            {selectedPeriod === PERIOD_CUSTOM ? (
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <div>
-                  <label
-                    htmlFor="data-inicial"
-                    className="mb-1 block text-xs font-medium text-gray-100"
-                  >
-                    Data inicial
-                  </label>
-                  <input
-                    id="data-inicial"
-                    type="date"
-                    value={customStartDate}
-                    onChange={(event) => {
-                      setCustomStartDate(event.target.value);
-                      setCurrentOffset(DEFAULT_OFFSET);
-                    }}
-                    className="w-full rounded border border-gray-400 px-3 py-2 text-sm text-gray-200"
-                  />
-                </div>
-                <div>
-                  <label
-                    htmlFor="data-final"
-                    className="mb-1 block text-xs font-medium text-gray-100"
-                  >
-                    Data final
-                  </label>
-                  <input
-                    id="data-final"
-                    type="date"
-                    value={customEndDate}
-                    onChange={(event) => {
-                      setCustomEndDate(event.target.value);
-                      setCurrentOffset(DEFAULT_OFFSET);
-                    }}
-                    className="w-full rounded border border-gray-400 px-3 py-2 text-sm text-gray-200"
-                  />
+                  {selectedPeriod === PERIOD_CUSTOM ? (
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <label
+                          htmlFor="data-inicial"
+                          className="mb-1 block text-xs font-medium text-gray-100"
+                        >
+                          Data inicial
+                        </label>
+                        <input
+                          id="data-inicial"
+                          type="date"
+                          value={customStartDate}
+                          onChange={(event) => {
+                            setCustomStartDate(event.target.value);
+                            setCurrentOffset(DEFAULT_OFFSET);
+                          }}
+                          className="w-full rounded border border-gray-400 px-3 py-2 text-sm text-gray-200"
+                        />
+                      </div>
+                      <div>
+                        <label
+                          htmlFor="data-final"
+                          className="mb-1 block text-xs font-medium text-gray-100"
+                        >
+                          Data final
+                        </label>
+                        <input
+                          id="data-final"
+                          type="date"
+                          value={customEndDate}
+                          onChange={(event) => {
+                            setCustomEndDate(event.target.value);
+                            setCurrentOffset(DEFAULT_OFFSET);
+                          }}
+                          className="w-full rounded border border-gray-400 px-3 py-2 text-sm text-gray-200"
+                        />
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             ) : null}
-          </div>
           </div>
         </section>
 
