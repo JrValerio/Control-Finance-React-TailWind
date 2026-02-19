@@ -113,6 +113,19 @@ const buildImportHistoryResponse = (payload = {}) => ({
   ...payload,
 });
 
+const getCurrentMonthRangeForTest = (referenceDate = new Date()) => {
+  const year = referenceDate.getFullYear();
+  const month = referenceDate.getMonth();
+  const formatPart = (value) => String(value).padStart(2, "0");
+  const toISO = (date) =>
+    `${date.getFullYear()}-${formatPart(date.getMonth() + 1)}-${formatPart(date.getDate())}`;
+
+  return {
+    startDate: toISO(new Date(year, month, 1)),
+    endDate: toISO(new Date(year, month + 1, 0)),
+  };
+};
+
 describe("App", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -413,6 +426,141 @@ describe("App", () => {
     });
     expect(window.location.search).toContain("q=padaria");
     expect(window.location.search).toContain("offset=0");
+  });
+
+  it("aplica preset Este mes com periodo personalizado e offset 0", async () => {
+    const user = userEvent.setup();
+    window.history.replaceState(null, "", "/app?limit=20&offset=40&sort=date:asc");
+    const { startDate, endDate } = getCurrentMonthRangeForTest();
+    const beforePresetResponse = buildPageResponse(
+      [
+        {
+          id: 9,
+          value: 85,
+          type: CATEGORY_EXIT,
+          date: "2026-02-10",
+          description: "Antes do preset",
+        },
+      ],
+      { page: 3, limit: 20, offset: 40, total: 95, totalPages: 5 },
+    );
+    const afterPresetResponse = buildPageResponse(
+      [
+        {
+          id: 10,
+          value: 60,
+          type: CATEGORY_EXIT,
+          date: "2026-02-11",
+          description: "Depois do preset",
+        },
+      ],
+      { page: 1, limit: 20, offset: 0, total: 2, totalPages: 1 },
+    );
+
+    transactionsService.listPage.mockImplementation(({ from, to, offset }) => {
+      if (from === startDate && to === endDate && offset === 0) {
+        return Promise.resolve(afterPresetResponse);
+      }
+
+      return Promise.resolve(beforePresetResponse);
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText("Antes do preset")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Este mes" }));
+
+    expect(await screen.findByText("Depois do preset")).toBeInTheDocument();
+    expect(transactionsService.listPage).toHaveBeenLastCalledWith({
+      limit: 20,
+      offset: 0,
+      sort: "date:asc",
+      from: startDate,
+      to: endDate,
+      type: undefined,
+      categoryId: undefined,
+    });
+
+    const params = new URLSearchParams(window.location.search);
+    expect(params.get("period")).toBe("Personalizado");
+    expect(params.get("from")).toBe(startDate);
+    expect(params.get("to")).toBe(endDate);
+    expect(params.get("offset")).toBe("0");
+  });
+
+  it("limpa filtros ativos e remove q da URL com offset 0", async () => {
+    const user = userEvent.setup();
+    window.history.replaceState(
+      null,
+      "",
+      "/app?limit=20&offset=20&sort=date:asc&q=padaria&type=Entrada&period=Personalizado&from=2026-02-01&to=2026-02-29&categoryId=3",
+    );
+    const filteredResponse = buildPageResponse(
+      [
+        {
+          id: 11,
+          value: 90,
+          type: CATEGORY_ENTRY,
+          date: "2026-02-12",
+          description: "Com filtros",
+        },
+      ],
+      { page: 2, limit: 20, offset: 20, total: 45, totalPages: 3 },
+    );
+    const clearedResponse = buildPageResponse(
+      [
+        {
+          id: 12,
+          value: 70,
+          type: CATEGORY_ENTRY,
+          date: "2026-02-13",
+          description: "Sem filtros",
+        },
+      ],
+      { page: 1, limit: 20, offset: 0, total: 1, totalPages: 1 },
+    );
+
+    transactionsService.listPage.mockImplementation((params) => {
+      if (
+        !Object.prototype.hasOwnProperty.call(params, "q") &&
+        params.type === undefined &&
+        params.from === undefined &&
+        params.to === undefined &&
+        params.categoryId === undefined &&
+        params.offset === 0
+      ) {
+        return Promise.resolve(clearedResponse);
+      }
+
+      return Promise.resolve(filteredResponse);
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText("Com filtros")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Limpar filtros" }));
+
+    expect(await screen.findByText("Sem filtros")).toBeInTheDocument();
+    expect(transactionsService.listPage).toHaveBeenLastCalledWith({
+      limit: 20,
+      offset: 0,
+      sort: "date:asc",
+      from: undefined,
+      to: undefined,
+      type: undefined,
+      categoryId: undefined,
+    });
+    const lastCallParams =
+      transactionsService.listPage.mock.calls[transactionsService.listPage.mock.calls.length - 1][0];
+    expect(lastCallParams).not.toHaveProperty("q");
+
+    const params = new URLSearchParams(window.location.search);
+    expect(params.get("q")).toBeNull();
+    expect(params.get("type")).toBeNull();
+    expect(params.get("from")).toBeNull();
+    expect(params.get("to")).toBeNull();
+    expect(params.get("categoryId")).toBeNull();
+    expect(params.get("offset")).toBe("0");
   });
 
   it("exibe estado vazio no resumo mensal quando nao ha dados", async () => {
