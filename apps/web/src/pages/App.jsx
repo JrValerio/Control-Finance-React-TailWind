@@ -82,6 +82,7 @@ const getInitialFilterState = () => {
       selectedCategory: CATEGORY_ALL,
       selectedPeriod: PERIOD_ALL,
       selectedSort: DEFAULT_SORT,
+      selectedQuery: "",
       selectedTransactionCategoryId: "",
       customStartDate: "",
       customEndDate: "",
@@ -94,6 +95,8 @@ const getInitialFilterState = () => {
   const queryFrom = params.get("from");
   const queryTo = params.get("to");
   const querySort = normalizeSortOption(params.get("sort"));
+  const queryValue = params.get("q");
+  const querySearch = typeof queryValue === "string" ? queryValue.trim() : "";
   const queryCategoryId = parseIntegerInRange(params.get("categoryId"), {
     min: 1,
     max: Number.MAX_SAFE_INTEGER,
@@ -113,6 +116,7 @@ const getInitialFilterState = () => {
     selectedCategory,
     selectedPeriod,
     selectedSort: querySort,
+    selectedQuery: querySearch,
     selectedTransactionCategoryId: queryCategoryId ? String(queryCategoryId) : "",
     customStartDate: selectedPeriod === PERIOD_CUSTOM ? customStartDate : "",
     customEndDate: selectedPeriod === PERIOD_CUSTOM ? customEndDate : "",
@@ -224,6 +228,8 @@ const App = ({ onLogout = undefined }) => {
   const [selectedCategory, setSelectedCategory] = useState(initialFilterState.selectedCategory);
   const [selectedPeriod, setSelectedPeriod] = useState(initialFilterState.selectedPeriod);
   const [selectedSort, setSelectedSort] = useState(initialFilterState.selectedSort || DEFAULT_SORT);
+  const [selectedQuery, setSelectedQuery] = useState(initialFilterState.selectedQuery || "");
+  const [queryInput, setQueryInput] = useState(initialFilterState.selectedQuery || "");
   const [selectedTransactionCategoryId, setSelectedTransactionCategoryId] = useState(
     initialFilterState.selectedTransactionCategoryId,
   );
@@ -343,6 +349,7 @@ const App = ({ onLogout = undefined }) => {
         limit: pageSize,
         offset: currentOffset,
         sort: selectedSort,
+        ...(selectedQuery ? { q: selectedQuery } : {}),
         from: periodRange.startDate || undefined,
         to: periodRange.endDate || undefined,
         type: selectedCategory !== CATEGORY_ALL ? selectedCategory : undefined,
@@ -373,7 +380,15 @@ const App = ({ onLogout = undefined }) => {
     } finally {
       setLoadingTransactions(false);
     }
-  }, [currentOffset, pageSize, periodRange, selectedCategory, selectedSort, selectedTransactionCategoryId]);
+  }, [
+    currentOffset,
+    pageSize,
+    periodRange,
+    selectedCategory,
+    selectedQuery,
+    selectedSort,
+    selectedTransactionCategoryId,
+  ]);
 
   useEffect(() => {
     loadTransactions();
@@ -399,6 +414,12 @@ const App = ({ onLogout = undefined }) => {
     params.set("limit", String(pageSize));
     params.set("offset", String(currentOffset));
     params.set("sort", selectedSort);
+
+    if (selectedQuery) {
+      params.set("q", selectedQuery);
+    } else {
+      params.delete("q");
+    }
 
     if (selectedCategory !== CATEGORY_ALL) {
       params.set("type", selectedCategory);
@@ -446,6 +467,7 @@ const App = ({ onLogout = undefined }) => {
     pageSize,
     selectedCategory,
     selectedPeriod,
+    selectedQuery,
     selectedSort,
     selectedTransactionCategoryId,
   ]);
@@ -680,10 +702,22 @@ const App = ({ onLogout = undefined }) => {
     scrollToListTop();
   };
 
+  const handleApplyQueryFilter = (event) => {
+    if (event) {
+      event.preventDefault();
+    }
+
+    const normalizedQuery = queryInput.trim();
+    setQueryInput(normalizedQuery);
+    setSelectedQuery(normalizedQuery);
+    setCurrentOffset(DEFAULT_OFFSET);
+  };
+
   const filterButtons = [CATEGORY_ALL, CATEGORY_ENTRY, CATEGORY_EXIT];
   const hasActiveFilters =
     selectedCategory !== CATEGORY_ALL ||
     selectedPeriod !== PERIOD_ALL ||
+    Boolean(selectedQuery) ||
     Boolean(selectedTransactionCategoryId);
   const hasMonthlySummaryData =
     monthlySummary.income > 0 ||
@@ -849,6 +883,28 @@ const App = ({ onLogout = undefined }) => {
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div className="mt-3">
+              <label htmlFor="busca-transacoes" className="mb-1 block text-xs font-medium text-gray-100">
+                Buscar
+              </label>
+              <form onSubmit={handleApplyQueryFilter} className="flex gap-2">
+                <input
+                  id="busca-transacoes"
+                  type="text"
+                  value={queryInput}
+                  onChange={(event) => setQueryInput(event.target.value)}
+                  placeholder="Descricao ou observacoes"
+                  className="w-full rounded border border-gray-400 px-3 py-2 text-sm text-gray-200"
+                />
+                <button
+                  type="submit"
+                  className="rounded border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-100 hover:bg-gray-400"
+                >
+                  Aplicar
+                </button>
+              </form>
             </div>
 
             {selectedPeriod === PERIOD_CUSTOM ? (
