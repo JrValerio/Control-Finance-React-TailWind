@@ -1337,6 +1337,7 @@ describe("App", () => {
 
   it("abre painel de filtros automaticamente no mobile quando existem filtros ativos", async () => {
     const originalInnerWidth = window.innerWidth;
+    const originalPathWithSearch = `${window.location.pathname}${window.location.search}`;
     window.history.replaceState(null, "", "/app?q=mercado");
 
     Object.defineProperty(window, "innerWidth", {
@@ -1358,6 +1359,7 @@ describe("App", () => {
       );
       expect(screen.getByLabelText("Periodo")).toBeInTheDocument();
     } finally {
+      window.history.replaceState(null, "", originalPathWithSearch);
       Object.defineProperty(window, "innerWidth", {
         configurable: true,
         writable: true,
@@ -1372,6 +1374,7 @@ describe("App", () => {
   it("abre painel de filtros e foca busca ao clicar em editar filtros no mobile", async () => {
     const user = userEvent.setup();
     const originalInnerWidth = window.innerWidth;
+    const originalPathWithSearch = `${window.location.pathname}${window.location.search}`;
     window.history.replaceState(null, "", "/app?q=mercado");
 
     Object.defineProperty(window, "innerWidth", {
@@ -1397,6 +1400,7 @@ describe("App", () => {
         expect(searchInput).toHaveFocus();
       });
     } finally {
+      window.history.replaceState(null, "", originalPathWithSearch);
       Object.defineProperty(window, "innerWidth", {
         configurable: true,
         writable: true,
