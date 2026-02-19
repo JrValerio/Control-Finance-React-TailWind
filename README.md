@@ -13,6 +13,7 @@ Aplicacao web para controle financeiro pessoal com entradas/saidas, filtros por 
 - [Architecture (Monorepo Foundation)](#monorepo-v130-foundation)
 - [Web Features](#funcionalidades-atuais-web)
 - [Monthly Summary](#monthly-summary)
+- [Monthly Budgets](#monthly-budgets)
 - [CSV Import (Dry-run + Commit)](#csv-import-dry-run--commit)
 - [Import History](#import-history)
 - [Pagination](#pagination)
@@ -99,6 +100,16 @@ Detalhes tecnicos:
 - Endpoint: `GET /transactions/summary?month=YYYY-MM`
 - Retorna `income`, `expense`, `balance` e `byCategory`
 - Dashboard usa o summary da API para os cards mensais
+
+## Monthly Budgets
+
+- `POST /budgets` cria ou atualiza meta por `categoryId + month`
+- `GET /budgets?month=YYYY-MM` retorna `budget`, `actual`, `remaining`, `percentage` e `status`
+- `DELETE /budgets/:id` remove meta do usuario autenticado
+- Regras de status:
+  - `ok` quando `percentage < 80`
+  - `near_limit` quando `percentage >= 80` e `<= 100`
+  - `exceeded` quando `percentage > 100`
 
 ## CSV Import (Dry-run + Commit)
 
@@ -216,6 +227,7 @@ Notes:
 - `POST /auth/register` cria usuario no Postgres
 - `POST /auth/login` retorna `{ token, user }`
 - `/auth/login` aplica rate limit por IP e bloqueio temporario por brute force
+- Metas mensais: veja [Monthly Budgets](#monthly-budgets)
 - `GET /transactions` lista transacoes do usuario autenticado com filtros opcionais (`type`, `from`, `to`, `q`, `includeDeleted`, `page`, `limit`, `offset`)
   - defaults: `limit=20`, `offset=0`
   - validacao: `limit` inteiro entre `1` e `100`; `offset` inteiro `>= 0`

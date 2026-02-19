@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import healthRoutes from "./routes/health.routes.js";
 import authRoutes from "./routes/auth.routes.js";
 import categoriesRoutes from "./routes/categories.routes.js";
+import budgetsRoutes from "./routes/budgets.routes.js";
 import transactionsRoutes from "./routes/transactions.routes.js";
 import { notFoundHandler, errorHandler } from "./middlewares/error.middleware.js";
 import { requestIdMiddleware } from "./middlewares/request-id.middleware.js";
@@ -67,6 +68,7 @@ app.use(express.json());
 app.use("/health", healthRoutes);
 app.use("/auth", authRoutes);
 app.use("/categories", categoriesRoutes);
+app.use("/budgets", budgetsRoutes);
 app.use("/transactions", transactionsRoutes);
 
 app.use(notFoundHandler);
