@@ -770,11 +770,33 @@ const App = ({ onLogout = undefined }) => {
   };
 
   const filterButtons = [CATEGORY_ALL, CATEGORY_ENTRY, CATEGORY_EXIT];
-  const hasActiveFilters =
-    selectedCategory !== CATEGORY_ALL ||
-    selectedPeriod !== PERIOD_ALL ||
-    Boolean(selectedQuery) ||
-    Boolean(selectedTransactionCategoryId);
+  const todayISO = getTodayISODate();
+  const currentMonthRange = useMemo(
+    () => getCurrentMonthRange(new Date(`${todayISO}T00:00:00`)),
+    [todayISO],
+  );
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+
+    if (selectedCategory !== CATEGORY_ALL) {
+      count += 1;
+    }
+
+    if (selectedPeriod !== PERIOD_ALL) {
+      count += 1;
+    }
+
+    if (selectedTransactionCategoryId) {
+      count += 1;
+    }
+
+    if (selectedQuery) {
+      count += 1;
+    }
+
+    return count;
+  }, [selectedCategory, selectedPeriod, selectedQuery, selectedTransactionCategoryId]);
+  const hasActiveFilters = activeFiltersCount > 0;
   const hasMonthlySummaryData =
     monthlySummary.income > 0 ||
     monthlySummary.expense > 0 ||
@@ -782,6 +804,25 @@ const App = ({ onLogout = undefined }) => {
   const visibleFilterPresets = FILTER_PRESETS.filter(
     (preset) => preset.id !== "clear" || hasActiveFilters,
   );
+  const isPresetActive = (presetId) => {
+    if (presetId === "this-month") {
+      return (
+        selectedPeriod === PERIOD_CUSTOM &&
+        customStartDate === currentMonthRange.startDate &&
+        customEndDate === currentMonthRange.endDate
+      );
+    }
+
+    if (presetId === "income") {
+      return selectedCategory === CATEGORY_ENTRY;
+    }
+
+    if (presetId === "expense") {
+      return selectedCategory === CATEGORY_EXIT;
+    }
+
+    return false;
+  };
   const currentPage = paginationMeta.page;
   const rangeStart = paginationMeta.total === 0 ? 0 : paginationMeta.offset + 1;
   const rangeEnd = Math.min(
@@ -845,7 +886,7 @@ const App = ({ onLogout = undefined }) => {
               <h2 className="text-lg font-medium text-gray-100">Resumo financeiro</h2>
               {hasActiveFilters ? (
                 <span className="inline-flex items-center rounded-full border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-900">
-                  Filtros ativos
+                  Filtros ativos ({activeFiltersCount})
                 </span>
               ) : null}
             </div>
@@ -854,8 +895,13 @@ const App = ({ onLogout = undefined }) => {
                 <button
                   key={preset.id}
                   type="button"
+                  aria-pressed={isPresetActive(preset.id)}
                   onClick={() => applyFilterPreset(preset.id)}
-                  className="flex items-center justify-center gap-2.5 rounded border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-900 transition-colors hover:bg-gray-100"
+                  className={`flex items-center justify-center gap-2.5 rounded border px-4 py-2 text-sm font-semibold transition-colors ${
+                    isPresetActive(preset.id)
+                      ? "border-brand-1 bg-brand-3 text-brand-1"
+                      : "border-gray-300 bg-white text-gray-900 hover:bg-gray-100"
+                  }`}
                 >
                   {preset.label}
                 </button>
