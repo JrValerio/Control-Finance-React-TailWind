@@ -1731,6 +1731,136 @@ describe("API auth and transactions", () => {
     expect(response.body.data[1].description).toBe("Lancamento 3");
   });
 
+  it("ordena transacoes por amount desc quando sort=amount:desc", async () => {
+    const token = await registerAndLogin("pagination-sort-amount-desc@controlfinance.dev");
+
+    await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "Entrada",
+        value: 20,
+        date: "2026-02-01",
+        description: "Valor 20",
+      });
+
+    await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "Entrada",
+        value: 70,
+        date: "2026-02-02",
+        description: "Valor 70",
+      });
+
+    await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "Entrada",
+        value: 45,
+        date: "2026-02-03",
+        description: "Valor 45",
+      });
+
+    const response = await request(app)
+      .get("/transactions")
+      .query({
+        sort: "amount:desc",
+        limit: 20,
+        offset: 0,
+      })
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toHaveLength(3);
+    expect(response.body.data.map((transaction) => Number(transaction.value))).toEqual([70, 45, 20]);
+  });
+
+  it("aceita direcao case-insensitive em sort e ordena corretamente", async () => {
+    const token = await registerAndLogin("pagination-sort-direction-case@controlfinance.dev");
+
+    await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "Entrada",
+        value: 10,
+        date: "2026-02-01",
+        description: "Valor 10",
+      });
+
+    await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "Entrada",
+        value: 30,
+        date: "2026-02-02",
+        description: "Valor 30",
+      });
+
+    const response = await request(app)
+      .get("/transactions")
+      .query({
+        sort: "amount:DESC",
+      })
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.map((transaction) => Number(transaction.value))).toEqual([30, 10]);
+  });
+
+  it("faz fallback para ordenacao padrao quando sort e invalido", async () => {
+    const token = await registerAndLogin("pagination-sort-fallback@controlfinance.dev");
+
+    await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "Entrada",
+        value: 10,
+        date: "2026-02-03",
+        description: "Terceiro",
+      });
+
+    await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "Entrada",
+        value: 20,
+        date: "2026-02-01",
+        description: "Primeiro",
+      });
+
+    await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "Entrada",
+        value: 15,
+        date: "2026-02-02",
+        description: "Segundo",
+      });
+
+    const response = await request(app)
+      .get("/transactions")
+      .query({
+        sort: "hacker:desc",
+      })
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toHaveLength(3);
+    expect(response.body.data.map((transaction) => transaction.description)).toEqual([
+      "Primeiro",
+      "Segundo",
+      "Terceiro",
+    ]);
+  });
+
   it.each([
     { limit: "101" },
     { offset: "-1" },
