@@ -74,6 +74,7 @@ const getListFiltersFromQuery = (query = {}, options = {}) => {
     to: query.to,
     q: query.q,
     categoryId: query.categoryId,
+    sort: query.sort,
   };
 
   if (includePagination) {

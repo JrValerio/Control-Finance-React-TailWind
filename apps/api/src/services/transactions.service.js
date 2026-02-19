@@ -10,6 +10,15 @@ const DEFAULT_OFFSET = 0;
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
 const PAGINATION_ERROR_MESSAGE = "Paginacao invalida.";
+const DEFAULT_TRANSACTIONS_ORDER_BY = "date ASC, id ASC";
+const TRANSACTIONS_SORT_FIELD_TO_COLUMN = {
+  date: "date",
+  amount: "value",
+  value: "value",
+  description: "description",
+  createdat: "created_at",
+  created_at: "created_at",
+};
 
 const createError = (status, message) => {
   const error = new Error(message);
@@ -207,6 +216,57 @@ const resolveListPagination = (options = {}) => {
   };
 };
 
+const normalizeOptionalSort = (value) => {
+  if (typeof value === "undefined" || value === null) {
+    return null;
+  }
+
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalizedValue = value.trim();
+  if (!normalizedValue) {
+    return null;
+  }
+
+  const [rawField, rawDirection, ...remainingParts] = normalizedValue.split(":");
+
+  if (remainingParts.length > 0) {
+    return null;
+  }
+
+  const normalizedField = String(rawField || "").trim().toLowerCase();
+  const normalizedDirection = String(rawDirection || "").trim().toLowerCase();
+
+  if (!normalizedField || !normalizedDirection) {
+    return null;
+  }
+
+  const column = TRANSACTIONS_SORT_FIELD_TO_COLUMN[normalizedField];
+  if (!column) {
+    return null;
+  }
+
+  if (!["asc", "desc"].includes(normalizedDirection)) {
+    return null;
+  }
+
+  return {
+    column,
+    direction: normalizedDirection,
+  };
+};
+
+const resolveTransactionsOrderByClause = (sortOption) => {
+  if (!sortOption) {
+    return DEFAULT_TRANSACTIONS_ORDER_BY;
+  }
+
+  const direction = sortOption.direction === "desc" ? "DESC" : "ASC";
+  return `${sortOption.column} ${direction}, id ${direction}`;
+};
+
 const normalizeCategoryId = (value) => {
   const parsedValue = Number(value);
 
@@ -319,6 +379,7 @@ const normalizeListFilters = (options = {}) => {
   let to = normalizeOptionalFilterDate(options.to);
   const query = normalizeOptionalSearchQuery(options.q);
   const categoryId = normalizeOptionalFilterCategoryId(options.categoryId);
+  const sort = normalizeOptionalSort(options.sort);
   const pagination = resolveListPagination(options);
 
   if (from && to && from > to) {
@@ -332,6 +393,7 @@ const normalizeListFilters = (options = {}) => {
     to,
     query,
     categoryId,
+    sort,
     page: pagination.page,
     limit: pagination.limit,
     offset: pagination.offset,
@@ -391,6 +453,7 @@ const runListTransactions = async (
 ) => {
   const filters = normalizeListFilters(options);
   const statement = buildListTransactionsFilters(userId, filters);
+  const orderByClause = resolveTransactionsOrderByClause(filters.sort);
   const { paginate } = config;
   const listQuerySuffix = paginate
     ? `
@@ -407,7 +470,7 @@ const runListTransactions = async (
       SELECT id, user_id, category_id, value, type, date, description, notes, deleted_at, created_at
       FROM transactions
       WHERE ${statement.whereClause}
-      ORDER BY date ASC, id ASC
+      ORDER BY ${orderByClause}
       ${listQuerySuffix}
     `,
     queryParams,
