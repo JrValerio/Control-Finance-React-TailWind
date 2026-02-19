@@ -56,6 +56,22 @@ const DEFAULT_MONTHLY_SUMMARY = {
   balance: 0,
   byCategory: [],
 };
+const DEFAULT_MONTHLY_BUDGETS = [];
+const BUDGET_STATUS_LABELS = {
+  ok: "Dentro da meta",
+  near_limit: "Proximo do limite",
+  exceeded: "Acima da meta",
+};
+const BUDGET_STATUS_BADGE_CLASSNAMES = {
+  ok: "border-green-200 bg-green-50 text-green-700",
+  near_limit: "border-amber-200 bg-amber-50 text-amber-700",
+  exceeded: "border-red-200 bg-red-50 text-red-700",
+};
+const BUDGET_STATUS_BAR_CLASSNAMES = {
+  ok: "bg-green-500",
+  near_limit: "bg-amber-500",
+  exceeded: "bg-red-500",
+};
 
 const getCurrentMonth = () => getTodayISODate().slice(0, 7);
 const getCurrentMonthRange = (referenceDate = new Date()) => {
@@ -239,6 +255,9 @@ const getInitialPaginationState = () => {
   };
 };
 
+const formatCurrency = (value) => `R$ ${Number(value || 0).toFixed(2)}`;
+const formatPercentage = (value) => `${Number(value || 0).toFixed(2)}%`;
+
 const App = ({ onLogout = undefined }) => {
   const initialFilterState = useMemo(() => getInitialFilterState(), []);
   const initialPaginationState = useMemo(() => getInitialPaginationState(), []);
@@ -276,8 +295,11 @@ const App = ({ onLogout = undefined }) => {
   const [isLoadingSummary, setLoadingSummary] = useState(false);
   const [isExportingCsv, setExportingCsv] = useState(false);
   const [monthlySummary, setMonthlySummary] = useState(DEFAULT_MONTHLY_SUMMARY);
+  const [monthlyBudgets, setMonthlyBudgets] = useState(DEFAULT_MONTHLY_BUDGETS);
   const [summaryError, setSummaryError] = useState("");
+  const [budgetsError, setBudgetsError] = useState("");
   const [requestError, setRequestError] = useState("");
+  const [isLoadingBudgets, setLoadingBudgets] = useState(false);
   const undoTimeoutRef = useRef(null);
 
   const periodRange = useMemo(
@@ -358,6 +380,25 @@ const App = ({ onLogout = undefined }) => {
   useEffect(() => {
     loadMonthlySummary();
   }, [loadMonthlySummary]);
+
+  const loadMonthlyBudgets = useCallback(async () => {
+    setLoadingBudgets(true);
+    setBudgetsError("");
+
+    try {
+      const budgets = await transactionsService.getMonthlyBudgets(selectedSummaryMonth);
+      setMonthlyBudgets(Array.isArray(budgets) ? budgets : []);
+    } catch (error) {
+      setMonthlyBudgets(DEFAULT_MONTHLY_BUDGETS);
+      setBudgetsError(getApiErrorMessage(error, "Nao foi possivel carregar as metas mensais."));
+    } finally {
+      setLoadingBudgets(false);
+    }
+  }, [selectedSummaryMonth]);
+
+  useEffect(() => {
+    loadMonthlyBudgets();
+  }, [loadMonthlyBudgets]);
 
   const loadTransactions = useCallback(async () => {
     setLoadingTransactions(true);
@@ -565,6 +606,7 @@ const App = ({ onLogout = undefined }) => {
       setModalOpen(false);
       await loadTransactions();
       await loadMonthlySummary();
+      await loadMonthlyBudgets();
       await loadCategories();
     } catch (error) {
       setRequestError(
@@ -599,6 +641,7 @@ const App = ({ onLogout = undefined }) => {
       setPendingDeleteTransactionId(null);
       await loadTransactions();
       await loadMonthlySummary();
+      await loadMonthlyBudgets();
     } catch (error) {
       setRequestError(getApiErrorMessage(error, "Nao foi possivel excluir a transacao."));
     }
@@ -616,6 +659,7 @@ const App = ({ onLogout = undefined }) => {
       clearUndoState();
       await loadTransactions();
       await loadMonthlySummary();
+      await loadMonthlyBudgets();
     } catch (error) {
       setRequestError(getApiErrorMessage(error, "Nao foi possivel desfazer a exclusao."));
     }
@@ -653,8 +697,9 @@ const App = ({ onLogout = undefined }) => {
   const handleImportCommitted = useCallback(async () => {
     await loadTransactions();
     await loadMonthlySummary();
+    await loadMonthlyBudgets();
     setImportModalOpen(false);
-  }, [loadMonthlySummary, loadTransactions]);
+  }, [loadMonthlyBudgets, loadMonthlySummary, loadTransactions]);
 
   const scrollToListTop = () => {
     const scrollTarget = listSectionRef.current;
@@ -864,6 +909,7 @@ const App = ({ onLogout = undefined }) => {
     monthlySummary.income > 0 ||
     monthlySummary.expense > 0 ||
     monthlySummary.byCategory.length > 0;
+  const hasMonthlyBudgetsData = monthlyBudgets.length > 0;
   const appliedChips = useMemo(() => {
     const chips = [];
 
@@ -1279,19 +1325,19 @@ const App = ({ onLogout = undefined }) => {
           <div className="rounded border border-brand-1 bg-gray-400 px-4 py-3.5">
             <p className="text-xs font-medium uppercase text-gray-200">Saldo</p>
             <p className="text-base font-medium text-gray-100">
-              {isLoadingSummary ? "Carregando..." : `R$ ${monthlySummary.balance.toFixed(2)}`}
+              {isLoadingSummary ? "Carregando..." : formatCurrency(monthlySummary.balance)}
             </p>
           </div>
           <div className="rounded border border-brand-1 bg-gray-400 px-4 py-3.5">
             <p className="text-xs font-medium uppercase text-gray-200">Entradas</p>
             <p className="text-base font-medium text-gray-100">
-              {isLoadingSummary ? "Carregando..." : `R$ ${monthlySummary.income.toFixed(2)}`}
+              {isLoadingSummary ? "Carregando..." : formatCurrency(monthlySummary.income)}
             </p>
           </div>
           <div className="rounded border border-brand-1 bg-gray-400 px-4 py-3.5">
             <p className="text-xs font-medium uppercase text-gray-200">Saidas</p>
             <p className="text-base font-medium text-gray-100">
-              {isLoadingSummary ? "Carregando..." : `R$ ${monthlySummary.expense.toFixed(2)}`}
+              {isLoadingSummary ? "Carregando..." : formatCurrency(monthlySummary.expense)}
             </p>
           </div>
         </div>
@@ -1300,6 +1346,86 @@ const App = ({ onLogout = undefined }) => {
             Sem dados para o mes selecionado.
           </div>
         ) : null}
+      </section>
+
+      <section className="mt-2 p-4">
+        <div className="mx-auto max-w-700 rounded border border-gray-300 bg-white p-3">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <h3 className="text-sm font-medium text-gray-100">Metas do mes</h3>
+            <span className="text-xs text-gray-200">{selectedSummaryMonth}</span>
+          </div>
+          {budgetsError ? (
+            <div
+              className="mb-3 flex items-center justify-between gap-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+              role="status"
+              aria-live="polite"
+            >
+              <span>{budgetsError}</span>
+              <button
+                type="button"
+                onClick={loadMonthlyBudgets}
+                className="rounded border border-red-300 px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-100"
+              >
+                Tentar novamente
+              </button>
+            </div>
+          ) : null}
+          {isLoadingBudgets ? (
+            <div className="space-y-2" role="status" aria-live="polite">
+              {Array.from({ length: 3 }).map((_unusedValue, index) => (
+                <div
+                  key={`budgets-skeleton-${index + 1}`}
+                  className="h-16 animate-pulse rounded border border-gray-300 bg-gray-100"
+                />
+              ))}
+              <span className="sr-only">Carregando metas do mes...</span>
+            </div>
+          ) : null}
+          {!isLoadingBudgets && !budgetsError && !hasMonthlyBudgetsData ? (
+            <div className="rounded border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-600">
+              Nenhuma meta cadastrada para o mes selecionado.
+            </div>
+          ) : null}
+          {!isLoadingBudgets && !budgetsError && hasMonthlyBudgetsData ? (
+            <ul className="space-y-2">
+              {monthlyBudgets.map((budget) => {
+                const safeStatus =
+                  budget.status === "near_limit" || budget.status === "exceeded"
+                    ? budget.status
+                    : "ok";
+                const progressWidth = `${Math.min(Math.max(budget.percentage, 0), 100)}%`;
+
+                return (
+                  <li
+                    key={budget.id}
+                    className="rounded border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-800"
+                  >
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <p className="font-semibold text-gray-900">{budget.categoryName}</p>
+                      <span
+                        className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${BUDGET_STATUS_BADGE_CLASSNAMES[safeStatus]}`}
+                      >
+                        {BUDGET_STATUS_LABELS[safeStatus]}
+                      </span>
+                    </div>
+                    <div className="mb-2 h-2 w-full rounded-full bg-gray-200">
+                      <div
+                        className={`h-2 rounded-full ${BUDGET_STATUS_BAR_CLASSNAMES[safeStatus]}`}
+                        style={{ width: progressWidth }}
+                      />
+                    </div>
+                    <div className="grid gap-1 text-xs text-gray-700 sm:grid-cols-2">
+                      <span>Orcado: {formatCurrency(budget.budget)}</span>
+                      <span>Realizado: {formatCurrency(budget.actual)}</span>
+                      <span>Restante: {formatCurrency(budget.remaining)}</span>
+                      <span>Uso: {formatPercentage(budget.percentage)}</span>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : null}
+        </div>
       </section>
 
       <section className="mx-auto mt-2 max-w-700 p-4">

@@ -78,6 +78,20 @@ export interface MonthlySummary {
   byCategory: MonthlySummaryByCategory[];
 }
 
+export type MonthlyBudgetStatus = "ok" | "near_limit" | "exceeded";
+
+export interface MonthlyBudget {
+  id: number;
+  categoryId: number;
+  categoryName: string;
+  month: string;
+  budget: number;
+  actual: number;
+  remaining: number;
+  percentage: number;
+  status: MonthlyBudgetStatus;
+}
+
 export interface ImportDryRunError {
   field: string;
   message: string;
@@ -190,6 +204,20 @@ interface MonthlySummaryApiResponse {
     categoryId?: unknown;
     categoryName?: unknown;
     expense?: unknown;
+  }>;
+}
+
+interface MonthlyBudgetsApiResponse {
+  data?: Array<{
+    id?: unknown;
+    categoryId?: unknown;
+    categoryName?: unknown;
+    month?: unknown;
+    budget?: unknown;
+    actual?: unknown;
+    remaining?: unknown;
+    percentage?: unknown;
+    status?: unknown;
   }>;
 }
 
@@ -402,6 +430,45 @@ export const transactionsService = {
       balance: Number(responseBody.balance) || 0,
       byCategory,
     };
+  },
+  getMonthlyBudgets: async (month: string): Promise<MonthlyBudget[]> => {
+    const { data } = await api.get("/budgets", {
+      params: { month },
+    });
+    const responseBody = data as MonthlyBudgetsApiResponse;
+
+    if (!Array.isArray(responseBody?.data)) {
+      return [];
+    }
+
+    return responseBody.data
+      .map((item) => {
+        const normalizedId = Number(item?.id);
+        const normalizedCategoryId = Number(item?.categoryId);
+        const normalizedStatus = String(item?.status || "").trim().toLowerCase();
+
+        return {
+          id: Number.isInteger(normalizedId) && normalizedId > 0 ? normalizedId : 0,
+          categoryId:
+            Number.isInteger(normalizedCategoryId) && normalizedCategoryId > 0
+              ? normalizedCategoryId
+              : 0,
+          categoryName:
+            typeof item?.categoryName === "string" && item.categoryName.trim()
+              ? item.categoryName.trim()
+              : "Sem categoria",
+          month: typeof item?.month === "string" && item.month.trim() ? item.month.trim() : month,
+          budget: Number(item?.budget) || 0,
+          actual: Number(item?.actual) || 0,
+          remaining: Number(item?.remaining) || 0,
+          percentage: Number(item?.percentage) || 0,
+          status:
+            normalizedStatus === "near_limit" || normalizedStatus === "exceeded"
+              ? (normalizedStatus as MonthlyBudgetStatus)
+              : "ok",
+        };
+      })
+      .filter((item) => item.id > 0 && item.categoryId > 0);
   },
   create: async (payload: TransactionCreatePayload): Promise<Transaction> => {
     const { data } = await api.post("/transactions", payload);
