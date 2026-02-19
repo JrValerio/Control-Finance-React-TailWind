@@ -78,7 +78,31 @@ Rollback required: yes/no
 Notes:
 ```
 
-## 6. Suggested Operational Sequence
+## 6. Evidences (Per Release)
+
+> Copy this block for each new release and keep history at the end of this file.
+
+```md
+Release: vX.Y.Z
+Date:
+Owner:
+
+PR release:
+Tag:
+GitHub Release:
+Commit main:
+Commit runtime (`/health.commit`):
+
+Render deploy (link):
+Vercel deploy (link):
+Output `/health` (json):
+Smoke executed: yes/no
+Monitoring 15-30 min: ok/not ok
+Rollback needed: yes/no
+Observations:
+```
+
+## 7. Suggested Operational Sequence
 
 For each release:
 1. Open and merge PR.
