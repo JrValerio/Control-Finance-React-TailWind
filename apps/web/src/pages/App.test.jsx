@@ -669,6 +669,126 @@ describe("App", () => {
     expect(appliedSummaryScope.getByText("Ordenacao: Valor (maior)")).toBeInTheDocument();
   });
 
+  it("remove chip de busca, reseta offset e atualiza URL", async () => {
+    const user = userEvent.setup();
+    window.history.replaceState(
+      null,
+      "",
+      "/app?limit=20&offset=40&sort=amount:desc&q=aluguel",
+    );
+    const withQueryResponse = buildPageResponse(
+      [
+        {
+          id: 25,
+          value: 1200,
+          type: CATEGORY_ENTRY,
+          date: "2026-02-10",
+          description: "Com busca aplicada",
+        },
+      ],
+      { page: 3, limit: 20, offset: 40, total: 95, totalPages: 5 },
+    );
+    const withoutQueryResponse = buildPageResponse(
+      [
+        {
+          id: 26,
+          value: 200,
+          type: CATEGORY_ENTRY,
+          date: "2026-02-11",
+          description: "Sem busca aplicada",
+        },
+      ],
+      { page: 1, limit: 20, offset: 0, total: 1, totalPages: 1 },
+    );
+
+    transactionsService.listPage.mockImplementation((params) => {
+      if (!Object.prototype.hasOwnProperty.call(params, "q") && params.offset === 0) {
+        return Promise.resolve(withoutQueryResponse);
+      }
+
+      return Promise.resolve(withQueryResponse);
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText("Com busca aplicada")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Remover filtro: Busca" }));
+
+    expect(await screen.findByText("Sem busca aplicada")).toBeInTheDocument();
+    const lastCallParams =
+      transactionsService.listPage.mock.calls[transactionsService.listPage.mock.calls.length - 1][0];
+    expect(lastCallParams).not.toHaveProperty("q");
+    expect(lastCallParams.offset).toBe(0);
+
+    const params = new URLSearchParams(window.location.search);
+    expect(params.get("q")).toBeNull();
+    expect(params.get("offset")).toBe("0");
+    expect(screen.getByLabelText("Buscar")).toHaveValue("");
+  });
+
+  it("remove chip de periodo custom, limpa from/to e reseta offset", async () => {
+    const user = userEvent.setup();
+    window.history.replaceState(
+      null,
+      "",
+      "/app?limit=20&offset=20&sort=date:asc&period=Personalizado&from=2026-02-01&to=2026-02-28",
+    );
+    const withPeriodResponse = buildPageResponse(
+      [
+        {
+          id: 27,
+          value: 100,
+          type: CATEGORY_EXIT,
+          date: "2026-02-14",
+          description: "Com periodo aplicado",
+        },
+      ],
+      { page: 2, limit: 20, offset: 20, total: 45, totalPages: 3 },
+    );
+    const withoutPeriodResponse = buildPageResponse(
+      [
+        {
+          id: 28,
+          value: 80,
+          type: CATEGORY_EXIT,
+          date: "2026-02-15",
+          description: "Sem periodo aplicado",
+        },
+      ],
+      { page: 1, limit: 20, offset: 0, total: 1, totalPages: 1 },
+    );
+
+    transactionsService.listPage.mockImplementation((params) => {
+      if (params.from === undefined && params.to === undefined && params.offset === 0) {
+        return Promise.resolve(withoutPeriodResponse);
+      }
+
+      return Promise.resolve(withPeriodResponse);
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText("Com periodo aplicado")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Remover filtro: Periodo" }));
+
+    expect(await screen.findByText("Sem periodo aplicado")).toBeInTheDocument();
+    expect(transactionsService.listPage).toHaveBeenLastCalledWith({
+      limit: 20,
+      offset: 0,
+      sort: "date:asc",
+      from: undefined,
+      to: undefined,
+      type: undefined,
+      categoryId: undefined,
+    });
+
+    const params = new URLSearchParams(window.location.search);
+    expect(params.get("period")).toBeNull();
+    expect(params.get("from")).toBeNull();
+    expect(params.get("to")).toBeNull();
+    expect(params.get("offset")).toBe("0");
+  });
+
   it("exibe estado vazio no resumo mensal quando nao ha dados", async () => {
     transactionsService.getMonthlySummary.mockResolvedValueOnce(
       buildSummaryResponse({
