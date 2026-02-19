@@ -468,9 +468,11 @@ describe("App", () => {
     render(<App />);
 
     expect(await screen.findByText("Antes do preset")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Este mes" })).toHaveAttribute("aria-pressed", "false");
     await user.click(screen.getByRole("button", { name: "Este mes" }));
 
     expect(await screen.findByText("Depois do preset")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Este mes" })).toHaveAttribute("aria-pressed", "true");
     expect(transactionsService.listPage).toHaveBeenLastCalledWith({
       limit: 20,
       offset: 0,
@@ -589,8 +591,24 @@ describe("App", () => {
       ],
       { page: 1, limit: 20, offset: 0, total: 1, totalPages: 1 },
     );
+    const withTwoFiltersResponse = buildPageResponse(
+      [
+        {
+          id: 23,
+          value: 50,
+          type: CATEGORY_ENTRY,
+          date: "2026-02-20",
+          description: "Com dois filtros ativos",
+        },
+      ],
+      { page: 1, limit: 20, offset: 0, total: 1, totalPages: 1 },
+    );
 
-    transactionsService.listPage.mockImplementation(({ q }) => {
+    transactionsService.listPage.mockImplementation(({ q, type }) => {
+      if (q === "mercado" && type === CATEGORY_ENTRY) {
+        return Promise.resolve(withTwoFiltersResponse);
+      }
+
       if (q === "mercado") {
         return Promise.resolve(withFiltersResponse);
       }
@@ -601,15 +619,19 @@ describe("App", () => {
     render(<App />);
 
     expect(await screen.findByText("Sem filtros ativos")).toBeInTheDocument();
-    expect(screen.queryByText("Filtros ativos")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Filtros ativos \(\d+\)/)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Limpar filtros" })).not.toBeInTheDocument();
 
     await user.type(screen.getByLabelText("Buscar"), "mercado");
     await user.click(screen.getByRole("button", { name: "Aplicar" }));
 
     expect(await screen.findByText("Com filtros ativos")).toBeInTheDocument();
-    expect(screen.getByText("Filtros ativos")).toBeInTheDocument();
+    expect(screen.getByText("Filtros ativos (1)")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Limpar filtros" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: CATEGORY_ENTRY }));
+    expect(await screen.findByText("Com dois filtros ativos")).toBeInTheDocument();
+    expect(screen.getByText("Filtros ativos (2)")).toBeInTheDocument();
   });
 
   it("exibe estado vazio no resumo mensal quando nao ha dados", async () => {
