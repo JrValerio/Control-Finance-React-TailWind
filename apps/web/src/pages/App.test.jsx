@@ -14,6 +14,7 @@ vi.mock("../services/transactions.service", () => ({
     listPage: vi.fn(),
     listCategories: vi.fn(),
     getMonthlySummary: vi.fn(),
+    getMonthlyBudgets: vi.fn(),
     getImportHistory: vi.fn(),
     dryRunImportCsv: vi.fn(),
     commitImportCsv: vi.fn(),
@@ -53,6 +54,8 @@ const buildSummaryResponse = (summary = {}) => ({
   byCategory: [],
   ...summary,
 });
+
+const buildMonthlyBudgetsResponse = (items = []) => items;
 
 const buildImportDryRunResponse = (payload = {}) => ({
   importId: "11111111-1111-4111-8111-111111111111",
@@ -134,6 +137,7 @@ describe("App", () => {
     transactionsService.listPage.mockResolvedValue(buildPageResponse());
     transactionsService.listCategories.mockResolvedValue([]);
     transactionsService.getMonthlySummary.mockResolvedValue(buildSummaryResponse());
+    transactionsService.getMonthlyBudgets.mockResolvedValue(buildMonthlyBudgetsResponse());
     transactionsService.getImportHistory.mockResolvedValue(buildImportHistoryResponse());
     transactionsService.dryRunImportCsv.mockResolvedValue(buildImportDryRunResponse());
     transactionsService.commitImportCsv.mockResolvedValue({
@@ -192,6 +196,62 @@ describe("App", () => {
     expect(screen.getByText("R$ 1500.00")).toBeInTheDocument();
     expect(screen.getByText("R$ 420.50")).toBeInTheDocument();
     expect(transactionsService.getMonthlySummary).toHaveBeenCalledWith(expect.any(String));
+  });
+
+  it("carrega metas mensais e exibe progresso por categoria", async () => {
+    transactionsService.getMonthlyBudgets.mockResolvedValueOnce(
+      buildMonthlyBudgetsResponse([
+        {
+          id: 1,
+          categoryId: 3,
+          categoryName: "Alimentacao",
+          month: "2026-02",
+          budget: 1000,
+          actual: 855.5,
+          remaining: 144.5,
+          percentage: 85.55,
+          status: "near_limit",
+        },
+      ]),
+    );
+
+    render(<App />);
+
+    expect(await screen.findByText("Alimentacao")).toBeInTheDocument();
+    expect(screen.getByText("Proximo do limite")).toBeInTheDocument();
+    expect(screen.getByText("Orcado: R$ 1000.00")).toBeInTheDocument();
+    expect(screen.getByText("Realizado: R$ 855.50")).toBeInTheDocument();
+    expect(screen.getByText("Restante: R$ 144.50")).toBeInTheDocument();
+    expect(screen.getByText("Uso: 85.55%")).toBeInTheDocument();
+    expect(transactionsService.getMonthlyBudgets).toHaveBeenCalledWith(expect.any(String));
+  });
+
+  it("exibe erro nas metas mensais e permite tentar novamente", async () => {
+    const user = userEvent.setup();
+    transactionsService.getMonthlyBudgets
+      .mockRejectedValueOnce({})
+      .mockResolvedValueOnce(
+        buildMonthlyBudgetsResponse([
+          {
+            id: 2,
+            categoryId: 7,
+            categoryName: "Transporte",
+            month: "2026-02",
+            budget: 600,
+            actual: 250,
+            remaining: 350,
+            percentage: 41.67,
+            status: "ok",
+          },
+        ]),
+      );
+
+    render(<App />);
+
+    expect(await screen.findByText("Nao foi possivel carregar as metas mensais.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Tentar novamente" }));
+    expect(await screen.findByText("Transporte")).toBeInTheDocument();
+    expect(screen.queryByText("Nao foi possivel carregar as metas mensais.")).not.toBeInTheDocument();
   });
 
   it("aplica filtro por categoria e envia categoryId para listagem", async () => {
