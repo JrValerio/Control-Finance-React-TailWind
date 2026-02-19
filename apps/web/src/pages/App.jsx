@@ -43,6 +43,16 @@ const FILTER_PRESETS = [
   { id: "expense", label: "Saidas" },
   { id: "clear", label: "Limpar filtros" },
 ];
+const FILTER_BUTTON_LABELS = {
+  [CATEGORY_ALL]: "Todas",
+  [CATEGORY_ENTRY]: "Entradas",
+  [CATEGORY_EXIT]: "Saidas",
+};
+const FILTER_BUTTON_ARIA_LABELS = {
+  [CATEGORY_ALL]: "Filtrar todas",
+  [CATEGORY_ENTRY]: "Filtrar entradas",
+  [CATEGORY_EXIT]: "Filtrar saidas",
+};
 const SORT_OPTION_VALUES = new Set(SORT_OPTIONS.map((option) => option.value));
 const DEFAULT_SORT = "date:asc";
 const DEFAULT_OFFSET = 0;
@@ -1136,17 +1146,17 @@ const App = ({ onLogout = undefined }) => {
   return (
     <div className="App min-h-screen bg-white pb-10">
       <header className="w-full bg-gray-500 py-3 shadow-md sm:py-4">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
           <h1 className="text-4xl font-semibold">
             <span className="text-brand-1">Control</span>
             <span className="text-gray-100">Finance</span>
           </h1>
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <div className="flex flex-wrap items-center gap-2 rounded border border-gray-300 bg-white/70 p-1">
+          <div className="flex flex-wrap items-center justify-end gap-2 lg:flex-nowrap">
+            <div className="flex min-w-0 items-center gap-1 overflow-x-auto rounded border border-gray-300 bg-white/70 p-1 sm:gap-2">
               {onLogout ? (
                 <button
                   onClick={onLogout}
-                  className="rounded border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-100 hover:bg-gray-400"
+                  className="whitespace-nowrap rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-100 hover:bg-gray-400"
                 >
                   Sair
                 </button>
@@ -1155,28 +1165,28 @@ const App = ({ onLogout = undefined }) => {
                 type="button"
                 onClick={handleExportCsv}
                 disabled={isExportingCsv}
-                className="rounded border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-100 hover:bg-gray-400 disabled:cursor-not-allowed disabled:opacity-60"
+                className="whitespace-nowrap rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-100 hover:bg-gray-400 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isExportingCsv ? "Exportando CSV..." : "Exportar CSV"}
               </button>
               <button
                 type="button"
                 onClick={() => setImportModalOpen(true)}
-                className="rounded border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-100 hover:bg-gray-400"
+                className="whitespace-nowrap rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-100 hover:bg-gray-400"
               >
                 Importar CSV
               </button>
               <button
                 type="button"
                 onClick={() => setImportHistoryModalOpen(true)}
-                className="rounded border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-100 hover:bg-gray-400"
+                className="whitespace-nowrap rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-100 hover:bg-gray-400"
               >
                 Historico de imports
               </button>
             </div>
             <button
               onClick={openCreateModal}
-              className="rounded bg-brand-1 px-4 py-2 font-semibold text-white hover:bg-brand-2"
+              className="whitespace-nowrap rounded bg-brand-1 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-2"
             >
               Registrar novo valor
             </button>
@@ -1184,8 +1194,8 @@ const App = ({ onLogout = undefined }) => {
         </div>
       </header>
 
-      <main className="mx-auto mt-8 grid w-full max-w-6xl gap-6 px-4 sm:mt-10 sm:px-6 lg:grid-cols-12">
-        <section className="lg:col-span-4">
+      <main className="mx-auto mt-8 w-full max-w-6xl space-y-6 px-4 sm:mt-10 sm:px-6">
+        <section>
           <div className="space-y-4 rounded border border-gray-300 bg-white p-4">
           <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
             <div className="flex flex-col gap-2">
@@ -1249,27 +1259,33 @@ const App = ({ onLogout = undefined }) => {
                 </button>
               ))}
             </div>
-            <div className="flex flex-wrap gap-2">
-              {filterButtons.map((category) => {
-                const active = selectedCategory === category;
+            <div className="flex flex-col gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wide text-gray-200">
+                Filtrar lista
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {filterButtons.map((category) => {
+                  const active = selectedCategory === category;
 
-                return (
-                  <button
-                    key={category}
-                    onClick={() => {
-                      setSelectedCategory(category);
-                      setCurrentOffset(DEFAULT_OFFSET);
-                    }}
-                    className={`flex items-center justify-center gap-2.5 rounded border px-4 py-2 text-sm font-semibold transition-colors ${
-                      active
-                        ? "border-brand-1 bg-brand-3 text-brand-1"
-                        : "border-gray-300 bg-white text-gray-200"
-                    }`}
-                  >
-                    {category}
-                  </button>
-                );
-              })}
+                  return (
+                    <button
+                      key={category}
+                      aria-label={FILTER_BUTTON_ARIA_LABELS[category]}
+                      onClick={() => {
+                        setSelectedCategory(category);
+                        setCurrentOffset(DEFAULT_OFFSET);
+                      }}
+                      className={`flex items-center justify-center gap-2.5 rounded border px-4 py-2 text-sm font-semibold transition-colors ${
+                        active
+                          ? "border-brand-1 bg-brand-3 text-brand-1"
+                          : "border-gray-300 bg-white text-gray-200"
+                      }`}
+                    >
+                      {FILTER_BUTTON_LABELS[category]}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
@@ -1419,7 +1435,7 @@ const App = ({ onLogout = undefined }) => {
           </div>
         </section>
 
-        <div className="space-y-6 lg:col-span-8">
+        <div className="space-y-6">
           <section>
             <div className="mb-2 flex items-center justify-between gap-2">
           <h3 className="text-sm font-medium text-gray-100">Resumo mensal</h3>
