@@ -227,9 +227,7 @@ Notes:
 - `POST /auth/register` cria usuario no Postgres
 - `POST /auth/login` retorna `{ token, user }`
 - `/auth/login` aplica rate limit por IP e bloqueio temporario por brute force
-- `POST /budgets` cria/atualiza meta mensal por categoria (`categoryId`, `month`, `amount`)
-- `GET /budgets?month=YYYY-MM` lista metas consolidadas com `budget`, `actual`, `remaining`, `percentage`, `status`
-- `DELETE /budgets/:id` remove meta mensal do usuario autenticado
+- Metas mensais: veja [Monthly Budgets](#monthly-budgets)
 - `GET /transactions` lista transacoes do usuario autenticado com filtros opcionais (`type`, `from`, `to`, `q`, `includeDeleted`, `page`, `limit`, `offset`)
   - defaults: `limit=20`, `offset=0`
   - validacao: `limit` inteiro entre `1` e `100`; `offset` inteiro `>= 0`
