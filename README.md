@@ -15,6 +15,7 @@ Aplicacao web para controle financeiro pessoal com entradas/saidas, filtros por 
 - [Monthly Summary](#monthly-summary)
 - [CSV Import (Dry-run + Commit)](#csv-import-dry-run--commit)
 - [Import History](#import-history)
+- [Pagination](#pagination)
 - [Export CSV (Architecture Doc)](docs/architecture/v1.5.0-export-csv.md)
 - [API (apps/api)](#api-appsapi)
 - [Auth (Architecture Doc)](docs/architecture/v1.3.0-auth.md)
@@ -178,6 +179,35 @@ Quando uma linha e invalida, a resposta traz erros por campo:
 - `Expired`: nao possui `committedAt` e `Date.now() > Date.parse(expiresAt)`
 - `Pending`: nao possui `committedAt` e nao expirou
 
+## Pagination
+
+The transactions list supports server-side pagination using `limit` and `offset`.
+
+Example:
+
+```http
+GET /transactions?limit=20&offset=40
+```
+
+Notes:
+
+- `offset` takes precedence over `page`
+- The dashboard persists pagination and filters in the querystring
+- URLs are shareable and refresh-safe
+- Pagination metadata is returned in `meta`:
+
+```json
+{
+  "meta": {
+    "page": 3,
+    "limit": 20,
+    "offset": 40,
+    "total": 95,
+    "totalPages": 5
+  }
+}
+```
+
 ## API (apps/api)
 
 - `GET /health` retorna `{ ok: true, version, commit }`
@@ -190,7 +220,7 @@ Quando uma linha e invalida, a resposta traz erros por campo:
   - defaults: `limit=20`, `offset=0`
   - validacao: `limit` inteiro entre `1` e `100`; `offset` inteiro `>= 0`
   - regra de precedencia: quando `offset` e enviado, ele tem precedencia sobre `page`
-  - resposta paginada: `{ data, meta: { page, limit, total, totalPages } }`
+  - resposta paginada: `{ data, meta: { page, limit, offset, total, totalPages } }`
 - `POST /transactions` cria transacao para o usuario autenticado
 - `PATCH /transactions/:id` atualiza transacao do usuario autenticado
 - `DELETE /transactions/:id` aplica soft delete para o usuario autenticado
