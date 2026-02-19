@@ -280,6 +280,8 @@ const App = ({ onLogout = undefined }) => {
   const initialPaginationState = useMemo(() => getInitialPaginationState(), []);
   const listSectionRef = useRef(null);
   const searchInputRef = useRef(null);
+  const mobileActionsButtonRef = useRef(null);
+  const mobileActionsMenuRef = useRef(null);
   const [selectedCategory, setSelectedCategory] = useState(initialFilterState.selectedCategory);
   const [selectedPeriod, setSelectedPeriod] = useState(initialFilterState.selectedPeriod);
   const [selectedSort, setSelectedSort] = useState(initialFilterState.selectedSort || DEFAULT_SORT);
@@ -394,6 +396,39 @@ const App = ({ onLogout = undefined }) => {
       setMobileActionsMenuOpen(false);
     }
   }, [isMobileActionsMenuOpen, useMobileActionsMenu]);
+
+  useEffect(() => {
+    if (!isMobileActionsMenuOpen || typeof window === "undefined") {
+      return undefined;
+    }
+
+    const handleWindowMouseDown = (event) => {
+      const eventTarget = event.target;
+
+      if (
+        mobileActionsMenuRef.current?.contains(eventTarget) ||
+        mobileActionsButtonRef.current?.contains(eventTarget)
+      ) {
+        return;
+      }
+
+      setMobileActionsMenuOpen(false);
+    };
+
+    const handleWindowKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setMobileActionsMenuOpen(false);
+      }
+    };
+
+    window.addEventListener("mousedown", handleWindowMouseDown);
+    window.addEventListener("keydown", handleWindowKeyDown);
+
+    return () => {
+      window.removeEventListener("mousedown", handleWindowMouseDown);
+      window.removeEventListener("keydown", handleWindowKeyDown);
+    };
+  }, [isMobileActionsMenuOpen]);
 
   const clearBudgetSuccessMessage = useCallback(() => {
     if (budgetSuccessTimeoutRef.current) {
@@ -1223,6 +1258,7 @@ const App = ({ onLogout = undefined }) => {
                   aria-haspopup="menu"
                   aria-expanded={isMobileActionsMenuOpen}
                   onClick={toggleMobileActionsMenu}
+                  ref={mobileActionsButtonRef}
                   className="whitespace-nowrap rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-100 hover:bg-gray-400"
                 >
                   Acoes
@@ -1231,6 +1267,7 @@ const App = ({ onLogout = undefined }) => {
                   <div
                     role="menu"
                     aria-label="Acoes rapidas"
+                    ref={mobileActionsMenuRef}
                     className="absolute right-0 top-full z-20 mt-1 flex w-44 flex-col gap-1 rounded border border-gray-300 bg-white p-1 shadow-lg"
                   >
                     <button
@@ -1310,53 +1347,52 @@ const App = ({ onLogout = undefined }) => {
           <div className="space-y-4 rounded border border-gray-300 bg-white p-4">
           <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
             <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-medium text-gray-100">Resumo financeiro</h2>
-                {hasActiveFilters ? (
-                  <span className="inline-flex items-center rounded-full border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-900">
-                    Filtros ativos ({activeFiltersCount})
-                  </span>
-                ) : null}
-              </div>
+              <h2 className="text-lg font-medium text-gray-100">Resumo financeiro</h2>
               {hasActiveFilters && appliedChips.length > 0 ? (
-                <div className="flex flex-wrap items-center gap-2 rounded border border-gray-200 bg-gray-50 p-2">
-                  <span className="text-xs font-semibold text-gray-700">Aplicado:</span>
-                  {appliedChips.map((chip) => (
-                    <span
-                      key={chip.id}
-                      className="inline-flex items-center gap-1 rounded-full border border-gray-300 bg-white py-1 pl-2.5 pr-1.5 text-xs font-medium text-gray-700"
-                    >
-                      {chip.text}
-                      {chip.removable ? (
-                        <button
-                          type="button"
-                          aria-label={`Remover filtro: ${chip.removeLabel}`}
-                          className="inline-flex h-5 w-5 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-1 focus:ring-offset-1"
-                          onClick={() => handleRemoveAppliedChip(chip.id)}
-                        >
-                          <svg
-                            aria-hidden="true"
-                            viewBox="0 0 16 16"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            className="h-3.5 w-3.5"
-                          >
-                            <path d="M4 4L12 12" />
-                            <path d="M12 4L4 12" />
-                          </svg>
-                        </button>
-                      ) : null}
+                <div className="space-y-2 rounded border border-gray-200 bg-gray-50 p-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-xs font-semibold text-gray-700">
+                      Filtros ativos ({activeFiltersCount})
                     </span>
-                  ))}
-                  <button
-                    type="button"
-                    className="rounded border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100"
-                    onClick={() => applyFilterPreset("clear")}
-                  >
-                    Limpar tudo
-                  </button>
+                    <button
+                      type="button"
+                      className="rounded border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100"
+                      onClick={() => applyFilterPreset("clear")}
+                    >
+                      Limpar tudo
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {appliedChips.map((chip) => (
+                      <span
+                        key={chip.id}
+                        className="inline-flex items-center gap-1 rounded-full border border-gray-300 bg-white py-1 pl-2.5 pr-1.5 text-xs font-medium text-gray-700"
+                      >
+                        {chip.text}
+                        {chip.removable ? (
+                          <button
+                            type="button"
+                            aria-label={`Remover filtro: ${chip.removeLabel}`}
+                            className="inline-flex h-5 w-5 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-1 focus:ring-offset-1"
+                            onClick={() => handleRemoveAppliedChip(chip.id)}
+                          >
+                            <svg
+                              aria-hidden="true"
+                              viewBox="0 0 16 16"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              className="h-3.5 w-3.5"
+                            >
+                              <path d="M4 4L12 12" />
+                              <path d="M12 4L4 12" />
+                            </svg>
+                          </button>
+                        ) : null}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               ) : null}
             </div>

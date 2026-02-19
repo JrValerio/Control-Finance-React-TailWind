@@ -927,17 +927,12 @@ describe("App", () => {
     render(<App />);
 
     expect(await screen.findByText("Aluguel recebido")).toBeInTheDocument();
-    expect(screen.getByText("Aplicado:")).toBeInTheDocument();
-
-    const appliedSummary = screen.getByText("Aplicado:").parentElement;
-    expect(appliedSummary).not.toBeNull();
-
-    const appliedSummaryScope = within(appliedSummary);
-    expect(appliedSummaryScope.getByText('Busca: "aluguel"')).toBeInTheDocument();
-    expect(appliedSummaryScope.getByText("Tipo: Entradas")).toBeInTheDocument();
-    expect(appliedSummaryScope.getByText("Periodo: 2026-02-01 -> 2026-02-28")).toBeInTheDocument();
-    expect(appliedSummaryScope.getByText("Categoria: #3")).toBeInTheDocument();
-    expect(appliedSummaryScope.getByText("Ordenacao: Valor (maior)")).toBeInTheDocument();
+    expect(screen.getByText("Filtros ativos (4)")).toBeInTheDocument();
+    expect(screen.getByText('Busca: "aluguel"')).toBeInTheDocument();
+    expect(screen.getByText("Tipo: Entradas")).toBeInTheDocument();
+    expect(screen.getByText("Periodo: 2026-02-01 -> 2026-02-28")).toBeInTheDocument();
+    expect(screen.getByText("Categoria: #3")).toBeInTheDocument();
+    expect(screen.getByText("Ordenacao: Valor (maior)")).toBeInTheDocument();
   });
 
   it("remove chip de busca, reseta offset e atualiza URL", async () => {
