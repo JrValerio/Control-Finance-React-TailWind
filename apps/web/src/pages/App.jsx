@@ -770,7 +770,11 @@ const App = ({ onLogout = undefined }) => {
   };
 
   const filterButtons = [CATEGORY_ALL, CATEGORY_ENTRY, CATEGORY_EXIT];
-  const currentMonthRange = useMemo(() => getCurrentMonthRange(), []);
+  const todayISO = getTodayISODate();
+  const currentMonthRange = useMemo(
+    () => getCurrentMonthRange(new Date(`${todayISO}T00:00:00`)),
+    [todayISO],
+  );
   const activeFiltersCount = useMemo(() => {
     let count = 0;
 
