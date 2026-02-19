@@ -58,6 +58,7 @@ const DEFAULT_SORT = "date:asc";
 const DEFAULT_OFFSET = 0;
 const DEFAULT_LIMIT = 20;
 const MOBILE_HEADER_ACTIONS_BREAKPOINT = 400;
+const MOBILE_ACTIONS_MENU_ID = "mobile-header-actions-menu";
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
 const PAGE_SIZE_STORAGE_KEY = "control_finance.page_size";
 const DEFAULT_MONTHLY_SUMMARY = {
@@ -282,6 +283,7 @@ const App = ({ onLogout = undefined }) => {
   const searchInputRef = useRef(null);
   const mobileActionsButtonRef = useRef(null);
   const mobileActionsMenuRef = useRef(null);
+  const firstMobileActionsItemRef = useRef(null);
   const [selectedCategory, setSelectedCategory] = useState(initialFilterState.selectedCategory);
   const [selectedPeriod, setSelectedPeriod] = useState(initialFilterState.selectedPeriod);
   const [selectedSort, setSelectedSort] = useState(initialFilterState.selectedSort || DEFAULT_SORT);
@@ -428,6 +430,23 @@ const App = ({ onLogout = undefined }) => {
       window.removeEventListener("mousedown", handleWindowMouseDown);
       window.removeEventListener("keydown", handleWindowKeyDown);
     };
+  }, [isMobileActionsMenuOpen]);
+
+  useEffect(() => {
+    if (!isMobileActionsMenuOpen) {
+      return;
+    }
+
+    const focusFirstMenuItem = () => {
+      firstMobileActionsItemRef.current?.focus();
+    };
+
+    if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
+      window.requestAnimationFrame(focusFirstMenuItem);
+      return;
+    }
+
+    focusFirstMenuItem();
   }, [isMobileActionsMenuOpen]);
 
   const clearBudgetSuccessMessage = useCallback(() => {
@@ -1257,6 +1276,7 @@ const App = ({ onLogout = undefined }) => {
                   type="button"
                   aria-haspopup="menu"
                   aria-expanded={isMobileActionsMenuOpen}
+                  aria-controls={MOBILE_ACTIONS_MENU_ID}
                   onClick={toggleMobileActionsMenu}
                   ref={mobileActionsButtonRef}
                   className="whitespace-nowrap rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-100 hover:bg-gray-400"
@@ -1266,6 +1286,7 @@ const App = ({ onLogout = undefined }) => {
                 {isMobileActionsMenuOpen ? (
                   <div
                     role="menu"
+                    id={MOBILE_ACTIONS_MENU_ID}
                     aria-label="Acoes rapidas"
                     ref={mobileActionsMenuRef}
                     className="absolute right-0 top-full z-20 mt-1 flex w-44 flex-col gap-1 rounded border border-gray-300 bg-white p-1 shadow-lg"
@@ -1273,6 +1294,7 @@ const App = ({ onLogout = undefined }) => {
                     <button
                       type="button"
                       role="menuitem"
+                      ref={firstMobileActionsItemRef}
                       onClick={handleExportCsvFromMenu}
                       disabled={isExportingCsv}
                       className="rounded px-2 py-2 text-left text-xs font-semibold text-gray-900 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"

@@ -1238,6 +1238,45 @@ describe("App", () => {
     expect(await screen.findByText("Mostrando 21-21")).toBeInTheDocument();
   });
 
+  it("abre menu de acoes no mobile e fecha ao clicar fora sem disparar logout", async () => {
+    const user = userEvent.setup();
+    const onLogout = vi.fn();
+    const originalInnerWidth = window.innerWidth;
+
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      writable: true,
+      value: 360,
+    });
+    fireEvent(window, new Event("resize"));
+
+    try {
+      render(<App onLogout={onLogout} />);
+
+      await user.click(screen.getByRole("button", { name: "Acoes" }));
+      expect(await screen.findByRole("menu", { name: "Acoes rapidas" })).toBeInTheDocument();
+
+      await waitFor(() => {
+        expect(screen.getByRole("menuitem", { name: "Exportar CSV" })).toHaveFocus();
+      });
+
+      expect(onLogout).not.toHaveBeenCalled();
+
+      fireEvent.mouseDown(document.body);
+
+      await waitFor(() => {
+        expect(screen.queryByRole("menu", { name: "Acoes rapidas" })).not.toBeInTheDocument();
+      });
+    } finally {
+      Object.defineProperty(window, "innerWidth", {
+        configurable: true,
+        writable: true,
+        value: originalInnerWidth,
+      });
+      fireEvent(window, new Event("resize"));
+    }
+  });
+
   it("abre importacao CSV, processa dry-run e exibe preview", async () => {
     const user = userEvent.setup();
     const csvFile = new File(
