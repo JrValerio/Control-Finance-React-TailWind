@@ -1390,11 +1390,11 @@ const App = ({ onLogout = undefined }) => {
                       Limpar tudo
                     </button>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="-mx-1 flex flex-nowrap items-center gap-2 overflow-x-auto px-1 pb-1">
                     {appliedChips.map((chip) => (
                       <span
                         key={chip.id}
-                        className="inline-flex items-center gap-1 rounded-full border border-gray-300 bg-white py-1 pl-2.5 pr-1.5 text-xs font-medium text-gray-700"
+                        className="inline-flex whitespace-nowrap items-center gap-1 rounded-full border border-gray-300 bg-white py-1 pl-2.5 pr-1.5 text-xs font-medium text-gray-700"
                       >
                         {chip.text}
                         {chip.removable ? (
