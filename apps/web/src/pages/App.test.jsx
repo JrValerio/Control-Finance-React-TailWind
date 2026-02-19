@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import App from "./App";
 import { CATEGORY_ENTRY, CATEGORY_EXIT } from "../components/DatabaseUtils";
@@ -1248,13 +1248,17 @@ describe("App", () => {
       writable: true,
       value: 360,
     });
-    fireEvent(window, new Event("resize"));
+    act(() => {
+      fireEvent(window, new Event("resize"));
+    });
 
     try {
       render(<App onLogout={onLogout} />);
 
+      expect(screen.queryByRole("button", { name: "Sair" })).not.toBeInTheDocument();
       await user.click(screen.getByRole("button", { name: "Acoes" }));
       expect(await screen.findByRole("menu", { name: "Acoes rapidas" })).toBeInTheDocument();
+      expect(screen.getByRole("menuitem", { name: "Sair" })).toBeInTheDocument();
 
       await waitFor(() => {
         expect(screen.getByRole("menuitem", { name: "Exportar CSV" })).toHaveFocus();
@@ -1273,7 +1277,9 @@ describe("App", () => {
         writable: true,
         value: originalInnerWidth,
       });
-      fireEvent(window, new Event("resize"));
+      act(() => {
+        fireEvent(window, new Event("resize"));
+      });
     }
   });
 

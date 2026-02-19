@@ -57,7 +57,7 @@ const SORT_OPTION_VALUES = new Set(SORT_OPTIONS.map((option) => option.value));
 const DEFAULT_SORT = "date:asc";
 const DEFAULT_OFFSET = 0;
 const DEFAULT_LIMIT = 20;
-const MOBILE_HEADER_ACTIONS_BREAKPOINT = 400;
+const MOBILE_HEADER_ACTIONS_BREAKPOINT = 420;
 const MOBILE_ACTIONS_MENU_ID = "mobile-header-actions-menu";
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
 const PAGE_SIZE_STORAGE_KEY = "control_finance.page_size";
@@ -1264,14 +1264,6 @@ const App = ({ onLogout = undefined }) => {
           <div className="flex flex-wrap items-center justify-end gap-2">
             {useMobileActionsMenu ? (
               <div className="relative flex items-center gap-2">
-                {onLogout ? (
-                  <button
-                    onClick={handleLogoutFromActionsMenu}
-                    className="whitespace-nowrap rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-100 hover:bg-gray-400"
-                  >
-                    Sair
-                  </button>
-                ) : null}
                 <button
                   type="button"
                   aria-haspopup="menu"
@@ -1317,6 +1309,19 @@ const App = ({ onLogout = undefined }) => {
                     >
                       Historico de imports
                     </button>
+                    {onLogout ? (
+                      <>
+                        <div className="my-1 h-px bg-gray-200" role="separator" />
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={handleLogoutFromActionsMenu}
+                          className="rounded px-2 py-2 text-left text-xs font-semibold text-red-700 hover:bg-red-50"
+                        >
+                          Sair
+                        </button>
+                      </>
+                    ) : null}
                   </div>
                 ) : null}
               </div>
