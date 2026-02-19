@@ -1,33 +1,89 @@
-# Release production checklist
+# Release Production Checklist
 
-## Goal
-Keep release, deploy, and runtime (`/health`) consistent.
+## Objective
+Standardize post-release verification for API + Web in production, with traceable and repeatable steps.
 
-## Steps
-1. Merge PRs to `main`
-- Ensure CI is green.
+## 1. Deploy Verification (Infrastructure)
 
-2. Tag + Release
-- Create tag `vX.Y.Z` on `main`.
-- Publish GitHub Release for the same tag.
+### API (Render)
+- [ ] Confirm active commit equals release commit (example: `f4f7a4e`).
+- [ ] Check startup logs:
+  - [ ] `runMigrations()` executed successfully.
+  - [ ] No duplicate migration errors.
+  - [ ] `schema_migrations` updated when release includes new migrations.
+  - [ ] No Postgres connection errors.
+- [ ] Confirm `GET /health` returns `{ ok: true, version, commit }`.
+- [ ] Validate required environment variables:
+  - [ ] `DATABASE_URL`
+  - [ ] `JWT_SECRET`
+  - [ ] `CORS_ORIGIN`
+  - [ ] `TRUST_PROXY=1`
 
-3. Render (API service)
-- Click **Deploy latest commit** (optionally: clear cache if needed).
-- Optional: set `APP_VERSION=X.Y.Z` only if you want an explicit runtime override.
+### Web (Vercel)
+- [ ] Confirm latest deployment is from `main`.
+- [ ] Confirm `VITE_API_URL` points to the public Render API URL.
+- [ ] Confirm login/register requests do not fallback to localhost.
+- [ ] Confirm no CORS 403 errors in browser console.
 
-4. Verify runtime
-Run:
+## 2. Functional Smoke Test (Ephemeral User)
 
-```powershell
-$api='https://control-finance-react-tailwind.onrender.com/health'
-Invoke-RestMethod -Uri $api -Method Get | ConvertTo-Json -Compress
+Recommended sequence:
+
+```text
+register -> login -> budgets/transactions -> logout
 ```
 
-Expected:
-- `version` matches the API package version (`apps/api/package.json`).
-- `commit` matches `origin/main` at the release tag.
+Minimum flow:
+- [ ] `POST /auth/register`
+- [ ] `POST /auth/login`
+- [ ] `GET /transactions`
+- [ ] Create transaction
+- [ ] Export CSV
+- [ ] Soft delete + restore
+- [ ] Logout
 
-Note:
-`/health.version` reflects the API package version (`apps/api/package.json`),
-not the Git tag. Release tags may differ when a release is observability-only
-(e.g. no package version bump).
+## 3. Post-release Monitoring (15-30 min)
+
+Monitor API logs for:
+- [ ] `/auth/login`
+- [ ] `/auth/register`
+- [ ] `/transactions`
+- [ ] `/transactions/export.csv`
+
+Confirm:
+- [ ] No 5xx errors.
+- [ ] No unexpected 429 spike (rate limit).
+- [ ] No CORS errors.
+
+## 4. Rollback Plan
+
+If critical issue happens:
+1. Identify last stable commit.
+2. In Render, deploy that commit manually.
+3. Re-check `GET /health`.
+4. Record incident in runbook.
+
+## 5. Runbook Entry (Per Release)
+
+```md
+Release: vX.Y.Z
+Commit API:
+Commit Web:
+Date:
+Owner:
+Smoke test completed: yes/no
+Ephemeral user used: yes/no
+30 min monitoring completed: yes/no
+Rollback required: yes/no
+Notes:
+```
+
+## 6. Suggested Operational Sequence
+
+For each release:
+1. Open and merge PR.
+2. Ensure CI is green.
+3. Create tag and GitHub Release.
+4. Deploy API and Web.
+5. Execute this checklist.
+6. Monitor for at least 30 minutes.
