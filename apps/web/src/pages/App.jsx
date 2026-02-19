@@ -57,6 +57,7 @@ const SORT_OPTION_VALUES = new Set(SORT_OPTIONS.map((option) => option.value));
 const DEFAULT_SORT = "date:asc";
 const DEFAULT_OFFSET = 0;
 const DEFAULT_LIMIT = 20;
+const MOBILE_HEADER_ACTIONS_BREAKPOINT = 400;
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
 const PAGE_SIZE_STORAGE_KEY = "control_finance.page_size";
 const DEFAULT_MONTHLY_SUMMARY = {
@@ -271,6 +272,8 @@ const getInitialPaginationState = () => {
 
 const formatCurrency = (value) => `R$ ${Number(value || 0).toFixed(2)}`;
 const formatPercentage = (value) => `${Number(value || 0).toFixed(2)}%`;
+const isCompactHeaderActionsMode = () =>
+  typeof window !== "undefined" && window.innerWidth < MOBILE_HEADER_ACTIONS_BREAKPOINT;
 
 const App = ({ onLogout = undefined }) => {
   const initialFilterState = useMemo(() => getInitialFilterState(), []);
@@ -301,6 +304,10 @@ const App = ({ onLogout = undefined }) => {
   const [isModalOpen, setModalOpen] = useState(false);
   const [isImportModalOpen, setImportModalOpen] = useState(false);
   const [isImportHistoryModalOpen, setImportHistoryModalOpen] = useState(false);
+  const [isMobileActionsMenuOpen, setMobileActionsMenuOpen] = useState(false);
+  const [useMobileActionsMenu, setUseMobileActionsMenu] = useState(() =>
+    isCompactHeaderActionsMode(),
+  );
   const [isBudgetModalOpen, setBudgetModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [editingBudget, setEditingBudget] = useState(null);
@@ -364,6 +371,29 @@ const App = ({ onLogout = undefined }) => {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return undefined;
+    }
+
+    const syncMobileActionsMode = () => {
+      setUseMobileActionsMenu(isCompactHeaderActionsMode());
+    };
+
+    syncMobileActionsMode();
+    window.addEventListener("resize", syncMobileActionsMode);
+
+    return () => {
+      window.removeEventListener("resize", syncMobileActionsMode);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!useMobileActionsMenu && isMobileActionsMenuOpen) {
+      setMobileActionsMenuOpen(false);
+    }
+  }, [isMobileActionsMenuOpen, useMobileActionsMenu]);
 
   const clearBudgetSuccessMessage = useCallback(() => {
     if (budgetSuccessTimeoutRef.current) {
@@ -825,6 +855,34 @@ const App = ({ onLogout = undefined }) => {
     }
   };
 
+  const closeMobileActionsMenu = () => {
+    setMobileActionsMenuOpen(false);
+  };
+
+  const toggleMobileActionsMenu = () => {
+    setMobileActionsMenuOpen((previousState) => !previousState);
+  };
+
+  const handleExportCsvFromMenu = () => {
+    closeMobileActionsMenu();
+    void handleExportCsv();
+  };
+
+  const handleOpenImportModal = () => {
+    closeMobileActionsMenu();
+    setImportModalOpen(true);
+  };
+
+  const handleOpenImportHistoryModal = () => {
+    closeMobileActionsMenu();
+    setImportHistoryModalOpen(true);
+  };
+
+  const handleLogoutFromActionsMenu = () => {
+    closeMobileActionsMenu();
+    onLogout?.();
+  };
+
   const handleImportCommitted = useCallback(async () => {
     await loadTransactions();
     await loadMonthlySummary();
@@ -1114,9 +1172,7 @@ const App = ({ onLogout = undefined }) => {
     selectedSort,
     selectedTransactionCategoryId,
   ]);
-  const visibleFilterPresets = FILTER_PRESETS.filter(
-    (preset) => preset.id !== "clear" || hasActiveFilters,
-  );
+  const visibleFilterPresets = FILTER_PRESETS.filter((preset) => preset.id !== "clear");
   const isPresetActive = (presetId) => {
     if (presetId === "this-month") {
       return (
@@ -1151,39 +1207,94 @@ const App = ({ onLogout = undefined }) => {
             <span className="text-brand-1">Control</span>
             <span className="text-gray-100">Finance</span>
           </h1>
-          <div className="flex flex-wrap items-center justify-end gap-2 lg:flex-nowrap">
-            <div className="flex min-w-0 items-center gap-1 overflow-x-auto rounded border border-gray-300 bg-white/70 p-1 sm:gap-2">
-              {onLogout ? (
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {useMobileActionsMenu ? (
+              <div className="relative flex items-center gap-2">
+                {onLogout ? (
+                  <button
+                    onClick={handleLogoutFromActionsMenu}
+                    className="whitespace-nowrap rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-100 hover:bg-gray-400"
+                  >
+                    Sair
+                  </button>
+                ) : null}
                 <button
-                  onClick={onLogout}
+                  type="button"
+                  aria-haspopup="menu"
+                  aria-expanded={isMobileActionsMenuOpen}
+                  onClick={toggleMobileActionsMenu}
                   className="whitespace-nowrap rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-100 hover:bg-gray-400"
                 >
-                  Sair
+                  Acoes
                 </button>
-              ) : null}
-              <button
-                type="button"
-                onClick={handleExportCsv}
-                disabled={isExportingCsv}
-                className="whitespace-nowrap rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-100 hover:bg-gray-400 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isExportingCsv ? "Exportando CSV..." : "Exportar CSV"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setImportModalOpen(true)}
-                className="whitespace-nowrap rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-100 hover:bg-gray-400"
-              >
-                Importar CSV
-              </button>
-              <button
-                type="button"
-                onClick={() => setImportHistoryModalOpen(true)}
-                className="whitespace-nowrap rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-100 hover:bg-gray-400"
-              >
-                Historico de imports
-              </button>
-            </div>
+                {isMobileActionsMenuOpen ? (
+                  <div
+                    role="menu"
+                    aria-label="Acoes rapidas"
+                    className="absolute right-0 top-full z-20 mt-1 flex w-44 flex-col gap-1 rounded border border-gray-300 bg-white p-1 shadow-lg"
+                  >
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={handleExportCsvFromMenu}
+                      disabled={isExportingCsv}
+                      className="rounded px-2 py-2 text-left text-xs font-semibold text-gray-900 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isExportingCsv ? "Exportando CSV..." : "Exportar CSV"}
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={handleOpenImportModal}
+                      className="rounded px-2 py-2 text-left text-xs font-semibold text-gray-900 hover:bg-gray-100"
+                    >
+                      Importar CSV
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={handleOpenImportHistoryModal}
+                      className="rounded px-2 py-2 text-left text-xs font-semibold text-gray-900 hover:bg-gray-100"
+                    >
+                      Historico de imports
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <div className="flex min-w-0 items-center gap-1 rounded border border-gray-300 bg-white/70 p-1 sm:gap-2">
+                {onLogout ? (
+                  <button
+                    onClick={onLogout}
+                    className="whitespace-nowrap rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-100 hover:bg-gray-400"
+                  >
+                    Sair
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={handleExportCsv}
+                  disabled={isExportingCsv}
+                  className="whitespace-nowrap rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-100 hover:bg-gray-400 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isExportingCsv ? "Exportando CSV..." : "Exportar CSV"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleOpenImportModal}
+                  className="whitespace-nowrap rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-100 hover:bg-gray-400"
+                >
+                  Importar CSV
+                </button>
+                <button
+                  type="button"
+                  onClick={handleOpenImportHistoryModal}
+                  className="whitespace-nowrap rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-100 hover:bg-gray-400"
+                >
+                  Historico de imports
+                </button>
+              </div>
+            )}
             <button
               onClick={openCreateModal}
               className="whitespace-nowrap rounded bg-brand-1 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-2"
@@ -1208,19 +1319,19 @@ const App = ({ onLogout = undefined }) => {
                 ) : null}
               </div>
               {hasActiveFilters && appliedChips.length > 0 ? (
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-semibold text-gray-100">Aplicado:</span>
+                <div className="flex flex-wrap items-center gap-2 rounded border border-gray-200 bg-gray-50 p-2">
+                  <span className="text-xs font-semibold text-gray-700">Aplicado:</span>
                   {appliedChips.map((chip) => (
                     <span
                       key={chip.id}
-                      className="inline-flex items-center rounded-full border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-900"
+                      className="inline-flex items-center gap-1 rounded-full border border-gray-300 bg-white py-1 pl-2.5 pr-1.5 text-xs font-medium text-gray-700"
                     >
                       {chip.text}
                       {chip.removable ? (
                         <button
                           type="button"
                           aria-label={`Remover filtro: ${chip.removeLabel}`}
-                          className="ml-1 inline-flex h-8 w-8 items-center justify-center rounded-full text-gray-700 transition-colors hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-1 focus:ring-offset-1"
+                          className="inline-flex h-5 w-5 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-1 focus:ring-offset-1"
                           onClick={() => handleRemoveAppliedChip(chip.id)}
                         >
                           <svg
@@ -1239,6 +1350,13 @@ const App = ({ onLogout = undefined }) => {
                       ) : null}
                     </span>
                   ))}
+                  <button
+                    type="button"
+                    className="rounded border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100"
+                    onClick={() => applyFilterPreset("clear")}
+                  >
+                    Limpar tudo
+                  </button>
                 </div>
               ) : null}
             </div>

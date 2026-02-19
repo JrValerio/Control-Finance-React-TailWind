@@ -811,7 +811,7 @@ describe("App", () => {
     render(<App />);
 
     expect(await screen.findByText("Com filtros")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Limpar filtros" }));
+    await user.click(screen.getByRole("button", { name: "Limpar tudo" }));
 
     expect(await screen.findByText("Sem filtros")).toBeInTheDocument();
     expect(transactionsService.listPage).toHaveBeenLastCalledWith({
@@ -891,14 +891,14 @@ describe("App", () => {
 
     expect(await screen.findByText("Sem filtros ativos")).toBeInTheDocument();
     expect(screen.queryByText(/Filtros ativos \(\d+\)/)).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Limpar filtros" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Limpar tudo" })).not.toBeInTheDocument();
 
     await user.type(screen.getByLabelText("Buscar"), "mercado");
     await user.click(screen.getByRole("button", { name: "Aplicar" }));
 
     expect(await screen.findByText("Com filtros ativos")).toBeInTheDocument();
     expect(screen.getByText("Filtros ativos (1)")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Limpar filtros" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Limpar tudo" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Filtrar entradas" }));
     expect(await screen.findByText("Com dois filtros ativos")).toBeInTheDocument();
