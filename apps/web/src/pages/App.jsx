@@ -768,6 +768,27 @@ const App = ({ onLogout = undefined }) => {
     setSelectedQuery(normalizedQuery);
     setCurrentOffset(DEFAULT_OFFSET);
   };
+  const handleRemoveAppliedChip = (chipId) => {
+    if (chipId === "q") {
+      setQueryInput("");
+      setSelectedQuery("");
+    } else if (chipId === "type") {
+      setSelectedCategory(CATEGORY_ALL);
+    } else if (chipId === "period") {
+      setSelectedPeriod(PERIOD_ALL);
+      setCustomStartDate("");
+      setCustomEndDate("");
+    } else if (chipId === "category") {
+      setSelectedTransactionCategoryId("");
+    } else if (chipId === "sort") {
+      setSelectedSort(DEFAULT_SORT);
+    } else {
+      return;
+    }
+
+    setCurrentOffset(DEFAULT_OFFSET);
+    scrollToListTop();
+  };
 
   const filterButtons = [CATEGORY_ALL, CATEGORY_ENTRY, CATEGORY_EXIT];
   const todayISO = getTodayISODate();
@@ -805,21 +826,41 @@ const App = ({ onLogout = undefined }) => {
     const chips = [];
 
     if (selectedQuery) {
-      chips.push({ id: "q", text: `Busca: "${selectedQuery}"` });
+      chips.push({
+        id: "q",
+        text: `Busca: "${selectedQuery}"`,
+        removable: true,
+        removeLabel: "Busca",
+      });
     }
 
     if (selectedCategory !== CATEGORY_ALL) {
       const categoryTypeLabel = selectedCategory === CATEGORY_ENTRY ? "Entradas" : "Saidas";
-      chips.push({ id: "type", text: `Tipo: ${categoryTypeLabel}` });
+      chips.push({
+        id: "type",
+        text: `Tipo: ${categoryTypeLabel}`,
+        removable: true,
+        removeLabel: "Tipo",
+      });
     }
 
     if (selectedPeriod !== PERIOD_ALL) {
       if (selectedPeriod === PERIOD_CUSTOM) {
         const startLabel = customStartDate || "--";
         const endLabel = customEndDate || "--";
-        chips.push({ id: "period", text: `Periodo: ${startLabel} -> ${endLabel}` });
+        chips.push({
+          id: "period",
+          text: `Periodo: ${startLabel} -> ${endLabel}`,
+          removable: true,
+          removeLabel: "Periodo",
+        });
       } else {
-        chips.push({ id: "period", text: `Periodo: ${selectedPeriod}` });
+        chips.push({
+          id: "period",
+          text: `Periodo: ${selectedPeriod}`,
+          removable: true,
+          removeLabel: "Periodo",
+        });
       }
     }
 
@@ -828,12 +869,19 @@ const App = ({ onLogout = undefined }) => {
       chips.push({
         id: "category",
         text: `Categoria: ${categoryName || `#${selectedTransactionCategoryId}`}`,
+        removable: true,
+        removeLabel: "Categoria",
       });
     }
 
     const selectedSortLabel =
       SORT_OPTIONS.find((sortOption) => sortOption.value === selectedSort)?.label || selectedSort;
-    chips.push({ id: "sort", text: `Ordenacao: ${selectedSortLabel}` });
+    chips.push({
+      id: "sort",
+      text: `Ordenacao: ${selectedSortLabel}`,
+      removable: true,
+      removeLabel: "Ordenacao",
+    });
 
     return chips;
   }, [
@@ -945,6 +993,16 @@ const App = ({ onLogout = undefined }) => {
                       className="inline-flex items-center rounded-full border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-900"
                     >
                       {chip.text}
+                      {chip.removable ? (
+                        <button
+                          type="button"
+                          aria-label={`Remover filtro: ${chip.removeLabel}`}
+                          className="ml-1 rounded px-1 text-xs font-bold text-gray-700 hover:bg-gray-100"
+                          onClick={() => handleRemoveAppliedChip(chip.id)}
+                        >
+                          x
+                        </button>
+                      ) : null}
                     </span>
                   ))}
                 </div>
