@@ -327,6 +327,94 @@ describe("App", () => {
     expect(window.location.search).toContain("offset=0");
   });
 
+  it("aplica q da querystring ao carregar transacoes", async () => {
+    window.history.replaceState(null, "", "/app?q=mercado&limit=20&offset=0");
+    transactionsService.listPage.mockResolvedValueOnce(
+      buildPageResponse([
+        {
+          id: 1,
+          value: 95,
+          type: CATEGORY_EXIT,
+          date: "2026-02-16",
+          description: "Mercado do mes",
+        },
+      ]),
+    );
+
+    render(<App />);
+
+    expect(await screen.findByText("Mercado do mes")).toBeInTheDocument();
+    expect(transactionsService.listPage).toHaveBeenCalledWith({
+      limit: 20,
+      offset: 0,
+      sort: "date:asc",
+      q: "mercado",
+      from: undefined,
+      to: undefined,
+      type: undefined,
+      categoryId: undefined,
+    });
+    expect(screen.getByLabelText("Buscar")).toHaveValue("mercado");
+  });
+
+  it("aplica busca via submit, reseta offset e atualiza querystring", async () => {
+    const user = userEvent.setup();
+    window.history.replaceState(null, "", "/app?limit=20&offset=40&sort=date:asc");
+    const beforeSearchResponse = buildPageResponse(
+      [
+        {
+          id: 3,
+          value: 80,
+          type: CATEGORY_EXIT,
+          date: "2026-02-12",
+          description: "Antes da busca",
+        },
+      ],
+      { page: 3, limit: 20, offset: 40, total: 95, totalPages: 5 },
+    );
+    const afterSearchResponse = buildPageResponse(
+      [
+        {
+          id: 4,
+          value: 40,
+          type: CATEGORY_EXIT,
+          date: "2026-02-13",
+          description: "Depois da busca",
+        },
+      ],
+      { page: 1, limit: 20, offset: 0, total: 1, totalPages: 1 },
+    );
+
+    transactionsService.listPage.mockImplementation(({ q, offset }) => {
+      if (q === "padaria" && offset === 0) {
+        return Promise.resolve(afterSearchResponse);
+      }
+
+      return Promise.resolve(beforeSearchResponse);
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText("Antes da busca")).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("Buscar"), "padaria");
+    await user.click(screen.getByRole("button", { name: "Aplicar" }));
+
+    expect(await screen.findByText("Depois da busca")).toBeInTheDocument();
+    expect(transactionsService.listPage).toHaveBeenLastCalledWith({
+      limit: 20,
+      offset: 0,
+      sort: "date:asc",
+      q: "padaria",
+      from: undefined,
+      to: undefined,
+      type: undefined,
+      categoryId: undefined,
+    });
+    expect(window.location.search).toContain("q=padaria");
+    expect(window.location.search).toContain("offset=0");
+  });
+
   it("exibe estado vazio no resumo mensal quando nao ha dados", async () => {
     transactionsService.getMonthlySummary.mockResolvedValueOnce(
       buildSummaryResponse({
