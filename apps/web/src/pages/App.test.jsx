@@ -231,7 +231,7 @@ describe("App", () => {
     expect(await screen.findByText("Inicial")).toBeInTheDocument();
     await user.selectOptions(screen.getByLabelText("Categoria"), "1");
     expect(await screen.findByText("Filtrada")).toBeInTheDocument();
-    expect(screen.getByText("Categoria: Alimentacao")).toBeInTheDocument();
+    expect(screen.getAllByText("Categoria: Alimentacao").length).toBeGreaterThan(0);
     expect(transactionsService.listPage).toHaveBeenLastCalledWith({
       limit: 20,
       offset: 0,
@@ -632,6 +632,41 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: CATEGORY_ENTRY }));
     expect(await screen.findByText("Com dois filtros ativos")).toBeInTheDocument();
     expect(screen.getByText("Filtros ativos (2)")).toBeInTheDocument();
+  });
+
+  it("exibe resumo aplicado com busca, tipo, periodo, categoria e ordenacao", async () => {
+    window.history.replaceState(
+      null,
+      "",
+      "/app?limit=20&offset=0&sort=amount:desc&q=aluguel&type=Entrada&period=Personalizado&from=2026-02-01&to=2026-02-28&categoryId=3",
+    );
+    transactionsService.listPage.mockResolvedValueOnce(
+      buildPageResponse([
+        {
+          id: 24,
+          value: 1200,
+          type: CATEGORY_ENTRY,
+          date: "2026-02-10",
+          description: "Aluguel recebido",
+          categoryId: 3,
+        },
+      ]),
+    );
+
+    render(<App />);
+
+    expect(await screen.findByText("Aluguel recebido")).toBeInTheDocument();
+    expect(screen.getByText("Aplicado:")).toBeInTheDocument();
+
+    const appliedSummary = screen.getByText("Aplicado:").parentElement;
+    expect(appliedSummary).not.toBeNull();
+
+    const appliedSummaryScope = within(appliedSummary);
+    expect(appliedSummaryScope.getByText('Busca: "aluguel"')).toBeInTheDocument();
+    expect(appliedSummaryScope.getByText("Tipo: Entradas")).toBeInTheDocument();
+    expect(appliedSummaryScope.getByText("Periodo: 2026-02-01 -> 2026-02-28")).toBeInTheDocument();
+    expect(appliedSummaryScope.getByText("Categoria: #3")).toBeInTheDocument();
+    expect(appliedSummaryScope.getByText("Ordenacao: Valor (maior)")).toBeInTheDocument();
   });
 
   it("exibe estado vazio no resumo mensal quando nao ha dados", async () => {

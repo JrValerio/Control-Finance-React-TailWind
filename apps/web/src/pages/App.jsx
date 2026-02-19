@@ -801,6 +801,51 @@ const App = ({ onLogout = undefined }) => {
     monthlySummary.income > 0 ||
     monthlySummary.expense > 0 ||
     monthlySummary.byCategory.length > 0;
+  const appliedChips = useMemo(() => {
+    const chips = [];
+
+    if (selectedQuery) {
+      chips.push({ id: "q", text: `Busca: "${selectedQuery}"` });
+    }
+
+    if (selectedCategory !== CATEGORY_ALL) {
+      const categoryTypeLabel = selectedCategory === CATEGORY_ENTRY ? "Entradas" : "Saidas";
+      chips.push({ id: "type", text: `Tipo: ${categoryTypeLabel}` });
+    }
+
+    if (selectedPeriod !== PERIOD_ALL) {
+      if (selectedPeriod === PERIOD_CUSTOM) {
+        const startLabel = customStartDate || "--";
+        const endLabel = customEndDate || "--";
+        chips.push({ id: "period", text: `Periodo: ${startLabel} -> ${endLabel}` });
+      } else {
+        chips.push({ id: "period", text: `Periodo: ${selectedPeriod}` });
+      }
+    }
+
+    if (selectedTransactionCategoryId) {
+      const categoryName = categoryNameById.get(Number(selectedTransactionCategoryId));
+      chips.push({
+        id: "category",
+        text: `Categoria: ${categoryName || `#${selectedTransactionCategoryId}`}`,
+      });
+    }
+
+    const selectedSortLabel =
+      SORT_OPTIONS.find((sortOption) => sortOption.value === selectedSort)?.label || selectedSort;
+    chips.push({ id: "sort", text: `Ordenacao: ${selectedSortLabel}` });
+
+    return chips;
+  }, [
+    categoryNameById,
+    customEndDate,
+    customStartDate,
+    selectedCategory,
+    selectedPeriod,
+    selectedQuery,
+    selectedSort,
+    selectedTransactionCategoryId,
+  ]);
   const visibleFilterPresets = FILTER_PRESETS.filter(
     (preset) => preset.id !== "clear" || hasActiveFilters,
   );
@@ -882,12 +927,27 @@ const App = ({ onLogout = undefined }) => {
       <section className="mt-8 p-4 sm:mt-14">
         <div className="mx-auto flex max-w-700 flex-col gap-4">
           <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-medium text-gray-100">Resumo financeiro</h2>
-              {hasActiveFilters ? (
-                <span className="inline-flex items-center rounded-full border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-900">
-                  Filtros ativos ({activeFiltersCount})
-                </span>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-medium text-gray-100">Resumo financeiro</h2>
+                {hasActiveFilters ? (
+                  <span className="inline-flex items-center rounded-full border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-900">
+                    Filtros ativos ({activeFiltersCount})
+                  </span>
+                ) : null}
+              </div>
+              {hasActiveFilters && appliedChips.length > 0 ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-semibold text-gray-100">Aplicado:</span>
+                  {appliedChips.map((chip) => (
+                    <span
+                      key={chip.id}
+                      className="inline-flex items-center rounded-full border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-900"
+                    >
+                      {chip.text}
+                    </span>
+                  ))}
+                </div>
               ) : null}
             </div>
             <div className="flex flex-wrap gap-2">
