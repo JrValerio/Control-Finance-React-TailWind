@@ -1148,6 +1148,7 @@ const App = ({ onLogout = undefined }) => {
     return count;
   }, [selectedCategory, selectedPeriod, selectedQuery, selectedTransactionCategoryId]);
   const hasActiveFilters = activeFiltersCount > 0;
+  const shouldShowPresets = !hasActiveFilters;
   const hasMonthlySummaryData =
     monthlySummary.income > 0 ||
     monthlySummary.expense > 0 ||
@@ -1423,23 +1424,35 @@ const App = ({ onLogout = undefined }) => {
                 </div>
               ) : null}
             </div>
-            <div className="flex flex-wrap gap-2">
-              {visibleFilterPresets.map((preset) => (
+            {shouldShowPresets ? (
+              <div className="flex flex-wrap gap-2">
+                {visibleFilterPresets.map((preset) => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    aria-pressed={isPresetActive(preset.id)}
+                    onClick={() => applyFilterPreset(preset.id)}
+                    className={`flex items-center justify-center gap-2.5 rounded border px-4 py-2 text-sm font-semibold transition-colors ${
+                      isPresetActive(preset.id)
+                        ? "border-brand-1 bg-brand-3 text-brand-1"
+                        : "border-gray-300 bg-white text-gray-900 hover:bg-gray-100"
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
                 <button
-                  key={preset.id}
                   type="button"
-                  aria-pressed={isPresetActive(preset.id)}
-                  onClick={() => applyFilterPreset(preset.id)}
-                  className={`flex items-center justify-center gap-2.5 rounded border px-4 py-2 text-sm font-semibold transition-colors ${
-                    isPresetActive(preset.id)
-                      ? "border-brand-1 bg-brand-3 text-brand-1"
-                      : "border-gray-300 bg-white text-gray-900 hover:bg-gray-100"
-                  }`}
+                  onClick={() => searchInputRef.current?.focus()}
+                  className="rounded border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100"
                 >
-                  {preset.label}
+                  Editar filtros
                 </button>
-              ))}
-            </div>
+              </div>
+            )}
             <div className="flex flex-col gap-2">
               <span className="text-xs font-semibold uppercase tracking-wide text-gray-200">
                 Filtrar lista

@@ -743,7 +743,10 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: "Este mes" }));
 
     expect(await screen.findByText("Depois do preset")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Este mes" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByRole("button", { name: "Este mes" })).not.toBeInTheDocument();
+    expect(screen.getByText("Filtros ativos (1)")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Editar filtros" })).toBeInTheDocument();
+    expect(screen.getByText(`Periodo: ${startDate} -> ${endDate}`)).toBeInTheDocument();
     expect(transactionsService.listPage).toHaveBeenLastCalledWith({
       limit: 20,
       offset: 0,
@@ -890,6 +893,9 @@ describe("App", () => {
     render(<App />);
 
     expect(await screen.findByText("Sem filtros ativos")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Este mes" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Entradas" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Saidas" })).toBeInTheDocument();
     expect(screen.queryByText(/Filtros ativos \(\d+\)/)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Limpar tudo" })).not.toBeInTheDocument();
 
@@ -899,6 +905,10 @@ describe("App", () => {
     expect(await screen.findByText("Com filtros ativos")).toBeInTheDocument();
     expect(screen.getByText("Filtros ativos (1)")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Limpar tudo" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Este mes" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Entradas" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Saidas" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Editar filtros" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Filtrar entradas" }));
     expect(await screen.findByText("Com dois filtros ativos")).toBeInTheDocument();
