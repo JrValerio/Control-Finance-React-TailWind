@@ -57,6 +57,10 @@ const DEFAULT_MONTHLY_SUMMARY = {
   byCategory: [],
 };
 const DEFAULT_MONTHLY_BUDGETS = [];
+const DEFAULT_BUDGET_FORM = {
+  categoryId: "",
+  amount: "",
+};
 const BUDGET_STATUS_LABELS = {
   ok: "Dentro da meta",
   near_limit: "Proximo do limite",
@@ -287,7 +291,10 @@ const App = ({ onLogout = undefined }) => {
   const [isModalOpen, setModalOpen] = useState(false);
   const [isImportModalOpen, setImportModalOpen] = useState(false);
   const [isImportHistoryModalOpen, setImportHistoryModalOpen] = useState(false);
+  const [isBudgetModalOpen, setBudgetModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
+  const [editingBudget, setEditingBudget] = useState(null);
+  const [budgetForm, setBudgetForm] = useState(DEFAULT_BUDGET_FORM);
   const [pendingDeleteTransactionId, setPendingDeleteTransactionId] = useState(null);
   const [undoState, setUndoState] = useState(null);
   const [transactions, setTransactions] = useState([]);
@@ -298,6 +305,8 @@ const App = ({ onLogout = undefined }) => {
   const [monthlyBudgets, setMonthlyBudgets] = useState(DEFAULT_MONTHLY_BUDGETS);
   const [summaryError, setSummaryError] = useState("");
   const [budgetsError, setBudgetsError] = useState("");
+  const [budgetMutationError, setBudgetMutationError] = useState("");
+  const [isSavingBudget, setSavingBudget] = useState(false);
   const [requestError, setRequestError] = useState("");
   const [isLoadingBudgets, setLoadingBudgets] = useState(false);
   const undoTimeoutRef = useRef(null);
@@ -399,6 +408,87 @@ const App = ({ onLogout = undefined }) => {
   useEffect(() => {
     loadMonthlyBudgets();
   }, [loadMonthlyBudgets]);
+
+  const openCreateBudgetModal = () => {
+    setEditingBudget(null);
+    setBudgetForm(DEFAULT_BUDGET_FORM);
+    setBudgetMutationError("");
+    setBudgetModalOpen(true);
+  };
+
+  const openEditBudgetModal = (budget) => {
+    setEditingBudget(budget);
+    setBudgetForm({
+      categoryId: String(budget?.categoryId || ""),
+      amount: String(budget?.budget ?? ""),
+    });
+    setBudgetMutationError("");
+    setBudgetModalOpen(true);
+  };
+
+  const closeBudgetModal = () => {
+    if (isSavingBudget) {
+      return;
+    }
+
+    setBudgetModalOpen(false);
+    setEditingBudget(null);
+    setBudgetForm(DEFAULT_BUDGET_FORM);
+    setBudgetMutationError("");
+  };
+
+  const handleSaveBudget = async () => {
+    const categoryId = Number.parseInt(String(budgetForm.categoryId || ""), 10);
+    const amount = Number(budgetForm.amount);
+
+    if (!Number.isInteger(categoryId) || categoryId <= 0) {
+      setBudgetMutationError("Selecione uma categoria valida.");
+      return;
+    }
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setBudgetMutationError("Informe um valor de meta maior que zero.");
+      return;
+    }
+
+    setSavingBudget(true);
+    setBudgetMutationError("");
+
+    try {
+      await transactionsService.createOrUpdateMonthlyBudget({
+        categoryId,
+        month: selectedSummaryMonth,
+        amount,
+      });
+      await loadMonthlyBudgets();
+      setBudgetModalOpen(false);
+      setEditingBudget(null);
+      setBudgetForm(DEFAULT_BUDGET_FORM);
+    } catch (error) {
+      setBudgetMutationError(getApiErrorMessage(error, "Nao foi possivel salvar a meta."));
+    } finally {
+      setSavingBudget(false);
+    }
+  };
+
+  const handleDeleteBudget = async (budget) => {
+    const confirmationMessage = `Excluir meta de "${budget.categoryName}"?`;
+    // In non-browser test environments, skip native confirm prompt.
+    const isConfirmed = typeof window === "undefined" ? true : window.confirm(confirmationMessage);
+
+    if (!isConfirmed) {
+      return;
+    }
+
+    setBudgetsError("");
+
+    try {
+      await transactionsService.deleteMonthlyBudget(budget.id);
+      await loadMonthlyBudgets();
+    } catch (error) {
+      setBudgetsError(getApiErrorMessage(error, "Nao foi possivel remover a meta."));
+    }
+  };
 
   const loadTransactions = useCallback(async () => {
     setLoadingTransactions(true);
@@ -910,6 +1000,7 @@ const App = ({ onLogout = undefined }) => {
     monthlySummary.expense > 0 ||
     monthlySummary.byCategory.length > 0;
   const hasMonthlyBudgetsData = monthlyBudgets.length > 0;
+  const canCreateBudget = categories.length > 0 && !isLoadingBudgets && !isSavingBudget;
   const appliedChips = useMemo(() => {
     const chips = [];
 
@@ -1351,8 +1442,18 @@ const App = ({ onLogout = undefined }) => {
       <section className="mt-2 p-4">
         <div className="mx-auto max-w-700 rounded border border-gray-300 bg-white p-3">
           <div className="mb-2 flex items-center justify-between gap-2">
-            <h3 className="text-sm font-medium text-gray-100">Metas do mes</h3>
-            <span className="text-xs text-gray-200">{selectedSummaryMonth}</span>
+            <div>
+              <h3 className="text-sm font-medium text-gray-100">Metas do mes</h3>
+              <span className="text-xs text-gray-200">{selectedSummaryMonth}</span>
+            </div>
+            <button
+              type="button"
+              onClick={openCreateBudgetModal}
+              disabled={!canCreateBudget}
+              className="rounded border border-gray-300 bg-white px-3 py-1 text-xs font-semibold text-gray-900 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              + Nova meta
+            </button>
           </div>
           {budgetsError ? (
             <div
@@ -1419,6 +1520,24 @@ const App = ({ onLogout = undefined }) => {
                       <span>Realizado: {formatCurrency(budget.actual)}</span>
                       <span>Restante: {formatCurrency(budget.remaining)}</span>
                       <span>Uso: {formatPercentage(budget.percentage)}</span>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        aria-label={`Editar meta: ${budget.categoryName}`}
+                        onClick={() => openEditBudgetModal(budget)}
+                        className="rounded border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-800 hover:bg-gray-100"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Excluir meta: ${budget.categoryName}`}
+                        onClick={() => handleDeleteBudget(budget)}
+                        className="rounded border border-red-300 bg-white px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-50"
+                      >
+                        Excluir
+                      </button>
                     </div>
                   </li>
                 );
@@ -1572,6 +1691,95 @@ const App = ({ onLogout = undefined }) => {
             >
               Desfazer
             </button>
+          </div>
+        </div>
+      ) : null}
+
+      {isBudgetModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-100 bg-opacity-50 p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="budget-modal-title"
+            className="w-full max-w-sm rounded bg-white p-4 shadow-lg"
+          >
+            <h3 id="budget-modal-title" className="text-base font-semibold text-gray-900">
+              Meta do mes
+            </h3>
+            <p className="mt-1 text-xs text-gray-600">Mes selecionado: {selectedSummaryMonth}</p>
+
+            {budgetMutationError ? (
+              <p className="mt-3 rounded border border-red-200 bg-red-50 px-2 py-1 text-sm text-red-700" role="alert">
+                {budgetMutationError}
+              </p>
+            ) : null}
+
+            <div className="mt-3 space-y-3">
+              <div>
+                <label htmlFor="budget-category" className="mb-1 block text-xs font-medium text-gray-900">
+                  Categoria da meta
+                </label>
+                <select
+                  id="budget-category"
+                  value={budgetForm.categoryId}
+                  onChange={(event) =>
+                    setBudgetForm((previousState) => ({
+                      ...previousState,
+                      categoryId: event.target.value,
+                    }))
+                  }
+                  disabled={isSavingBudget || Boolean(editingBudget)}
+                  className="w-full rounded border border-gray-400 px-3 py-2 text-sm text-gray-900 disabled:bg-gray-100 disabled:text-gray-500"
+                >
+                  <option value="">Selecione...</option>
+                  {categories.map((categoryOption) => (
+                    <option key={categoryOption.id} value={String(categoryOption.id)}>
+                      {categoryOption.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="budget-amount" className="mb-1 block text-xs font-medium text-gray-900">
+                  Valor da meta
+                </label>
+                <input
+                  id="budget-amount"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={budgetForm.amount}
+                  onChange={(event) =>
+                    setBudgetForm((previousState) => ({
+                      ...previousState,
+                      amount: event.target.value,
+                    }))
+                  }
+                  disabled={isSavingBudget}
+                  className="w-full rounded border border-gray-400 px-3 py-2 text-sm text-gray-900 disabled:bg-gray-100 disabled:text-gray-500"
+                />
+              </div>
+            </div>
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeBudgetModal}
+                disabled={isSavingBudget}
+                className="rounded border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveBudget}
+                disabled={isSavingBudget}
+                className="rounded bg-brand-1 px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-2 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isSavingBudget ? "Salvando..." : "Salvar meta"}
+              </button>
+            </div>
           </div>
         </div>
       ) : null}
