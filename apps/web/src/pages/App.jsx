@@ -997,10 +997,21 @@ const App = ({ onLogout = undefined }) => {
                         <button
                           type="button"
                           aria-label={`Remover filtro: ${chip.removeLabel}`}
-                          className="ml-1 rounded px-1 text-xs font-bold text-gray-700 hover:bg-gray-100"
+                          className="ml-1 inline-flex h-8 w-8 items-center justify-center rounded-full text-gray-700 transition-colors hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-1 focus:ring-offset-1"
                           onClick={() => handleRemoveAppliedChip(chip.id)}
                         >
-                          x
+                          <svg
+                            aria-hidden="true"
+                            viewBox="0 0 16 16"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            className="h-3.5 w-3.5"
+                          >
+                            <path d="M4 4L12 12" />
+                            <path d="M12 4L4 12" />
+                          </svg>
                         </button>
                       ) : null}
                     </span>
