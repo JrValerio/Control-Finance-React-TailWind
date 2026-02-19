@@ -258,6 +258,52 @@ describe("App", () => {
     expect(screen.queryByText("Nao foi possivel carregar as metas mensais.")).not.toBeInTheDocument();
   });
 
+  it("exibe CTA de empty state e abre modal de meta", async () => {
+    const user = userEvent.setup();
+    transactionsService.listCategories.mockResolvedValueOnce([{ id: 9, name: "Lazer" }]);
+    transactionsService.getMonthlyBudgets.mockResolvedValueOnce(buildMonthlyBudgetsResponse([]));
+
+    render(<App />);
+
+    expect(await screen.findByText("Nenhuma meta cadastrada para o mes selecionado.")).toBeInTheDocument();
+    const emptyStateCta = screen.getByRole("button", { name: "Criar meta" });
+    expect(emptyStateCta).toBeEnabled();
+
+    await user.click(emptyStateCta);
+
+    expect(screen.getByRole("dialog", { name: "Meta do mes" })).toBeInTheDocument();
+  });
+
+  it("exibe categoria bloqueada no modo edicao de meta", async () => {
+    const user = userEvent.setup();
+    transactionsService.getMonthlyBudgets.mockResolvedValueOnce(
+      buildMonthlyBudgetsResponse([
+        {
+          id: 12,
+          categoryId: 7,
+          categoryName: "Transporte",
+          month: "2026-02",
+          budget: 600,
+          actual: 240,
+          remaining: 360,
+          percentage: 40,
+          status: "ok",
+        },
+      ]),
+    );
+
+    render(<App />);
+
+    expect(await screen.findByText("Transporte")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Editar meta: Transporte" }));
+
+    const budgetDialog = screen.getByRole("dialog", { name: "Meta do mes" });
+    expect(within(budgetDialog).getByText("Editando:")).toBeInTheDocument();
+    expect(within(budgetDialog).getByText("Transporte")).toBeInTheDocument();
+    expect(within(budgetDialog).getByText("Categoria bloqueada no modo edicao")).toBeInTheDocument();
+    expect(within(budgetDialog).getByLabelText("Categoria da meta")).toBeDisabled();
+  });
+
   it("cria meta mensal e recarrega cards de metas", async () => {
     const user = userEvent.setup();
     transactionsService.listCategories.mockResolvedValueOnce([{ id: 3, name: "Alimentacao" }]);

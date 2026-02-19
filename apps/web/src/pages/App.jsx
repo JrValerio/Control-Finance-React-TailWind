@@ -305,11 +305,13 @@ const App = ({ onLogout = undefined }) => {
   const [monthlyBudgets, setMonthlyBudgets] = useState(DEFAULT_MONTHLY_BUDGETS);
   const [summaryError, setSummaryError] = useState("");
   const [budgetsError, setBudgetsError] = useState("");
+  const [budgetSuccessMessage, setBudgetSuccessMessage] = useState("");
   const [budgetMutationError, setBudgetMutationError] = useState("");
   const [isSavingBudget, setSavingBudget] = useState(false);
   const [requestError, setRequestError] = useState("");
   const [isLoadingBudgets, setLoadingBudgets] = useState(false);
   const undoTimeoutRef = useRef(null);
+  const budgetSuccessTimeoutRef = useRef(null);
 
   const periodRange = useMemo(
     () =>
@@ -346,8 +348,33 @@ const App = ({ onLogout = undefined }) => {
       if (undoTimeoutRef.current) {
         clearTimeout(undoTimeoutRef.current);
       }
+
+      if (budgetSuccessTimeoutRef.current) {
+        clearTimeout(budgetSuccessTimeoutRef.current);
+      }
     };
   }, []);
+
+  const clearBudgetSuccessMessage = useCallback(() => {
+    if (budgetSuccessTimeoutRef.current) {
+      clearTimeout(budgetSuccessTimeoutRef.current);
+      budgetSuccessTimeoutRef.current = null;
+    }
+
+    setBudgetSuccessMessage("");
+  }, []);
+
+  const showBudgetSuccessMessage = useCallback(
+    (message) => {
+      clearBudgetSuccessMessage();
+      setBudgetSuccessMessage(message);
+      budgetSuccessTimeoutRef.current = setTimeout(() => {
+        budgetSuccessTimeoutRef.current = null;
+        setBudgetSuccessMessage("");
+      }, 2500);
+    },
+    [clearBudgetSuccessMessage],
+  );
 
   const loadCategories = useCallback(async () => {
     try {
@@ -453,6 +480,7 @@ const App = ({ onLogout = undefined }) => {
 
     setSavingBudget(true);
     setBudgetMutationError("");
+    clearBudgetSuccessMessage();
 
     try {
       await transactionsService.createOrUpdateMonthlyBudget({
@@ -464,6 +492,7 @@ const App = ({ onLogout = undefined }) => {
       setBudgetModalOpen(false);
       setEditingBudget(null);
       setBudgetForm(DEFAULT_BUDGET_FORM);
+      showBudgetSuccessMessage("Meta salva com sucesso.");
     } catch (error) {
       setBudgetMutationError(getApiErrorMessage(error, "Nao foi possivel salvar a meta."));
     } finally {
@@ -481,10 +510,12 @@ const App = ({ onLogout = undefined }) => {
     }
 
     setBudgetsError("");
+    clearBudgetSuccessMessage();
 
     try {
       await transactionsService.deleteMonthlyBudget(budget.id);
       await loadMonthlyBudgets();
+      showBudgetSuccessMessage("Meta removida.");
     } catch (error) {
       setBudgetsError(getApiErrorMessage(error, "Nao foi possivel remover a meta."));
     }
@@ -1471,6 +1502,15 @@ const App = ({ onLogout = undefined }) => {
               </button>
             </div>
           ) : null}
+          {!budgetsError && budgetSuccessMessage ? (
+            <div
+              className="mb-3 rounded border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700"
+              role="status"
+              aria-live="polite"
+            >
+              {budgetSuccessMessage}
+            </div>
+          ) : null}
           {isLoadingBudgets ? (
             <div className="space-y-2" role="status" aria-live="polite">
               {Array.from({ length: 3 }).map((_unusedValue, index) => (
@@ -1484,7 +1524,15 @@ const App = ({ onLogout = undefined }) => {
           ) : null}
           {!isLoadingBudgets && !budgetsError && !hasMonthlyBudgetsData ? (
             <div className="rounded border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-600">
-              Nenhuma meta cadastrada para o mes selecionado.
+              <p>Nenhuma meta cadastrada para o mes selecionado.</p>
+              <button
+                type="button"
+                onClick={openCreateBudgetModal}
+                disabled={!canCreateBudget}
+                className="mt-2 rounded border border-gray-300 bg-white px-3 py-1 text-xs font-semibold text-gray-900 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Criar meta
+              </button>
             </div>
           ) : null}
           {!isLoadingBudgets && !budgetsError && hasMonthlyBudgetsData ? (
@@ -1513,6 +1561,7 @@ const App = ({ onLogout = undefined }) => {
                       <div
                         className={`h-2 rounded-full ${BUDGET_STATUS_BAR_CLASSNAMES[safeStatus]}`}
                         style={{ width: progressWidth }}
+                        title={safeStatus === "exceeded" ? "Acima de 100%" : undefined}
                       />
                     </div>
                     <div className="grid gap-1 text-xs text-gray-700 sm:grid-cols-2">
@@ -1707,6 +1756,14 @@ const App = ({ onLogout = undefined }) => {
               Meta do mes
             </h3>
             <p className="mt-1 text-xs text-gray-600">Mes selecionado: {selectedSummaryMonth}</p>
+            {editingBudget ? (
+              <div className="mt-2 rounded border border-gray-200 bg-gray-50 px-2 py-1 text-xs text-gray-700">
+                <p>
+                  Editando: <strong>{editingBudget.categoryName}</strong>
+                </p>
+                <p>Categoria bloqueada no modo edicao</p>
+              </div>
+            ) : null}
 
             {budgetMutationError ? (
               <p className="mt-3 rounded border border-red-200 bg-red-50 px-2 py-1 text-sm text-red-700" role="alert">
