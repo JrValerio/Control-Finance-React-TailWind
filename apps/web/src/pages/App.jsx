@@ -37,6 +37,12 @@ const SORT_OPTIONS = [
   { value: "description:asc", label: "Descricao (A-Z)" },
   { value: "description:desc", label: "Descricao (Z-A)" },
 ];
+const FILTER_PRESETS = [
+  { id: "this-month", label: "Este mes" },
+  { id: "income", label: "Entradas" },
+  { id: "expense", label: "Saidas" },
+  { id: "clear", label: "Limpar filtros" },
+];
 const SORT_OPTION_VALUES = new Set(SORT_OPTIONS.map((option) => option.value));
 const DEFAULT_SORT = "date:asc";
 const DEFAULT_OFFSET = 0;
@@ -52,6 +58,18 @@ const DEFAULT_MONTHLY_SUMMARY = {
 };
 
 const getCurrentMonth = () => getTodayISODate().slice(0, 7);
+const getCurrentMonthRange = (referenceDate = new Date()) => {
+  const year = referenceDate.getFullYear();
+  const month = referenceDate.getMonth();
+
+  const startDate = new Date(year, month, 1);
+  const endDate = new Date(year, month + 1, 0);
+
+  return {
+    startDate: getTodayISODate(startDate),
+    endDate: getTodayISODate(endDate),
+  };
+};
 
 const parseIntegerInRange = (value, { min, max }) => {
   if (typeof value !== "string" || !value.trim()) {
@@ -650,6 +668,44 @@ const App = ({ onLogout = undefined }) => {
     });
   };
 
+  const applyFilterPreset = (presetId) => {
+    if (presetId === "this-month") {
+      const { startDate, endDate } = getCurrentMonthRange();
+      setSelectedPeriod(PERIOD_CUSTOM);
+      setCustomStartDate(startDate);
+      setCustomEndDate(endDate);
+      setCurrentOffset(DEFAULT_OFFSET);
+      scrollToListTop();
+      return;
+    }
+
+    if (presetId === "income") {
+      setSelectedCategory(CATEGORY_ENTRY);
+      setCurrentOffset(DEFAULT_OFFSET);
+      scrollToListTop();
+      return;
+    }
+
+    if (presetId === "expense") {
+      setSelectedCategory(CATEGORY_EXIT);
+      setCurrentOffset(DEFAULT_OFFSET);
+      scrollToListTop();
+      return;
+    }
+
+    if (presetId === "clear") {
+      setSelectedCategory(CATEGORY_ALL);
+      setSelectedPeriod(PERIOD_ALL);
+      setCustomStartDate("");
+      setCustomEndDate("");
+      setSelectedTransactionCategoryId("");
+      setQueryInput("");
+      setSelectedQuery("");
+      setCurrentOffset(DEFAULT_OFFSET);
+      scrollToListTop();
+    }
+  };
+
   const goToOffset = (nextOffset) => {
     const maxOffset =
       paginationMeta.total > 0
@@ -783,6 +839,18 @@ const App = ({ onLogout = undefined }) => {
         <div className="mx-auto flex max-w-700 flex-col gap-4">
           <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
             <h2 className="text-lg font-medium text-gray-100">Resumo financeiro</h2>
+            <div className="flex flex-wrap gap-2">
+              {FILTER_PRESETS.map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => applyFilterPreset(preset.id)}
+                  className="flex items-center justify-center gap-2.5 rounded border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-200 transition-colors hover:bg-gray-400"
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
             <div className="flex flex-wrap gap-2">
               {filterButtons.map((category) => {
                 const active = selectedCategory === category;
