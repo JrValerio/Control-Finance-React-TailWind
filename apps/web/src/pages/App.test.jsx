@@ -563,6 +563,55 @@ describe("App", () => {
     expect(params.get("offset")).toBe("0");
   });
 
+  it("mostra indicador de filtros ativos e exibe limpar filtros quando necessario", async () => {
+    const user = userEvent.setup();
+    const withoutFiltersResponse = buildPageResponse(
+      [
+        {
+          id: 21,
+          value: 30,
+          type: CATEGORY_ENTRY,
+          date: "2026-02-18",
+          description: "Sem filtros ativos",
+        },
+      ],
+      { page: 1, limit: 20, offset: 0, total: 1, totalPages: 1 },
+    );
+    const withFiltersResponse = buildPageResponse(
+      [
+        {
+          id: 22,
+          value: 40,
+          type: CATEGORY_ENTRY,
+          date: "2026-02-19",
+          description: "Com filtros ativos",
+        },
+      ],
+      { page: 1, limit: 20, offset: 0, total: 1, totalPages: 1 },
+    );
+
+    transactionsService.listPage.mockImplementation(({ q }) => {
+      if (q === "mercado") {
+        return Promise.resolve(withFiltersResponse);
+      }
+
+      return Promise.resolve(withoutFiltersResponse);
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText("Sem filtros ativos")).toBeInTheDocument();
+    expect(screen.queryByText("Filtros ativos")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Limpar filtros" })).not.toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("Buscar"), "mercado");
+    await user.click(screen.getByRole("button", { name: "Aplicar" }));
+
+    expect(await screen.findByText("Com filtros ativos")).toBeInTheDocument();
+    expect(screen.getByText("Filtros ativos")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Limpar filtros" })).toBeInTheDocument();
+  });
+
   it("exibe estado vazio no resumo mensal quando nao ha dados", async () => {
     transactionsService.getMonthlySummary.mockResolvedValueOnce(
       buildSummaryResponse({
