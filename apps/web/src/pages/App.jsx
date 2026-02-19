@@ -1374,52 +1374,63 @@ const App = ({ onLogout = undefined }) => {
         <section>
           <div className="space-y-4 rounded border border-gray-300 bg-white p-4">
           <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
-            <div className="flex flex-col gap-2">
+            <div className="flex w-full min-w-0 flex-col gap-2">
               <h2 className="text-lg font-medium text-gray-100">Resumo financeiro</h2>
               {hasActiveFilters && appliedChips.length > 0 ? (
-                <div className="space-y-2 rounded border border-gray-200 bg-gray-50 p-2">
+                <div className="w-full max-w-full space-y-2 overflow-hidden rounded border border-gray-200 bg-gray-50 p-2">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-xs font-semibold text-gray-700">
                       Filtros ativos ({activeFiltersCount})
                     </span>
-                    <button
-                      type="button"
-                      className="rounded border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100"
-                      onClick={() => applyFilterPreset("clear")}
-                    >
-                      Limpar tudo
-                    </button>
-                  </div>
-                  <div className="-mx-1 flex flex-nowrap items-center gap-2 overflow-x-auto px-1 pb-1">
-                    {appliedChips.map((chip) => (
-                      <span
-                        key={chip.id}
-                        className="inline-flex whitespace-nowrap items-center gap-1 rounded-full border border-gray-300 bg-white py-1 pl-2.5 pr-1.5 text-xs font-medium text-gray-700"
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => searchInputRef.current?.focus()}
+                        className="rounded border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100"
                       >
-                        {chip.text}
-                        {chip.removable ? (
-                          <button
-                            type="button"
-                            aria-label={`Remover filtro: ${chip.removeLabel}`}
-                            className="inline-flex h-5 w-5 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-1 focus:ring-offset-1"
-                            onClick={() => handleRemoveAppliedChip(chip.id)}
-                          >
-                            <svg
-                              aria-hidden="true"
-                              viewBox="0 0 16 16"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              className="h-3.5 w-3.5"
+                        Editar filtros
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100"
+                        onClick={() => applyFilterPreset("clear")}
+                      >
+                        Limpar tudo
+                      </button>
+                    </div>
+                  </div>
+                  <div className="w-full max-w-full overflow-x-auto">
+                    <div className="flex flex-nowrap items-center gap-2 pb-1">
+                      {appliedChips.map((chip) => (
+                        <span
+                          key={chip.id}
+                          className="inline-flex whitespace-nowrap items-center gap-1 rounded-full border border-gray-300 bg-white py-1 pl-2.5 pr-1.5 text-xs font-medium text-gray-700"
+                        >
+                          {chip.text}
+                          {chip.removable ? (
+                            <button
+                              type="button"
+                              aria-label={`Remover filtro: ${chip.removeLabel}`}
+                              className="inline-flex h-5 w-5 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-1 focus:ring-offset-1"
+                              onClick={() => handleRemoveAppliedChip(chip.id)}
                             >
-                              <path d="M4 4L12 12" />
-                              <path d="M12 4L4 12" />
-                            </svg>
-                          </button>
-                        ) : null}
-                      </span>
-                    ))}
+                              <svg
+                                aria-hidden="true"
+                                viewBox="0 0 16 16"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                className="h-3.5 w-3.5"
+                              >
+                                <path d="M4 4L12 12" />
+                                <path d="M12 4L4 12" />
+                              </svg>
+                            </button>
+                          ) : null}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
               ) : null}
@@ -1442,17 +1453,7 @@ const App = ({ onLogout = undefined }) => {
                   </button>
                 ))}
               </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => searchInputRef.current?.focus()}
-                  className="rounded border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100"
-                >
-                  Editar filtros
-                </button>
-              </div>
-            )}
+            ) : null}
             <div className="flex flex-col gap-2">
               <span className="text-xs font-semibold uppercase tracking-wide text-gray-200">
                 Filtrar lista
