@@ -15,6 +15,8 @@ vi.mock("../services/transactions.service", () => ({
     listCategories: vi.fn(),
     getMonthlySummary: vi.fn(),
     getMonthlyBudgets: vi.fn(),
+    createOrUpdateMonthlyBudget: vi.fn(),
+    deleteMonthlyBudget: vi.fn(),
     getImportHistory: vi.fn(),
     dryRunImportCsv: vi.fn(),
     commitImportCsv: vi.fn(),
@@ -138,6 +140,8 @@ describe("App", () => {
     transactionsService.listCategories.mockResolvedValue([]);
     transactionsService.getMonthlySummary.mockResolvedValue(buildSummaryResponse());
     transactionsService.getMonthlyBudgets.mockResolvedValue(buildMonthlyBudgetsResponse());
+    transactionsService.createOrUpdateMonthlyBudget.mockResolvedValue({});
+    transactionsService.deleteMonthlyBudget.mockResolvedValue(undefined);
     transactionsService.getImportHistory.mockResolvedValue(buildImportHistoryResponse());
     transactionsService.dryRunImportCsv.mockResolvedValue(buildImportDryRunResponse());
     transactionsService.commitImportCsv.mockResolvedValue({
@@ -252,6 +256,80 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: "Tentar novamente" }));
     expect(await screen.findByText("Transporte")).toBeInTheDocument();
     expect(screen.queryByText("Nao foi possivel carregar as metas mensais.")).not.toBeInTheDocument();
+  });
+
+  it("cria meta mensal e recarrega cards de metas", async () => {
+    const user = userEvent.setup();
+    transactionsService.listCategories.mockResolvedValueOnce([{ id: 3, name: "Alimentacao" }]);
+    transactionsService.getMonthlyBudgets
+      .mockResolvedValueOnce(buildMonthlyBudgetsResponse([]))
+      .mockResolvedValueOnce(
+        buildMonthlyBudgetsResponse([
+          {
+            id: 10,
+            categoryId: 3,
+            categoryName: "Alimentacao",
+            month: "2026-02",
+            budget: 900,
+            actual: 150,
+            remaining: 750,
+            percentage: 16.67,
+            status: "ok",
+          },
+        ]),
+      );
+
+    render(<App />);
+
+    const newBudgetButton = screen.getByRole("button", { name: "+ Nova meta" });
+    await waitFor(() => expect(newBudgetButton).toBeEnabled());
+    await user.click(newBudgetButton);
+
+    const budgetDialog = screen.getByRole("dialog", { name: "Meta do mes" });
+    await user.selectOptions(within(budgetDialog).getByLabelText("Categoria da meta"), "3");
+    await user.type(within(budgetDialog).getByLabelText("Valor da meta"), "900");
+    await user.click(within(budgetDialog).getByRole("button", { name: "Salvar meta" }));
+
+    expect(transactionsService.createOrUpdateMonthlyBudget).toHaveBeenCalledWith({
+      categoryId: 3,
+      month: expect.any(String),
+      amount: 900,
+    });
+    expect(await screen.findByText("Orcado: R$ 900.00")).toBeInTheDocument();
+  });
+
+  it("exclui meta mensal e recarrega estado vazio", async () => {
+    const user = userEvent.setup();
+    const confirmMock = vi.spyOn(window, "confirm").mockReturnValue(true);
+    transactionsService.getMonthlyBudgets
+      .mockResolvedValueOnce(
+        buildMonthlyBudgetsResponse([
+          {
+            id: 11,
+            categoryId: 7,
+            categoryName: "Transporte",
+            month: "2026-02",
+            budget: 600,
+            actual: 240,
+            remaining: 360,
+            percentage: 40,
+            status: "ok",
+          },
+        ]),
+      )
+      .mockResolvedValueOnce(buildMonthlyBudgetsResponse([]));
+
+    try {
+      render(<App />);
+
+      expect(await screen.findByText("Transporte")).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Excluir meta: Transporte" }));
+
+      expect(transactionsService.deleteMonthlyBudget).toHaveBeenCalledWith(11);
+      expect(await screen.findByText("Nenhuma meta cadastrada para o mes selecionado.")).toBeInTheDocument();
+    } finally {
+      confirmMock.mockRestore();
+    }
   });
 
   it("aplica filtro por categoria e envia categoryId para listagem", async () => {

@@ -92,6 +92,12 @@ export interface MonthlyBudget {
   status: MonthlyBudgetStatus;
 }
 
+export interface MonthlyBudgetUpsertPayload {
+  categoryId: number;
+  month: string;
+  amount: number;
+}
+
 export interface ImportDryRunError {
   field: string;
   message: string;
@@ -219,6 +225,13 @@ interface MonthlyBudgetsApiResponse {
     percentage?: unknown;
     status?: unknown;
   }>;
+}
+
+interface MonthlyBudgetUpsertApiResponse {
+  id?: unknown;
+  categoryId?: unknown;
+  month?: unknown;
+  amount?: unknown;
 }
 
 interface ImportDryRunApiResponse {
@@ -469,6 +482,38 @@ export const transactionsService = {
         };
       })
       .filter((item) => item.id > 0 && item.categoryId > 0);
+  },
+  createOrUpdateMonthlyBudget: async (
+    payload: MonthlyBudgetUpsertPayload,
+  ): Promise<MonthlyBudget> => {
+    const { data } = await api.post("/budgets", payload);
+    const responseBody = data as MonthlyBudgetUpsertApiResponse;
+    const normalizedId = Number(responseBody?.id);
+    const normalizedCategoryId = Number(responseBody?.categoryId);
+    const normalizedAmount = Number(responseBody?.amount);
+    const resolvedBudgetAmount =
+      Number.isFinite(normalizedAmount) && normalizedAmount > 0 ? normalizedAmount : payload.amount;
+
+    return {
+      id: Number.isInteger(normalizedId) && normalizedId > 0 ? normalizedId : 0,
+      categoryId:
+        Number.isInteger(normalizedCategoryId) && normalizedCategoryId > 0
+          ? normalizedCategoryId
+          : payload.categoryId,
+      categoryName: "Sem categoria",
+      month:
+        typeof responseBody?.month === "string" && responseBody.month.trim()
+          ? responseBody.month.trim()
+          : payload.month,
+      budget: Number(resolvedBudgetAmount.toFixed(2)),
+      actual: 0,
+      remaining: 0,
+      percentage: 0,
+      status: "ok",
+    };
+  },
+  deleteMonthlyBudget: async (id: number): Promise<void> => {
+    await api.delete(`/budgets/${id}`);
   },
   create: async (payload: TransactionCreatePayload): Promise<Transaction> => {
     const { data } = await api.post("/transactions", payload);
