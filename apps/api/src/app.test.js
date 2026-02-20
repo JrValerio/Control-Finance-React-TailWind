@@ -8,7 +8,10 @@ import {
   LOGIN_THROTTLE_MESSAGE,
   resetLoginProtectionState,
 } from "./middlewares/login-protection.middleware.js";
-import { resetImportRateLimiterState } from "./middlewares/rate-limit.middleware.js";
+import {
+  resetImportRateLimiterState,
+  resetWriteRateLimiterState,
+} from "./middlewares/rate-limit.middleware.js";
 import { resetHttpMetricsForTests } from "./observability/http-metrics.js";
 
 let testDbPool;
@@ -114,6 +117,7 @@ describe("API auth and transactions", () => {
   beforeEach(async () => {
     resetLoginProtectionState();
     resetImportRateLimiterState();
+    resetWriteRateLimiterState();
     resetHttpMetricsForTests();
     await dbQuery("DELETE FROM transactions");
     await dbQuery("DELETE FROM users");
@@ -799,6 +803,34 @@ describe("API auth and transactions", () => {
     expectErrorResponseWithRequestId(deleteByOtherUserResponse, 404, "Categoria nao encontrada.");
     expect(deleteOwnerResponse.status).toBe(200);
     expectErrorResponseWithRequestId(restoreByOtherUserResponse, 404, "Categoria nao encontrada.");
+  });
+
+  it("aplica rate limit por usuario em endpoints de escrita", async () => {
+    const token = await registerAndLogin("categories-write-rate-limit@controlfinance.dev");
+
+    for (let index = 0; index < 60; index += 1) {
+      const createResponse = await request(app)
+        .post("/categories")
+        .set("Authorization", `Bearer ${token}`)
+        .send({
+          name: `Categoria limite ${index + 1}`,
+        });
+
+      expect(createResponse.status).toBe(201);
+    }
+
+    const limitedResponse = await request(app)
+      .post("/categories")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: "Categoria limite 61",
+      });
+
+    expectErrorResponseWithRequestId(
+      limitedResponse,
+      429,
+      "Muitas requisicoes. Tente novamente em instantes.",
+    );
   });
 
   it("GET /budgets bloqueia sem token", async () => {

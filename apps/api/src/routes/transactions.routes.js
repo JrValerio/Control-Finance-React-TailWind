@@ -2,7 +2,10 @@ import { Router } from "express";
 import path from "node:path";
 import multer from "multer";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
-import { importRateLimiter } from "../middlewares/rate-limit.middleware.js";
+import {
+  importRateLimiter,
+  transactionsWriteRateLimiter,
+} from "../middlewares/rate-limit.middleware.js";
 import {
   createElapsedTimer,
   logImportEvent,
@@ -215,7 +218,7 @@ router.get("/", async (req, res, next) => {
   }
 });
 
-router.post("/", async (req, res, next) => {
+router.post("/", transactionsWriteRateLimiter, async (req, res, next) => {
   try {
     const transaction = await createTransactionForUser(req.user.id, req.body || {});
     res.status(201).json(transaction);
@@ -224,7 +227,7 @@ router.post("/", async (req, res, next) => {
   }
 });
 
-router.patch("/:id", async (req, res, next) => {
+router.patch("/:id", transactionsWriteRateLimiter, async (req, res, next) => {
   try {
     const updatedTransaction = await updateTransactionForUser(
       req.user.id,
@@ -237,7 +240,7 @@ router.patch("/:id", async (req, res, next) => {
   }
 });
 
-router.delete("/:id", async (req, res, next) => {
+router.delete("/:id", transactionsWriteRateLimiter, async (req, res, next) => {
   try {
     const removedTransaction = await deleteTransactionForUser(req.user.id, req.params.id);
     res.status(200).json({
@@ -249,7 +252,7 @@ router.delete("/:id", async (req, res, next) => {
   }
 });
 
-router.post("/:id/restore", async (req, res, next) => {
+router.post("/:id/restore", transactionsWriteRateLimiter, async (req, res, next) => {
   try {
     const restoredTransaction = await restoreTransactionForUser(req.user.id, req.params.id);
     res.status(200).json(restoredTransaction);
