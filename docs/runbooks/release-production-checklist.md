@@ -101,6 +101,14 @@ Reference:
 - [ ] Timeout: 10 seconds
 - [ ] Alert trigger: 2 consecutive failures
 
+### Metric Contract Verification (Grafana Explore)
+- [ ] Request rate by status class:
+  - [ ] `sum by (status) (rate(http_requests_total{job="control-finance-api"}[5m]))`
+- [ ] Critical endpoint latency series:
+  - [ ] `sum by (endpoint) (rate(http_request_latency_ms_count{job="control-finance-api"}[5m]))`
+- [ ] P95 latency for `/transactions`:
+  - [ ] `histogram_quantile(0.95, sum by (le) (rate(http_request_latency_ms_bucket{job="control-finance-api", endpoint="/transactions"}[5m])))`
+
 ### Alert Severity Mapping
 - [ ] P1: `/health` unavailable for > 2 minutes.
 - [ ] P2: recurring degradation or partial service impact.
