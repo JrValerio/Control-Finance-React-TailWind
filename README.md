@@ -304,6 +304,92 @@ npm run dev
 - Branch protection habilitada na `main`
 - Runtime padronizado em Node `24.x`
 
+## Operational Maturity
+
+### CI & Quality Gates
+
+The project enforces continuous integration across the monorepo:
+
+```bash
+npm run lint
+npm run test
+npm run build
+```
+
+All pull requests must pass:
+
+- ESLint (API + Web)
+- Full test suite (pg-mem for API)
+- Production build validation
+
+CI status must be green before merge.
+CI must be green before any merge to `main`.
+
+### Release Runbook
+
+Production releases follow a documented checklist:
+
+`docs/runbooks/release-production-checklist.md`
+
+Includes:
+
+- Migration verification
+- Post-deploy validation
+- Monitoring window (15-30 min)
+- Rollback awareness
+
+### Automated Smoke Validation
+
+After deploy, critical domain integrity can be validated via:
+
+```bash
+scripts/smoke-categories-v2.ps1 -BaseUrl "https://<api-host>"
+```
+
+Validates:
+
+- Category creation
+- Transaction with category
+- Soft delete category
+- PATCH transaction -> `category_id = null`
+- Negative test (404 for deleted category)
+- Explicit status code validation
+- `x-request-id` traceability
+
+### Backfill Tooling
+
+Domain normalization alignment is enforced via:
+
+```bash
+npm -w apps/api run db:backfill:categories-normalized
+```
+
+Ensures legacy `normalized_name` values match runtime normalization logic.
+
+Must be executed once after upgrading to Categories v2.
+
+### Runtime Health & Version Integrity
+
+The API exposes operational metadata:
+
+`GET /health`
+
+Returns:
+
+```json
+{
+  "ok": true,
+  "version": "x.y.z",
+  "commit": "abcdef1"
+}
+```
+
+Used to verify deployment consistency (version/commit hash)
+and ensure environment alignment after releases.
+
+Operational maturity is treated as a first-class concern,
+not as an afterthought.
+
 ## Roadmap
 
 - [x] PR 2 (v1.3.0): autenticacao JWT + rotas protegidas

@@ -42,6 +42,9 @@ Minimum flow:
 - [ ] Soft delete + restore
 - [ ] Logout
 
+Optional automated smoke (categories v2 contract):
+- [ ] Run `scripts/smoke-categories-v2.ps1 -BaseUrl "https://<api-host>"` and keep output as evidence.
+
 ## 3. Post-release Monitoring (15-30 min)
 
 Monitor API logs for:
