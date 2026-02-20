@@ -16,9 +16,9 @@ dist-ssr
 *.sqlite3
 
 # Editor directories and files
-.vscode/*
-!.vscode/extensions.json
+.vscode/
 .idea
+.claude/
 .DS_Store
 *.suo
 *.ntvs*
