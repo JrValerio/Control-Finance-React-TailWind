@@ -1,0 +1,39 @@
+// Grafana Alloy configuration for Control Finance metrics ingestion.
+// This worker scrapes API /metrics with Bearer auth and ships metrics
+// to Grafana Cloud (Mimir) via remote_write.
+
+discovery.static "control_finance_api" {
+  targets = [
+    {
+      __address__     = env("API_HOST")
+      __scheme__      = "https"
+      __metrics_path__ = "/metrics"
+      job             = "control-finance-api"
+      environment     = env("ENVIRONMENT")
+    },
+  ]
+}
+
+prometheus.scrape "control_finance_api" {
+  targets         = discovery.static.control_finance_api.targets
+  scrape_interval = env("SCRAPE_INTERVAL")
+  scrape_timeout  = env("SCRAPE_TIMEOUT")
+
+  authorization {
+    type        = "Bearer"
+    credentials = env("METRICS_AUTH_TOKEN")
+  }
+
+  forward_to = [prometheus.remote_write.grafana_cloud.receiver]
+}
+
+prometheus.remote_write "grafana_cloud" {
+  endpoint {
+    url = env("GRAFANA_CLOUD_REMOTE_WRITE_URL")
+
+    basic_auth {
+      username = env("GRAFANA_CLOUD_USERNAME")
+      password = env("GRAFANA_CLOUD_API_KEY")
+    }
+  }
+}

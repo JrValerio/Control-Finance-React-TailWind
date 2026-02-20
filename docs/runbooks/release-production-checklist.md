@@ -31,6 +31,21 @@ Standardize post-release verification for API + Web in production, with traceabl
 - [ ] Confirm login/register requests do not fallback to localhost.
 - [ ] Confirm no CORS 403 errors in browser console.
 
+### Observability Worker (Render Alloy)
+- [ ] Confirm Alloy worker latest deploy is running.
+- [ ] Validate required Worker environment variables:
+  - [ ] `API_HOST`
+  - [ ] `ENVIRONMENT`
+  - [ ] `SCRAPE_INTERVAL`
+  - [ ] `SCRAPE_TIMEOUT`
+  - [ ] `METRICS_AUTH_TOKEN`
+  - [ ] `GRAFANA_CLOUD_REMOTE_WRITE_URL`
+  - [ ] `GRAFANA_CLOUD_USERNAME`
+  - [ ] `GRAFANA_CLOUD_API_KEY`
+- [ ] Confirm Worker logs do not show repeated 401/403 scraping `/metrics`.
+- [ ] Confirm Grafana ingestion query returns samples:
+  - [ ] `sum(rate(http_requests_total{job="control-finance-api"}[5m]))`
+
 ## 2. Functional Smoke Test (Ephemeral User)
 
 Recommended sequence:
@@ -63,11 +78,14 @@ Confirm:
 - [ ] No 5xx errors.
 - [ ] No unexpected 429 spike (rate limit).
 - [ ] No CORS errors.
+- [ ] Dashboard `Control Finance API - Minimum Observability` displays fresh data.
+- [ ] Alert rules loaded from `docs/observability/alerts/control-finance-api-alerts.yaml`.
 
 ## 4. Observability Baseline (Availability)
 
 Reference:
 - [ ] [`docs/observability/slo.md`](../observability/slo.md) reviewed for current SLI/SLO definitions.
+- [ ] [`docs/observability/grafana-cloud.md`](../observability/grafana-cloud.md) reviewed for metrics ingestion and alerting setup.
 
 ### SLI
 - [ ] Availability SLI is based on `GET /health` success rate (`HTTP 200`).
@@ -82,6 +100,14 @@ Reference:
 - [ ] Interval: 1 minute
 - [ ] Timeout: 10 seconds
 - [ ] Alert trigger: 2 consecutive failures
+
+### Metric Contract Verification (Grafana Explore)
+- [ ] Request rate by status class:
+  - [ ] `sum by (status) (rate(http_requests_total{job="control-finance-api"}[5m]))`
+- [ ] Critical endpoint latency series:
+  - [ ] `sum by (endpoint) (rate(http_request_latency_ms_count{job="control-finance-api"}[5m]))`
+- [ ] P95 latency for `/transactions`:
+  - [ ] `histogram_quantile(0.95, sum by (le) (rate(http_request_latency_ms_bucket{job="control-finance-api", endpoint="/transactions"}[5m])))`
 
 ### Alert Severity Mapping
 - [ ] P1: `/health` unavailable for > 2 minutes.
