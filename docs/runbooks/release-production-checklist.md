@@ -23,6 +23,7 @@ Standardize post-release verification for API + Web in production, with traceabl
   - [ ] `JWT_SECRET`
   - [ ] `CORS_ORIGIN`
   - [ ] `TRUST_PROXY=1`
+  - [ ] `APP_BUILD_TIMESTAMP` (set in Render deploy environment)
 
 ### Web (Vercel)
 - [ ] Confirm latest deployment is from `main`.
@@ -63,7 +64,21 @@ Confirm:
 - [ ] No unexpected 429 spike (rate limit).
 - [ ] No CORS errors.
 
-## 4. Rollback Plan
+## 4. Incident Severity and Escalation
+
+Severity criteria:
+- **P1 (Critical):** production unavailable, sustained 5xx spike, auth failure for most users, or data integrity risk.
+- **P2 (High):** major feature degraded with workaround, localized 5xx increase, or repeated import/export failures.
+- **P3 (Medium/Low):** minor degradation, UI regressions without data-loss risk, intermittent non-critical issues.
+
+Escalation flow:
+1. Capture `requestId`, timestamp, impacted endpoint, and user impact scope.
+2. Classify severity (P1/P2/P3) and notify owner on-call.
+3. For P1: start rollback decision within 15 minutes.
+4. For P2: create mitigation plan and keep monitoring window active.
+5. For P3: register issue and schedule fix in next planned iteration.
+
+## 5. Rollback Plan
 
 If critical issue happens:
 1. Identify last stable commit.
@@ -71,7 +86,7 @@ If critical issue happens:
 3. Re-check `GET /health`.
 4. Record incident in runbook.
 
-## 5. Runbook Entry (Per Release)
+## 6. Runbook Entry (Per Release)
 
 ```md
 Release: vX.Y.Z
@@ -86,7 +101,7 @@ Rollback required: yes/no
 Notes:
 ```
 
-## 6. Evidences (Per Release)
+## 7. Evidences (Per Release)
 
 > Copy this block for each new release and keep history at the end of this file.
 
@@ -110,7 +125,7 @@ Rollback needed: yes/no
 Observations:
 ```
 
-## 7. Suggested Operational Sequence
+## 8. Suggested Operational Sequence
 
 For each release:
 1. Open and merge PR.

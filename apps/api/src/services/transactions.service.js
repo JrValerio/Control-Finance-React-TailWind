@@ -9,6 +9,8 @@ const DEFAULT_PAGE = 1;
 const DEFAULT_OFFSET = 0;
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
+const UNCATEGORIZED_CATEGORY_NAME = "Sem categoria";
+const MISSING_CATEGORY_NAME = "Categoria nao encontrada";
 const PAGINATION_ERROR_MESSAGE = "Paginacao invalida.";
 const DEFAULT_TRANSACTIONS_ORDER_BY = "date ASC, id ASC";
 const TRANSACTIONS_SORT_FIELD_TO_COLUMN = {
@@ -555,6 +557,43 @@ const buildExportFileName = (filters) => {
   return `${nameParts.join("-")}.csv`;
 };
 
+const resolveTransactionsCategoryNames = async (userId, transactions = []) => {
+  const categoryIds = [
+    ...new Set(
+      transactions
+        .map((transaction) => transaction.categoryId)
+        .filter((categoryId) => Number.isInteger(categoryId) && categoryId > 0),
+    ),
+  ];
+
+  if (categoryIds.length === 0) {
+    return new Map();
+  }
+
+  const categoryIdPlaceholders = categoryIds
+    .map((_categoryId, index) => `$${index + 2}`)
+    .join(", ");
+  const categoriesResult = await dbQuery(
+    `
+      SELECT id, name
+      FROM categories
+      WHERE user_id = $1
+        AND id IN (${categoryIdPlaceholders})
+    `,
+    [userId, ...categoryIds],
+  );
+
+  return new Map(categoriesResult.rows.map((row) => [Number(row.id), row.name || ""]));
+};
+
+const resolveCategoryNameForExport = (transaction, categoryNamesById) => {
+  if (transaction.categoryId === null) {
+    return UNCATEGORIZED_CATEGORY_NAME;
+  }
+
+  return categoryNamesById.get(transaction.categoryId) || MISSING_CATEGORY_NAME;
+};
+
 export const listTransactionsByUser = async (userId, options = {}) => {
   const { transactions, meta } = await runListTransactions(userId, options);
   return {
@@ -567,10 +606,11 @@ export const exportTransactionsCsvByUser = async (userId, options = {}) => {
   const { filters, transactions } = await runListTransactions(userId, options, {
     paginate: false,
   });
+  const categoryNamesById = await resolveTransactionsCategoryNames(userId, transactions);
   const totalsByType = getTotalsByType(transactions);
   const balance = totalsByType.entry - totalsByType.exit;
   const csvLines = [
-    "id,type,value,date,description,notes,created_at",
+    "id,type,value,date,description,notes,category_name,created_at",
     ...transactions.map((transaction) =>
       [
         transaction.id,
@@ -579,6 +619,7 @@ export const exportTransactionsCsvByUser = async (userId, options = {}) => {
         transaction.date,
         transaction.description,
         transaction.notes,
+        resolveCategoryNameForExport(transaction, categoryNamesById),
         transaction.createdAt,
       ]
         .map(formatCsvCell)
@@ -648,7 +689,7 @@ export const getMonthlySummaryForUser = async (userId, month) => {
     balance: income - expense,
     byCategory: byCategoryResult.rows.map((row) => ({
       categoryId: row.category_id === null ? null : Number(row.category_id),
-      categoryName: row.category_name || "Sem categoria",
+      categoryName: row.category_name || UNCATEGORIZED_CATEGORY_NAME,
       expense: Number(row.expense),
     })),
   };
