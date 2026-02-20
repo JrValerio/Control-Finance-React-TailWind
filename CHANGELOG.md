@@ -2,6 +2,39 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.13.0] - 2026-02-20
+
+### Added
+
+- End-to-end request correlation via `x-request-id` (Web -> API).
+- Structured JSON logging for HTTP lifecycle, errors and startup events.
+- Prometheus metrics endpoint (`GET /metrics`) with:
+  - HTTP request counter
+  - Latency histogram
+  - Bearer token protection in production.
+- Expanded `GET /health` with:
+  - `buildTimestamp`
+  - `uptimeSeconds`
+  - `db.status`
+  - `db.latencyMs`
+  - `requestId`
+- Safe ISO timestamp validation with fallback to `"unknown"`.
+
+### Behavior
+
+- `/health` returns `200` when DB is healthy.
+- `/health` returns `503` when DB fails (`ok: false`).
+- `/metrics` requires `Authorization: Bearer <METRICS_AUTH_TOKEN>` in production.
+
+### Scope
+
+- Observability-only. No business or domain behavior changes.
+
+### Technical
+
+- Merge commit: `cf6936cf6674bacbef1bc2bd316575c13f35e554`
+- PR: #109
+
 ## [1.12.0] - 2026-02-20
 
 ### Added
