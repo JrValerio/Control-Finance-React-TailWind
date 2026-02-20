@@ -323,6 +323,7 @@ All pull requests must pass:
 - Production build validation
 
 CI status must be green before merge.
+CI must be green before any merge to `main`.
 
 ### Release Runbook
 
@@ -383,7 +384,11 @@ Returns:
 }
 ```
 
-Used to verify deployment consistency across environments.
+Used to verify deployment consistency (version/commit hash)
+and ensure environment alignment after releases.
+
+Operational maturity is treated as a first-class concern,
+not as an afterthought.
 
 ## Roadmap
 
