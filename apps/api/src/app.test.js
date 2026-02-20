@@ -2636,13 +2636,48 @@ describe("API auth and transactions", () => {
       'attachment; filename="transacoes-saida-2026-02-01-a-2026-02-28.csv"',
     );
     expect(exportResponse.text).toContain(
-      "id,type,value,date,description,notes,created_at",
+      "id,type,value,date,description,notes,category_name,created_at",
     );
+    expect(exportResponse.text).toContain("Sem categoria");
     expect(exportResponse.text).toContain('"Mercado, feira"');
     expect(exportResponse.text).toContain('"Compra ""A"""');
     expect(exportResponse.text).toContain("summary,total_entradas,total_saidas,saldo");
     expect(exportResponse.text).toContain("totals,0.00,40.00,-40.00");
     expect(exportResponse.text).not.toContain("Salario");
+  });
+
+  it("exporta CSV incluindo category_name quando a transacao possui categoria", async () => {
+    const token = await registerAndLogin("export-category@controlfinance.dev");
+
+    const categoryResponse = await request(app)
+      .post("/categories")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: "Supermercado",
+      });
+
+    expect(categoryResponse.status).toBe(201);
+
+    await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "Saida",
+        value: 80,
+        date: "2026-02-20",
+        description: "Compra mensal",
+        category_id: categoryResponse.body.id,
+      });
+
+    const exportResponse = await request(app)
+      .get("/transactions/export.csv")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(exportResponse.status).toBe(200);
+    expect(exportResponse.text).toContain(
+      "id,type,value,date,description,notes,category_name,created_at",
+    );
+    expect(exportResponse.text).toContain("Supermercado");
   });
 
   it("atualiza transacao do proprio usuario", async () => {
