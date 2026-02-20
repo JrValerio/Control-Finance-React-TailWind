@@ -1,0 +1,44 @@
+groups:
+  - name: control-finance-api-alerts
+    interval: 30s
+    rules:
+      - alert: ControlFinanceTransactionsP95High
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le) (
+              rate(http_request_latency_ms_bucket{job="control-finance-api", endpoint="/transactions"}[5m])
+            )
+          ) > 500
+        for: 10m
+        labels:
+          severity: P2
+          service: control-finance-api
+        annotations:
+          summary: "p95 latency high on /transactions"
+          description: "p95 latency on /transactions is above 500ms for 10 minutes."
+
+      - alert: ControlFinanceApi5xxRateHigh
+        expr: |
+          sum(rate(http_requests_total{job="control-finance-api", status="5xx"}[5m])) > 0.2
+        for: 5m
+        labels:
+          severity: P1
+          service: control-finance-api
+        annotations:
+          summary: "5xx rate is high"
+          description: "5xx rate is above 0.2 req/s for 5 minutes. Investigate errors and evaluate rollback."
+
+      - alert: ControlFinanceApi5xxPercentHigh
+        expr: |
+          (
+            sum(rate(http_requests_total{job="control-finance-api", status="5xx"}[5m]))
+            /
+            clamp_min(sum(rate(http_requests_total{job="control-finance-api"}[5m])), 0.001)
+          ) > 0.02
+        for: 5m
+        labels:
+          severity: P2
+          service: control-finance-api
+        annotations:
+          summary: "5xx error ratio elevated"
+          description: "5xx ratio is above 2% for 5 minutes."

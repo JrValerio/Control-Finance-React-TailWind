@@ -31,6 +31,21 @@ Standardize post-release verification for API + Web in production, with traceabl
 - [ ] Confirm login/register requests do not fallback to localhost.
 - [ ] Confirm no CORS 403 errors in browser console.
 
+### Observability Worker (Render Alloy)
+- [ ] Confirm Alloy worker latest deploy is running.
+- [ ] Validate required Worker environment variables:
+  - [ ] `API_HOST`
+  - [ ] `ENVIRONMENT`
+  - [ ] `SCRAPE_INTERVAL`
+  - [ ] `SCRAPE_TIMEOUT`
+  - [ ] `METRICS_AUTH_TOKEN`
+  - [ ] `GRAFANA_CLOUD_REMOTE_WRITE_URL`
+  - [ ] `GRAFANA_CLOUD_USERNAME`
+  - [ ] `GRAFANA_CLOUD_API_KEY`
+- [ ] Confirm Worker logs do not show repeated 401/403 scraping `/metrics`.
+- [ ] Confirm Grafana ingestion query returns samples:
+  - [ ] `sum(rate(http_requests_total{job="control-finance-api"}[5m]))`
+
 ## 2. Functional Smoke Test (Ephemeral User)
 
 Recommended sequence:
@@ -63,11 +78,14 @@ Confirm:
 - [ ] No 5xx errors.
 - [ ] No unexpected 429 spike (rate limit).
 - [ ] No CORS errors.
+- [ ] Dashboard `Control Finance API - Minimum Observability` displays fresh data.
+- [ ] Alert rules loaded from `docs/observability/alerts/control-finance-api-alerts.yaml`.
 
 ## 4. Observability Baseline (Availability)
 
 Reference:
 - [ ] [`docs/observability/slo.md`](../observability/slo.md) reviewed for current SLI/SLO definitions.
+- [ ] [`docs/observability/grafana-cloud.md`](../observability/grafana-cloud.md) reviewed for metrics ingestion and alerting setup.
 
 ### SLI
 - [ ] Availability SLI is based on `GET /health` success rate (`HTTP 200`).
