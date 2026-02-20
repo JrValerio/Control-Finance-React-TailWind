@@ -2,6 +2,37 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.12.0] - 2026-02-20
+
+### Added
+
+- Categories v2 (soft delete, restore, `normalized_name`, partial unique index).
+- Categories management UI.
+- Backfill tooling (`db:backfill:categories-normalized`).
+- Automated smoke validation script (`scripts/smoke-categories-v2.ps1`).
+- Operational Maturity section in README.
+- Release runbook documentation.
+
+### Changed
+
+- `PATCH /transactions/:id` now supports updating `category_id`.
+- Allows `category_id = null` (Uncategorized).
+- Enforces active-category and ownership validation on update.
+
+### Fixed
+
+- Resolved inconsistency where Web reset category to "Uncategorized" but backend ignored `category_id` in PATCH.
+
+### Integrity
+
+- Domain guards for deleted categories and restore conflicts.
+- Expanded contract test coverage.
+
+### Ops
+
+- Runtime `/health` exposes version and commit.
+- CI governance enforced before merge to `main`.
+
 ## [1.11.0] - 2026-02-19
 
 ### Highlights
