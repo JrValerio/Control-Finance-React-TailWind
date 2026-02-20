@@ -2569,6 +2569,104 @@ describe("API auth and transactions", () => {
     });
   });
 
+  it("atualiza transacao para Sem categoria quando category_id = null", async () => {
+    const token = await registerAndLogin("update-category-null@controlfinance.dev");
+
+    const categoryResponse = await request(app)
+      .post("/categories")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: "Lazer",
+      });
+
+    const createdTransaction = await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "Saida",
+        value: 90,
+        date: "2026-02-14",
+        description: "Cinema",
+        category_id: categoryResponse.body.id,
+      });
+
+    const updatedTransaction = await request(app)
+      .patch(`/transactions/${createdTransaction.body.id}`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        category_id: null,
+      });
+
+    expect(categoryResponse.status).toBe(201);
+    expect(createdTransaction.status).toBe(201);
+    expect(updatedTransaction.status).toBe(200);
+    expect(updatedTransaction.body).toMatchObject({
+      id: createdTransaction.body.id,
+      categoryId: null,
+      type: "Saida",
+      value: 90,
+      date: "2026-02-14",
+      description: "Cinema",
+    });
+
+    const listResponse = await request(app)
+      .get("/transactions")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(listResponse.status).toBe(200);
+    expect(listResponse.body.data).toHaveLength(1);
+    expect(listResponse.body.data[0]).toMatchObject({
+      id: createdTransaction.body.id,
+      categoryId: null,
+    });
+  });
+
+  it("bloqueia atualizacao de transacao para category_id removida", async () => {
+    const token = await registerAndLogin("update-category-deleted@controlfinance.dev");
+
+    const sourceCategoryResponse = await request(app)
+      .post("/categories")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: "Mercado",
+      });
+
+    const deletedCategoryResponse = await request(app)
+      .post("/categories")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: "Assinaturas",
+      });
+
+    const createdTransaction = await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "Saida",
+        value: 55,
+        date: "2026-02-14",
+        description: "Compra",
+        category_id: sourceCategoryResponse.body.id,
+      });
+
+    const deleteCategoryResponse = await request(app)
+      .delete(`/categories/${deletedCategoryResponse.body.id}`)
+      .set("Authorization", `Bearer ${token}`);
+
+    const updateResponse = await request(app)
+      .patch(`/transactions/${createdTransaction.body.id}`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        category_id: deletedCategoryResponse.body.id,
+      });
+
+    expect(sourceCategoryResponse.status).toBe(201);
+    expect(deletedCategoryResponse.status).toBe(201);
+    expect(createdTransaction.status).toBe(201);
+    expect(deleteCategoryResponse.status).toBe(200);
+    expectErrorResponseWithRequestId(updateResponse, 404, "Categoria nao encontrada.");
+  });
+
   it("nao permite atualizar transacao de outro usuario", async () => {
     const tokenUserA = await registerAndLogin("owner-update@controlfinance.dev");
     const tokenUserB = await registerAndLogin("guest-update@controlfinance.dev");
