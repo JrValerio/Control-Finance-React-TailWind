@@ -5,11 +5,11 @@
 discovery.static "control_finance_api" {
   targets = [
     {
-      __address__     = env("API_HOST")
-      __scheme__      = "https"
-      __metrics_path__ = "/metrics"
-      job             = "control-finance-api"
-      environment     = env("ENVIRONMENT")
+      __address__      = env("API_HOST"),
+      __scheme__       = "https",
+      __metrics_path__ = "/metrics",
+      job              = "control-finance-api",
+      environment      = env("ENVIRONMENT"),
     },
   ]
 }
