@@ -125,6 +125,48 @@ Rollback needed: yes/no
 Observations:
 ```
 
+### Evidences - v1.13.1 (2026-02-20)
+
+#### Git Integrity
+- main HEAD: `b6e32de`
+- tag `v1.13.1` -> `b6e32de` (annotated)
+
+#### Production Smoke (Render)
+Base: `https://control-finance-react-tailwind.onrender.com`
+
+##### /health
+- Status: `200`
+- version: `1.13.1`
+- commit: `b6e32defa94994acea4e143312e404a7c292a1b4`
+- buildTimestamp: `2026-02-20T18:30:00Z`
+- Result: OK
+
+##### /metrics (no auth)
+- Status: `403`
+- Result: Protected as expected
+
+#### Repro Commands (PowerShell)
+
+```powershell
+$api='https://control-finance-react-tailwind.onrender.com'
+
+# health
+$h = Invoke-RestMethod "$api/health"
+$h | ConvertTo-Json -Depth 5
+
+# metrics (negative control)
+try {
+  Invoke-WebRequest "$api/metrics" -TimeoutSec 15 | Out-Null
+  "metrics(no-auth)=200"
+} catch {
+  "metrics(no-auth)=$($_.Exception.Response.StatusCode.value__)"
+}
+```
+
+#### Conclusion
+Production is aligned with `origin/main` and `v1.13.1` (version + commit).
+Observability endpoints are behaving as expected.
+
 ## 8. Suggested Operational Sequence
 
 For each release:
