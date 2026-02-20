@@ -1,10 +1,21 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import PropTypes from "prop-types";
+import type {
+  FormEvent,
+  KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 import Modal from "../components/Modal";
 import ImportCsvModal from "../components/ImportCsvModal";
 import ImportHistoryModal from "../components/ImportHistoryModal";
 import TransactionList from "../components/TransactionList";
-import { transactionsService } from "../services/transactions.service";
+import {
+  transactionsService,
+  type CategoryOption,
+  type MonthlyBudget,
+  type MonthlyBudgetStatus,
+  type MonthlySummary,
+  type Transaction,
+  type TransactionType,
+} from "../services/transactions.service";
 import {
   CATEGORY_ALL,
   CATEGORY_ENTRY,
@@ -21,6 +32,80 @@ import {
 } from "../components/DatabaseUtils";
 
 const TransactionChart = lazy(() => import("../components/TransactionChart"));
+
+type SelectedCategory = "Todos" | TransactionType;
+type SelectedPeriod =
+  | "Todo periodo"
+  | "Hoje"
+  | "Ultimos 7 dias"
+  | "Ultimos 30 dias"
+  | "Personalizado";
+type FilterPresetId = "this-month" | "clear";
+type RemovableChipId = "q" | "type" | "period" | "category" | "sort";
+
+interface FilterState {
+  selectedCategory: SelectedCategory;
+  selectedPeriod: SelectedPeriod;
+  selectedSort: string;
+  selectedQuery: string;
+  selectedTransactionCategoryId: string;
+  customStartDate: string;
+  customEndDate: string;
+}
+
+interface PaginationState {
+  page: number;
+  limit: number;
+  offset: number;
+}
+
+interface PaginationMeta extends PaginationState {
+  total: number;
+  totalPages: number;
+}
+
+interface UndoState {
+  transactionId: number;
+}
+
+interface BudgetFormState {
+  categoryId: string;
+  amount: string;
+}
+
+interface AppliedChip {
+  id: RemovableChipId;
+  text: string;
+  removable: boolean;
+  removeLabel: string;
+}
+
+interface TransactionWithCategoryName extends Transaction {
+  categoryName: string;
+}
+
+interface TransactionModalPayload {
+  value: number;
+  type: TransactionType;
+  categoryId: number | null;
+  date: string;
+  description: string;
+  notes: string;
+}
+
+interface ApiLikeError {
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+  message?: string;
+}
+
+interface AppProps {
+  onLogout?: () => void;
+  onOpenCategoriesSettings?: () => void;
+}
 
 const PERIOD_OPTIONS = [
   PERIOD_ALL,
@@ -39,16 +124,16 @@ const SORT_OPTIONS = [
 ];
 const FILTER_PRESETS = [
   { id: "this-month", label: "Este mes" },
-];
-const FILTER_BUTTON_LABELS = {
-  [CATEGORY_ALL]: "Todas",
-  [CATEGORY_ENTRY]: "Entradas",
-  [CATEGORY_EXIT]: "Saidas",
+] as const;
+const FILTER_BUTTON_LABELS: Record<SelectedCategory, string> = {
+  Todos: "Todas",
+  Entrada: "Entradas",
+  Saida: "Saidas",
 };
-const FILTER_BUTTON_ARIA_LABELS = {
-  [CATEGORY_ALL]: "Filtrar todas",
-  [CATEGORY_ENTRY]: "Filtrar entradas",
-  [CATEGORY_EXIT]: "Filtrar saidas",
+const FILTER_BUTTON_ARIA_LABELS: Record<SelectedCategory, string> = {
+  Todos: "Filtrar todas",
+  Entrada: "Filtrar entradas",
+  Saida: "Filtrar saidas",
 };
 const SORT_OPTION_VALUES = new Set(SORT_OPTIONS.map((option) => option.value));
 const DEFAULT_SORT = "date:asc";
@@ -59,33 +144,39 @@ const MOBILE_FILTERS_BREAKPOINT = 640;
 const MOBILE_ACTIONS_MENU_ID = "mobile-header-actions-menu";
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
 const PAGE_SIZE_STORAGE_KEY = "control_finance.page_size";
-const DEFAULT_MONTHLY_SUMMARY = {
+const DEFAULT_MONTHLY_SUMMARY: MonthlySummary = {
   month: "",
   income: 0,
   expense: 0,
   balance: 0,
   byCategory: [],
 };
-const DEFAULT_MONTHLY_BUDGETS = [];
-const DEFAULT_BUDGET_FORM = {
+const DEFAULT_MONTHLY_BUDGETS: MonthlyBudget[] = [];
+const DEFAULT_BUDGET_FORM: BudgetFormState = {
   categoryId: "",
   amount: "",
 };
-const BUDGET_STATUS_LABELS = {
+const BUDGET_STATUS_LABELS: Record<MonthlyBudgetStatus, string> = {
   ok: "Dentro da meta",
   near_limit: "Proximo do limite",
   exceeded: "Acima da meta",
 };
-const BUDGET_STATUS_BADGE_CLASSNAMES = {
+const BUDGET_STATUS_BADGE_CLASSNAMES: Record<MonthlyBudgetStatus, string> = {
   ok: "border-green-200 bg-green-50 text-green-700",
   near_limit: "border-amber-200 bg-amber-50 text-amber-700",
   exceeded: "border-red-200 bg-red-50 text-red-700",
 };
-const BUDGET_STATUS_BAR_CLASSNAMES = {
+const BUDGET_STATUS_BAR_CLASSNAMES: Record<MonthlyBudgetStatus, string> = {
   ok: "bg-green-500",
   near_limit: "bg-amber-500",
   exceeded: "bg-red-500",
 };
+const isSelectedPeriod = (value: string | null): value is SelectedPeriod =>
+  value === PERIOD_ALL ||
+  value === PERIOD_TODAY ||
+  value === PERIOD_LAST_7_DAYS ||
+  value === PERIOD_LAST_30_DAYS ||
+  value === PERIOD_CUSTOM;
 
 const getCurrentMonth = () => getTodayISODate().slice(0, 7);
 const getCurrentMonthRange = (referenceDate = new Date()) => {
@@ -101,7 +192,10 @@ const getCurrentMonthRange = (referenceDate = new Date()) => {
   };
 };
 
-const parseIntegerInRange = (value, { min, max }) => {
+const parseIntegerInRange = (
+  value: string | null | undefined,
+  { min, max }: { min: number; max: number },
+) => {
   if (typeof value !== "string" || !value.trim()) {
     return null;
   }
@@ -115,7 +209,7 @@ const parseIntegerInRange = (value, { min, max }) => {
   return parsedValue;
 };
 
-const normalizeSortOption = (value) => {
+const normalizeSortOption = (value: string | null | undefined): string => {
   if (typeof value !== "string") {
     return DEFAULT_SORT;
   }
@@ -124,7 +218,7 @@ const normalizeSortOption = (value) => {
   return SORT_OPTION_VALUES.has(normalizedValue) ? normalizedValue : DEFAULT_SORT;
 };
 
-const getInitialFilterState = () => {
+const getInitialFilterState = (): FilterState => {
   if (typeof window === "undefined") {
     return {
       selectedCategory: CATEGORY_ALL,
@@ -152,7 +246,7 @@ const getInitialFilterState = () => {
 
   const selectedCategory =
     queryType === CATEGORY_ENTRY || queryType === CATEGORY_EXIT ? queryType : CATEGORY_ALL;
-  let selectedPeriod = PERIOD_OPTIONS.includes(queryPeriod) ? queryPeriod : PERIOD_ALL;
+  let selectedPeriod: SelectedPeriod = isSelectedPeriod(queryPeriod) ? queryPeriod : PERIOD_ALL;
   const customStartDate = isValidISODate(queryFrom) ? queryFrom : "";
   const customEndDate = isValidISODate(queryTo) ? queryTo : "";
 
@@ -171,11 +265,12 @@ const getInitialFilterState = () => {
   };
 };
 
-const getApiErrorMessage = (error, fallbackMessage) => {
-  return error?.response?.data?.message || error?.message || fallbackMessage;
+const getApiErrorMessage = (error: unknown, fallbackMessage: string): string => {
+  const normalizedError = error as ApiLikeError;
+  return normalizedError?.response?.data?.message || normalizedError?.message || fallbackMessage;
 };
 
-const normalizeTransactions = (transactions) => {
+const normalizeTransactions = (transactions: unknown): Transaction[] => {
   if (!Array.isArray(transactions)) {
     return [];
   }
@@ -202,7 +297,7 @@ const normalizeTransactions = (transactions) => {
     );
 };
 
-const downloadBlobFile = (blob, fileName) => {
+const downloadBlobFile = (blob: Blob, fileName: string) => {
   const objectUrl = URL.createObjectURL(blob);
   const downloadLink = document.createElement("a");
   downloadLink.href = objectUrl;
@@ -213,7 +308,7 @@ const downloadBlobFile = (blob, fileName) => {
   URL.revokeObjectURL(objectUrl);
 };
 
-const getInitialPageSize = () => {
+const getInitialPageSize = (): number => {
   if (typeof window === "undefined") {
     return DEFAULT_LIMIT;
   }
@@ -239,7 +334,7 @@ const getInitialPageSize = () => {
   return DEFAULT_LIMIT;
 };
 
-const getInitialOffset = () => {
+const getInitialOffset = (): number => {
   if (typeof window === "undefined") {
     return DEFAULT_OFFSET;
   }
@@ -252,13 +347,13 @@ const getInitialOffset = () => {
   return queryOffset ?? DEFAULT_OFFSET;
 };
 
-const getPageFromOffset = (offset, limit) => {
+const getPageFromOffset = (offset: number, limit: number) => {
   const safeLimit = Number.isInteger(limit) && limit > 0 ? limit : DEFAULT_LIMIT;
   const safeOffset = Number.isInteger(offset) && offset >= 0 ? offset : DEFAULT_OFFSET;
   return Math.floor(safeOffset / safeLimit) + 1;
 };
 
-const getInitialPaginationState = () => {
+const getInitialPaginationState = (): PaginationState => {
   const limit = getInitialPageSize();
   const offset = getInitialOffset();
 
@@ -269,13 +364,13 @@ const getInitialPaginationState = () => {
   };
 };
 
-const formatCurrency = (value) => `R$ ${Number(value || 0).toFixed(2)}`;
-const formatPercentage = (value) => `${Number(value || 0).toFixed(2)}%`;
-const isCompactHeaderActionsMode = () =>
+const formatCurrency = (value: number) => `R$ ${Number(value || 0).toFixed(2)}`;
+const formatPercentage = (value: number) => `${Number(value || 0).toFixed(2)}%`;
+const isCompactHeaderActionsMode = (): boolean =>
   typeof window !== "undefined" && window.innerWidth < MOBILE_HEADER_ACTIONS_BREAKPOINT;
-const isCompactFiltersPanelMode = () =>
+const isCompactFiltersPanelMode = (): boolean =>
   typeof window !== "undefined" && window.innerWidth < MOBILE_FILTERS_BREAKPOINT;
-const hasInitialActiveFilters = (filters) =>
+const hasInitialActiveFilters = (filters: FilterState): boolean =>
   filters.selectedCategory !== CATEGORY_ALL ||
   filters.selectedPeriod !== PERIOD_ALL ||
   Boolean(filters.selectedTransactionCategoryId) ||
@@ -284,21 +379,23 @@ const hasInitialActiveFilters = (filters) =>
 const App = ({
   onLogout = undefined,
   onOpenCategoriesSettings = undefined,
-}) => {
+}: AppProps): JSX.Element => {
   const initialFilterState = useMemo(() => getInitialFilterState(), []);
   const initialFiltersAreActive = useMemo(
     () => hasInitialActiveFilters(initialFilterState),
     [initialFilterState],
   );
   const initialPaginationState = useMemo(() => getInitialPaginationState(), []);
-  const listSectionRef = useRef(null);
-  const filtersPanelRef = useRef(null);
-  const searchInputRef = useRef(null);
-  const mobileActionsButtonRef = useRef(null);
-  const mobileActionsMenuRef = useRef(null);
-  const firstMobileActionsItemRef = useRef(null);
-  const [selectedCategory, setSelectedCategory] = useState(initialFilterState.selectedCategory);
-  const [selectedPeriod, setSelectedPeriod] = useState(initialFilterState.selectedPeriod);
+  const listSectionRef = useRef<HTMLElement | null>(null);
+  const filtersPanelRef = useRef<HTMLElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const mobileActionsButtonRef = useRef<HTMLButtonElement | null>(null);
+  const mobileActionsMenuRef = useRef<HTMLDivElement | null>(null);
+  const firstMobileActionsItemRef = useRef<HTMLButtonElement | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<SelectedCategory>(
+    initialFilterState.selectedCategory,
+  );
+  const [selectedPeriod, setSelectedPeriod] = useState<SelectedPeriod>(initialFilterState.selectedPeriod);
   const [selectedSort, setSelectedSort] = useState(initialFilterState.selectedSort || DEFAULT_SORT);
   const [selectedQuery, setSelectedQuery] = useState(initialFilterState.selectedQuery || "");
   const [queryInput, setQueryInput] = useState(initialFilterState.selectedQuery || "");
@@ -306,13 +403,13 @@ const App = ({
     initialFilterState.selectedTransactionCategoryId,
   );
   const [selectedSummaryMonth, setSelectedSummaryMonth] = useState(() => getCurrentMonth());
-  const [categories, setCategories] = useState([]);
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [hasLoadedCategories, setHasLoadedCategories] = useState(false);
   const [customStartDate, setCustomStartDate] = useState(initialFilterState.customStartDate);
   const [customEndDate, setCustomEndDate] = useState(initialFilterState.customEndDate);
   const [currentOffset, setCurrentOffset] = useState(initialPaginationState.offset);
   const [pageSize, setPageSize] = useState(initialPaginationState.limit);
-  const [paginationMeta, setPaginationMeta] = useState(() => ({
+  const [paginationMeta, setPaginationMeta] = useState<PaginationMeta>(() => ({
     page: initialPaginationState.page,
     limit: initialPaginationState.limit,
     offset: initialPaginationState.offset,
@@ -333,17 +430,17 @@ const App = ({
     !isCompactFiltersPanelMode() || initialFiltersAreActive,
   );
   const [isBudgetModalOpen, setBudgetModalOpen] = useState(false);
-  const [editingTransaction, setEditingTransaction] = useState(null);
-  const [editingBudget, setEditingBudget] = useState(null);
-  const [budgetForm, setBudgetForm] = useState(DEFAULT_BUDGET_FORM);
-  const [pendingDeleteTransactionId, setPendingDeleteTransactionId] = useState(null);
-  const [undoState, setUndoState] = useState(null);
-  const [transactions, setTransactions] = useState([]);
+  const [editingTransaction, setEditingTransaction] = useState<TransactionWithCategoryName | null>(null);
+  const [editingBudget, setEditingBudget] = useState<MonthlyBudget | null>(null);
+  const [budgetForm, setBudgetForm] = useState<BudgetFormState>(DEFAULT_BUDGET_FORM);
+  const [pendingDeleteTransactionId, setPendingDeleteTransactionId] = useState<number | null>(null);
+  const [undoState, setUndoState] = useState<UndoState | null>(null);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoadingTransactions, setLoadingTransactions] = useState(false);
   const [isLoadingSummary, setLoadingSummary] = useState(false);
   const [isExportingCsv, setExportingCsv] = useState(false);
-  const [monthlySummary, setMonthlySummary] = useState(DEFAULT_MONTHLY_SUMMARY);
-  const [monthlyBudgets, setMonthlyBudgets] = useState(DEFAULT_MONTHLY_BUDGETS);
+  const [monthlySummary, setMonthlySummary] = useState<MonthlySummary>(DEFAULT_MONTHLY_SUMMARY);
+  const [monthlyBudgets, setMonthlyBudgets] = useState<MonthlyBudget[]>(DEFAULT_MONTHLY_BUDGETS);
   const [summaryError, setSummaryError] = useState("");
   const [budgetsError, setBudgetsError] = useState("");
   const [budgetSuccessMessage, setBudgetSuccessMessage] = useState("");
@@ -352,8 +449,8 @@ const App = ({
   const [requestError, setRequestError] = useState("");
   const [modalRequestError, setModalRequestError] = useState("");
   const [isLoadingBudgets, setLoadingBudgets] = useState(false);
-  const undoTimeoutRef = useRef(null);
-  const budgetSuccessTimeoutRef = useRef(null);
+  const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const budgetSuccessTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const periodRange = useMemo(
     () =>
@@ -374,7 +471,7 @@ const App = ({
   }, []);
 
   const scheduleUndo = useCallback(
-    (transactionId) => {
+    (transactionId: number) => {
       clearUndoState();
       setUndoState({ transactionId });
       undoTimeoutRef.current = setTimeout(() => {
@@ -447,8 +544,8 @@ const App = ({
       return undefined;
     }
 
-    const handleWindowMouseDown = (event) => {
-      const eventTarget = event.target;
+    const handleWindowMouseDown = (event: MouseEvent) => {
+      const eventTarget = event.target as Node | null;
 
       if (
         mobileActionsMenuRef.current?.contains(eventTarget) ||
@@ -460,7 +557,7 @@ const App = ({
       setMobileActionsMenuOpen(false);
     };
 
-    const handleWindowKeyDown = (event) => {
+    const handleWindowKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setMobileActionsMenuOpen(false);
       }
@@ -502,7 +599,7 @@ const App = ({
   }, []);
 
   const showBudgetSuccessMessage = useCallback(
-    (message) => {
+    (message: string) => {
       clearBudgetSuccessMessage();
       setBudgetSuccessMessage(message);
       budgetSuccessTimeoutRef.current = setTimeout(() => {
@@ -582,7 +679,7 @@ const App = ({
     setBudgetModalOpen(true);
   };
 
-  const openEditBudgetModal = (budget) => {
+  const openEditBudgetModal = (budget: MonthlyBudget) => {
     setEditingBudget(budget);
     setBudgetForm({
       categoryId: String(budget?.categoryId || ""),
@@ -639,7 +736,7 @@ const App = ({
     }
   };
 
-  const handleDeleteBudget = async (budget) => {
+  const handleDeleteBudget = async (budget: MonthlyBudget) => {
     const confirmationMessage = `Excluir meta de "${budget.categoryName}"?`;
     // In non-browser test environments, skip native confirm prompt.
     const isConfirmed = typeof window === "undefined" ? true : window.confirm(confirmationMessage);
@@ -672,7 +769,10 @@ const App = ({
         ...(selectedQuery ? { q: selectedQuery } : {}),
         from: periodRange.startDate || undefined,
         to: periodRange.endDate || undefined,
-        type: selectedCategory !== CATEGORY_ALL ? selectedCategory : undefined,
+        type:
+          selectedCategory !== CATEGORY_ALL
+            ? (selectedCategory as TransactionType)
+            : undefined,
         categoryId: selectedTransactionCategoryId
           ? Number(selectedTransactionCategoryId)
           : undefined,
@@ -854,7 +954,7 @@ const App = ({
     setModalOpen(true);
   };
 
-  const openEditModal = (transaction) => {
+  const openEditModal = (transaction: TransactionWithCategoryName) => {
     setEditingTransaction(transaction);
     setModalRequestError("");
     setModalOpen(true);
@@ -867,7 +967,7 @@ const App = ({
     description,
     notes,
     categoryId,
-  }) => {
+  }: TransactionModalPayload) => {
     setRequestError("");
     setModalRequestError("");
 
@@ -916,7 +1016,7 @@ const App = ({
     }
   };
 
-  const requestDeleteTransaction = (id) => {
+  const requestDeleteTransaction = (id: number) => {
     setPendingDeleteTransactionId(id);
   };
 
@@ -968,7 +1068,10 @@ const App = ({
     const exportFilters = {
       from: periodRange.startDate || undefined,
       to: periodRange.endDate || undefined,
-      type: selectedCategory !== CATEGORY_ALL ? selectedCategory : undefined,
+      type:
+        selectedCategory !== CATEGORY_ALL
+          ? (selectedCategory as TransactionType)
+          : undefined,
       categoryId: selectedTransactionCategoryId
         ? Number(selectedTransactionCategoryId)
         : undefined,
@@ -1043,7 +1146,7 @@ const App = ({
     });
   };
 
-  const applyFilterPreset = (presetId) => {
+  const applyFilterPreset = (presetId: FilterPresetId) => {
     if (presetId === "this-month") {
       const { startDate, endDate } = getCurrentMonthRange();
       setSelectedPeriod(PERIOD_CUSTOM);
@@ -1067,7 +1170,7 @@ const App = ({
     }
   };
 
-  const goToOffset = (nextOffset) => {
+  const goToOffset = (nextOffset: number) => {
     const maxOffset =
       paginationMeta.total > 0
         ? Math.max((paginationMeta.totalPages - 1) * paginationMeta.limit, 0)
@@ -1102,7 +1205,7 @@ const App = ({
     goToOffset(lastOffset);
   };
 
-  const handlePageSizeChange = (nextPageSize) => {
+  const handlePageSizeChange = (nextPageSize: string) => {
     const parsedPageSize = Number.parseInt(nextPageSize, 10);
 
     if (!PAGE_SIZE_OPTIONS.includes(parsedPageSize)) {
@@ -1119,7 +1222,7 @@ const App = ({
     scrollToListTop();
   };
 
-  const handleApplyQueryFilter = (event) => {
+  const handleApplyQueryFilter = (event?: FormEvent<HTMLFormElement>) => {
     if (event) {
       event.preventDefault();
     }
@@ -1129,7 +1232,7 @@ const App = ({
     setSelectedQuery(normalizedQuery);
     setCurrentOffset(DEFAULT_OFFSET);
   };
-  const handleQueryInputKeyDown = (event) => {
+  const handleQueryInputKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
     if (event.key !== "Escape") {
       return;
     }
@@ -1157,7 +1260,7 @@ const App = ({
       handleRemoveAppliedChip("q");
     }
   };
-  const handleRemoveAppliedChip = (chipId) => {
+  const handleRemoveAppliedChip = (chipId: RemovableChipId) => {
     let shouldFocusSearchInput = false;
 
     if (chipId === "q") {
@@ -1217,7 +1320,7 @@ const App = ({
     focusSearchInput();
   }, [isMobileFiltersPanel]);
 
-  const filterButtons = [CATEGORY_ALL, CATEGORY_ENTRY, CATEGORY_EXIT];
+  const filterButtons: SelectedCategory[] = [CATEGORY_ALL, CATEGORY_ENTRY, CATEGORY_EXIT];
   const todayISO = getTodayISODate();
   const currentMonthRange = useMemo(
     () => getCurrentMonthRange(new Date(`${todayISO}T00:00:00`)),
@@ -1253,8 +1356,8 @@ const App = ({
     monthlySummary.byCategory.length > 0;
   const hasMonthlyBudgetsData = monthlyBudgets.length > 0;
   const canCreateBudget = categories.length > 0 && !isLoadingBudgets && !isSavingBudget;
-  const appliedChips = useMemo(() => {
-    const chips = [];
+  const appliedChips = useMemo<AppliedChip[]>(() => {
+    const chips: AppliedChip[] = [];
 
     if (selectedQuery) {
       chips.push({
@@ -1326,7 +1429,7 @@ const App = ({
     selectedTransactionCategoryId,
   ]);
   const visibleFilterPresets = FILTER_PRESETS;
-  const isPresetActive = (presetId) => {
+  const isPresetActive = (presetId: (typeof FILTER_PRESETS)[number]["id"]): boolean => {
     if (presetId === "this-month") {
       return (
         selectedPeriod === PERIOD_CUSTOM &&
@@ -1635,7 +1738,7 @@ const App = ({
               id="periodo"
               value={selectedPeriod}
               onChange={(event) => {
-                const nextPeriod = event.target.value;
+                const nextPeriod = event.target.value as SelectedPeriod;
                 setSelectedPeriod(nextPeriod);
                 setCurrentOffset(DEFAULT_OFFSET);
 
@@ -2276,8 +2379,3 @@ const App = ({
 };
 
 export default App;
-
-App.propTypes = {
-  onLogout: PropTypes.func,
-  onOpenCategoriesSettings: PropTypes.func,
-};
