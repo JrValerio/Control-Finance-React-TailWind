@@ -67,7 +67,7 @@ Confirm:
 ## 4. Observability Baseline (Availability)
 
 Reference:
-- [ ] `docs/observability/slo.md` reviewed for current SLI/SLO definitions.
+- [ ] [`docs/observability/slo.md`](../observability/slo.md) reviewed for current SLI/SLO definitions.
 
 ### SLI
 - [ ] Availability SLI is based on `GET /health` success rate (`HTTP 200`).
