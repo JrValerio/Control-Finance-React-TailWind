@@ -87,7 +87,11 @@ $registerBody = @{
 } | ConvertTo-Json
 
 $registerResponse = Invoke-Json "POST" "$BaseUrl/auth/register" $registerHeaders $registerBody
-Assert-Status $registerResponse 201 "Register"
+if ([int]$registerResponse.StatusCode -ne 201 -and [int]$registerResponse.StatusCode -ne 200) {
+  Write-Host "[FAIL] Register failed. Expected 200/201, got $($registerResponse.StatusCode)."
+  Write-Host $registerResponse.Content
+  exit 1
+}
 
 if ($DelayMs -gt 0) { Start-Sleep -Milliseconds $DelayMs }
 
@@ -143,8 +147,9 @@ for ($index = 1; $index -le $TransactionsCount; $index += 1) {
   $txHeaders = $authHeaders.Clone()
   $txHeaders["x-request-id"] = $txRequestId
   $txDate = $today.AddDays(-$index).ToString("yyyy-MM-dd")
+  $txType = if ($index % 2 -eq 0) { "Entrada" } else { "Saida" }
   $txBody = @{
-    type = "Entrada"
+    type = $txType
     value = (Get-Random -Minimum 50 -Maximum 500)
     date = $txDate
     description = "Warmup transaction $index"
