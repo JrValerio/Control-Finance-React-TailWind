@@ -63,3 +63,4 @@ After applying:
 - Alloy worker: `ops/alloy/README.md`
 - Dashboard: `docs/observability/dashboards/control-finance-api-min.json`
 - Alerts: `docs/observability/alerts/control-finance-api-alerts.yaml`
+- Warmup traffic script: `scripts/warmup-observability.ps1`
