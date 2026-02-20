@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.13.1] - 2026-02-20
+
+### Added
+
+- CSV export now includes `category_name` (`id,type,value,date,description,notes,category_name,created_at`).
+- Export category labels with fallbacks:
+  - `Sem categoria` for null category.
+  - `Categoria nao encontrada` when category id is unresolved.
+
+### Changed
+
+- Release runbook updated with incident severity and escalation criteria (`P1/P2/P3`).
+- Release runbook now includes `APP_BUILD_TIMESTAMP` in deploy verification checks.
+
+### Ops
+
+- Production `buildTimestamp` in `/health` configured and validated.
+- Post-release check now enforces `/health.commit == origin/main`.
+
 ## [1.13.0] - 2026-02-20
 
 ### Added
