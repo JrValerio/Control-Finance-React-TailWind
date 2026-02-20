@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import App from "./pages/App";
+import CategoriesSettings from "./pages/CategoriesSettings";
 import Login from "./pages/Login";
 import ProtectedRoute from "./routers/ProtectedRoute";
 import { useAuth } from "./hooks/useAuth";
@@ -13,7 +14,32 @@ const Dashboard = () => {
     navigate("/", { replace: true });
   };
 
-  return <App onLogout={handleLogout} />;
+  const handleOpenCategoriesSettings = () => {
+    navigate("/app/settings/categories");
+  };
+
+  return (
+    <App
+      onLogout={handleLogout}
+      onOpenCategoriesSettings={handleOpenCategoriesSettings}
+    />
+  );
+};
+
+const CategoriesSettingsRoute = () => {
+  const navigate = useNavigate();
+  const { logout } = useAuth();
+
+  const handleBack = () => {
+    navigate("/app");
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate("/", { replace: true });
+  };
+
+  return <CategoriesSettings onBack={handleBack} onLogout={handleLogout} />;
 };
 
 const RootRedirect = () => {
@@ -31,6 +57,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/app/settings/categories"
+        element={
+          <ProtectedRoute>
+            <CategoriesSettingsRoute />
           </ProtectedRoute>
         }
       />
