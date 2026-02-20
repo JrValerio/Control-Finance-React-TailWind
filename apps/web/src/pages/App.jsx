@@ -1529,7 +1529,7 @@ const App = ({ onLogout = undefined }) => {
                   ) : null}
                   <div className="flex flex-col gap-1.5">
                     <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-200">
-                      Filtrar lista
+                      Tipo
                     </span>
                     <div className="flex flex-wrap items-center gap-1.5">
                       {filterButtons.map((category) => {
