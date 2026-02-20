@@ -125,6 +125,54 @@ Rollback needed: yes/no
 Observations:
 ```
 
+### Evidence Template (Copy/Paste for New Releases)
+
+Use this structure for each new release:
+
+```md
+### Evidences - vX.Y.Z (YYYY-MM-DD)
+
+#### Git Integrity
+- main HEAD: `<short_sha>`
+- tag `vX.Y.Z` -> `<short_sha>` (annotated)
+
+#### Production Smoke (Render)
+Base: `https://<api-host>`
+
+##### /health
+- Status: `200`
+- version: `<x.y.z>`
+- commit: `<full_sha>`
+- buildTimestamp: `<ISO-8601 | unknown>`
+- Result: `OK`
+
+##### /metrics (no auth)
+- Status: `403`
+- Result: `Protected as expected`
+
+#### Conclusion
+Production is aligned with `origin/main` and `vX.Y.Z` (version + commit).
+Observability endpoints are behaving as expected.
+```
+
+Reusable repro commands:
+
+```powershell
+$api='https://<api-host>'
+
+# health
+$h = Invoke-RestMethod "$api/health"
+$h | ConvertTo-Json -Depth 5
+
+# metrics (negative control)
+try {
+  Invoke-WebRequest "$api/metrics" -TimeoutSec 15 | Out-Null
+  "metrics(no-auth)=200"
+} catch {
+  "metrics(no-auth)=$($_.Exception.Response.StatusCode.value__)"
+}
+```
+
 ### Evidences - v1.13.1 (2026-02-20)
 
 #### Git Integrity
