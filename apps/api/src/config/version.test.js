@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveApiCommit, resolveApiVersion } from "./version.js";
+import { resolveApiBuildTimestamp, resolveApiCommit, resolveApiVersion } from "./version.js";
 
 describe("version config", () => {
   it("prioriza RENDER_GIT_COMMIT para commit", () => {
@@ -74,5 +74,46 @@ describe("version config", () => {
     const version = resolveApiVersion({}, { packageVersion: "" });
 
     expect(version).toBe("unknown");
+  });
+
+  it("prioriza APP_BUILD_TIMESTAMP quando informado", () => {
+    const buildTimestamp = resolveApiBuildTimestamp({
+      APP_BUILD_TIMESTAMP: "2026-02-21T03:45:00.000Z",
+      BUILD_TIMESTAMP: "2026-02-20T10:00:00.000Z",
+    });
+
+    expect(buildTimestamp).toBe("2026-02-21T03:45:00.000Z");
+  });
+
+  it("usa BUILD_TIMESTAMP quando APP_BUILD_TIMESTAMP nao existe", () => {
+    const buildTimestamp = resolveApiBuildTimestamp({
+      BUILD_TIMESTAMP: "2026-02-20T10:00:00.000Z",
+    });
+
+    expect(buildTimestamp).toBe("2026-02-20T10:00:00.000Z");
+  });
+
+  it("ignora APP_BUILD_TIMESTAMP invalido e usa BUILD_TIMESTAMP valido", () => {
+    const buildTimestamp = resolveApiBuildTimestamp({
+      APP_BUILD_TIMESTAMP: "invalid-timestamp",
+      BUILD_TIMESTAMP: "2026-02-20T10:00:00.000Z",
+    });
+
+    expect(buildTimestamp).toBe("2026-02-20T10:00:00.000Z");
+  });
+
+  it("retorna unknown quando APP_BUILD_TIMESTAMP e BUILD_TIMESTAMP sao invalidos", () => {
+    const buildTimestamp = resolveApiBuildTimestamp({
+      APP_BUILD_TIMESTAMP: "invalid-timestamp",
+      BUILD_TIMESTAMP: "not-a-date",
+    });
+
+    expect(buildTimestamp).toBe("unknown");
+  });
+
+  it("retorna unknown quando timestamp de build nao existe", () => {
+    const buildTimestamp = resolveApiBuildTimestamp({});
+
+    expect(buildTimestamp).toBe("unknown");
   });
 });

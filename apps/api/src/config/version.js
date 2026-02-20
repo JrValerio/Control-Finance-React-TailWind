@@ -10,6 +10,15 @@ const normalizeEnvValue = (value) => {
   return value.trim();
 };
 
+const isValidIsoTimestamp = (value) => {
+  if (!value) {
+    return false;
+  }
+
+  const parsedTimestamp = Date.parse(value);
+  return Number.isFinite(parsedTimestamp);
+};
+
 const resolvePackageVersion = () => {
   try {
     const currentFilePath = fileURLToPath(import.meta.url);
@@ -43,6 +52,22 @@ export const resolveApiCommit = (env = process.env) => {
 
   if (commitFromGenericEnv) {
     return commitFromGenericEnv;
+  }
+
+  return "unknown";
+};
+
+export const resolveApiBuildTimestamp = (env = process.env) => {
+  const buildTimestampFromAppEnv = normalizeEnvValue(env.APP_BUILD_TIMESTAMP);
+
+  if (isValidIsoTimestamp(buildTimestampFromAppEnv)) {
+    return buildTimestampFromAppEnv;
+  }
+
+  const buildTimestampFromGenericEnv = normalizeEnvValue(env.BUILD_TIMESTAMP);
+
+  if (isValidIsoTimestamp(buildTimestampFromGenericEnv)) {
+    return buildTimestampFromGenericEnv;
   }
 
   return "unknown";

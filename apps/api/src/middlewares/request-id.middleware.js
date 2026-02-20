@@ -26,9 +26,17 @@ export const requestIdMiddleware = (req, res, next) => {
   const requestIdFromCorrelation = normalizeRequestIdValue(req.headers["x-correlation-id"]);
   const requestId = requestIdFromHeader || requestIdFromCorrelation || randomUUID();
 
+  const existingContext =
+    req.context && typeof req.context === "object" && !Array.isArray(req.context)
+      ? req.context
+      : {};
+
+  req.context = {
+    ...existingContext,
+    requestId,
+  };
   req.requestId = requestId;
   res.setHeader("x-request-id", requestId);
 
   next();
 };
-
