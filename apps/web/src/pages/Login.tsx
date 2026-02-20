@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 
@@ -6,12 +7,14 @@ const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
 const WEAK_PASSWORD_MESSAGE =
   "Senha fraca: use no minimo 8 caracteres com letras e numeros.";
 
-const isStrongPassword = (password) => {
+type AuthMode = "login" | "register";
+
+const isStrongPassword = (password: string): boolean => {
   const normalizedPassword = password.trim();
   return PASSWORD_REGEX.test(normalizedPassword);
 };
 
-const Login = () => {
+const Login = (): JSX.Element => {
   const navigate = useNavigate();
   const {
     isAuthenticated,
@@ -21,7 +24,7 @@ const Login = () => {
     register,
     clearError,
   } = useAuth();
-  const [mode, setMode] = useState("login");
+  const [mode, setMode] = useState<AuthMode>("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -39,7 +42,7 @@ const Login = () => {
     clearError();
   };
 
-  const handleModeChange = (nextMode) => {
+  const handleModeChange = (nextMode: AuthMode) => {
     setMode(nextMode);
     resetErrors();
 
@@ -48,7 +51,7 @@ const Login = () => {
     }
   };
 
-  const handleSubmit = async (event) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     resetErrors();
 

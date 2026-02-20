@@ -1,36 +1,61 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import PropTypes from "prop-types";
+import type { FormEvent } from "react";
 import { useSearchParams } from "react-router-dom";
-import { categoriesService } from "../services/categories.service";
+import {
+  categoriesService,
+  type CategoryItem,
+} from "../services/categories.service";
 
-const parseIncludeDeletedParam = (value) =>
+const parseIncludeDeletedParam = (value: string | null | undefined): boolean =>
   String(value || "").toLowerCase() === "true";
 
-const getApiErrorMessage = (error, fallbackMessage) =>
-  error?.response?.data?.message || error?.message || fallbackMessage;
+interface ApiLikeError {
+  response?: {
+    data?: {
+      message?: string;
+    };
+    status?: number;
+  };
+  message?: string;
+}
 
-const resolveCategoryMutationErrorMessage = (error, fallbackMessage) => {
-  if (error?.response?.status === 409) {
+const getApiErrorMessage = (error: unknown, fallbackMessage: string): string => {
+  const normalizedError = error as ApiLikeError;
+  return normalizedError?.response?.data?.message || normalizedError?.message || fallbackMessage;
+};
+
+const resolveCategoryMutationErrorMessage = (error: unknown, fallbackMessage: string): string => {
+  const normalizedError = error as ApiLikeError;
+
+  if (normalizedError?.response?.status === 409) {
     return "Categoria ja existe.";
   }
 
-  if (error?.response?.status === 404) {
+  if (normalizedError?.response?.status === 404) {
     return "Categoria nao encontrada.";
   }
 
   return getApiErrorMessage(error, fallbackMessage);
 };
 
-const CategoriesSettings = ({ onBack = undefined, onLogout = undefined }) => {
+interface CategoriesSettingsProps {
+  onBack?: () => void;
+  onLogout?: () => void;
+}
+
+const CategoriesSettings = ({
+  onBack = undefined,
+  onLogout = undefined,
+}: CategoriesSettingsProps): JSX.Element => {
   const [searchParams, setSearchParams] = useSearchParams();
   const includeDeleted = useMemo(
     () => parseIncludeDeletedParam(searchParams.get("includeDeleted")),
     [searchParams],
   );
-  const [categories, setCategories] = useState([]);
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [isLoadingCategories, setLoadingCategories] = useState(false);
   const [isCategoryModalOpen, setCategoryModalOpen] = useState(false);
-  const [editingCategory, setEditingCategory] = useState(null);
+  const [editingCategory, setEditingCategory] = useState<CategoryItem | null>(null);
   const [categoryFormName, setCategoryFormName] = useState("");
   const [isSavingCategory, setSavingCategory] = useState(false);
   const [pageErrorMessage, setPageErrorMessage] = useState("");
@@ -63,7 +88,7 @@ const CategoriesSettings = ({ onBack = undefined, onLogout = undefined }) => {
     setCategoryModalOpen(true);
   };
 
-  const openRenameCategoryModal = (category) => {
+  const openRenameCategoryModal = (category: CategoryItem) => {
     setEditingCategory(category);
     setCategoryFormName(category?.name || "");
     setCategoryModalErrorMessage("");
@@ -81,7 +106,7 @@ const CategoriesSettings = ({ onBack = undefined, onLogout = undefined }) => {
     setCategoryModalErrorMessage("");
   };
 
-  const handleSubmitCategory = async (event) => {
+  const handleSubmitCategory = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const normalizedName = String(categoryFormName || "").trim();
@@ -115,7 +140,7 @@ const CategoriesSettings = ({ onBack = undefined, onLogout = undefined }) => {
     }
   };
 
-  const handleDeleteCategory = async (category) => {
+  const handleDeleteCategory = async (category: CategoryItem) => {
     const isConfirmed =
       typeof window === "undefined"
         ? true
@@ -139,7 +164,7 @@ const CategoriesSettings = ({ onBack = undefined, onLogout = undefined }) => {
     }
   };
 
-  const handleRestoreCategory = async (category) => {
+  const handleRestoreCategory = async (category: CategoryItem) => {
     const isConfirmed =
       typeof window === "undefined"
         ? true
@@ -163,7 +188,7 @@ const CategoriesSettings = ({ onBack = undefined, onLogout = undefined }) => {
     }
   };
 
-  const handleToggleIncludeDeleted = (nextCheckedState) => {
+  const handleToggleIncludeDeleted = (nextCheckedState: boolean) => {
     const nextParams = new URLSearchParams(searchParams);
 
     if (nextCheckedState) {
@@ -383,11 +408,6 @@ const CategoriesSettings = ({ onBack = undefined, onLogout = undefined }) => {
       ) : null}
     </div>
   );
-};
-
-CategoriesSettings.propTypes = {
-  onBack: PropTypes.func,
-  onLogout: PropTypes.func,
 };
 
 export default CategoriesSettings;
