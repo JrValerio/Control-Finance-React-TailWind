@@ -1,4 +1,4 @@
-# Observability - Operational Validation Order (Grafana Cloud + Alloy)
+# Observability: Operational Validation Order (Grafana Cloud + Alloy)
 
 This folder versions the baseline observability assets for Control Finance:
 - Grafana Alloy worker config (in `ops/alloy/`)
@@ -61,3 +61,5 @@ After applying:
 - Grafana Cloud setup: `docs/observability/grafana-cloud.md`
 - Release checklist: `docs/runbooks/release-production-checklist.md`
 - Alloy worker: `ops/alloy/README.md`
+- Dashboard: `docs/observability/dashboards/control-finance-api-min.json`
+- Alerts: `docs/observability/alerts/control-finance-api-alerts.yaml`
