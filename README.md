@@ -37,9 +37,11 @@ Aplicacao web para controle financeiro pessoal com entradas/saidas, filtros por 
 ## Operational Model
 
 - Deploy trigger: merge na `main` (Render Auto Deploy) ou manual via **Deploy latest commit**.
-- Health endpoint: `/health` retorna `{ ok, version, commit }`.
+- Health endpoint: `/health` retorna `{ ok, version, commit, buildTimestamp, uptimeSeconds, db, requestId }`.
   - `version`: usa a versao de `apps/api/package.json`; fallback para `APP_VERSION` e depois `sha-<short>`.
   - `commit`: resolvido via `RENDER_GIT_COMMIT` (ou fallback) e representa exatamente o codigo em runtime.
+- Metrics endpoint: `/metrics` em formato Prometheus (`text/plain`).
+  - Em `production`, exige `Authorization: Bearer <METRICS_AUTH_TOKEN>`.
 - CI gates (web): `lint`, `typecheck`, `typecheck:auth`, `test`, `build`.
 - Git tag/release: `vX.Y.Z`.
 - Render `APP_VERSION`: opcional (`X.Y.Z`, sem `v`) para override/fallback.
@@ -221,9 +223,15 @@ Notes:
 
 ## API (apps/api)
 
-- `GET /health` retorna `{ ok: true, version, commit }`
+- `GET /health` retorna `{ ok, version, commit, buildTimestamp, uptimeSeconds, db, requestId }`
   - `version`: `apps/api/package.json` por padrao, com fallback opcional `APP_VERSION` e depois `sha-<commit-curto>`
   - `commit`: prioriza `RENDER_GIT_COMMIT`, com fallback para `APP_COMMIT`/`COMMIT_SHA`
+  - `buildTimestamp`: prioriza `APP_BUILD_TIMESTAMP`, fallback para `BUILD_TIMESTAMP`
+  - `db`: `{ status: "ok" | "error", latencyMs }`; em falha de DB o endpoint retorna `503` com `ok: false`
+- `GET /metrics` expõe metricas HTTP em formato Prometheus
+  - `http_requests_total{status="2xx|3xx|4xx|5xx"}`
+  - `http_request_latency_ms` (histograma para `/transactions`, `/categories`, `/auth/login`)
+  - Em `production`, requer bearer token configurado em `METRICS_AUTH_TOKEN`
 - `POST /auth/register` cria usuario no Postgres
 - `POST /auth/login` retorna `{ token, user }`
 - `/auth/login` aplica rate limit por IP e bloqueio temporario por brute force
@@ -281,7 +289,8 @@ npm run dev
 - Em deploy com proxy (Render), use `TRUST_PROXY=1` na API
 - `CORS_ORIGIN` da API pode receber lista separada por virgula (local + dominios de deploy)
 - Hardening de login: `AUTH_RATE_LIMIT_*` e `AUTH_BRUTE_FORCE_*`
-- Build identity da API no healthcheck: versao do `apps/api/package.json` e commit automatico via `RENDER_GIT_COMMIT`
+- Build identity da API no healthcheck: versao do `apps/api/package.json`, commit (`RENDER_GIT_COMMIT`) e timestamp de build (`APP_BUILD_TIMESTAMP`/`BUILD_TIMESTAMP`)
+- Observabilidade de metricas em producao: `METRICS_AUTH_TOKEN`
 
 ## Scripts (root)
 
@@ -380,7 +389,14 @@ Returns:
 {
   "ok": true,
   "version": "x.y.z",
-  "commit": "abcdef1"
+  "commit": "abcdef1",
+  "buildTimestamp": "2026-02-21T03:45:00.000Z",
+  "uptimeSeconds": 1234,
+  "db": {
+    "status": "ok",
+    "latencyMs": 3
+  },
+  "requestId": "rid-123"
 }
 ```
 

@@ -35,6 +35,7 @@ export const resolveApiUrl = (env: EnvConfig = import.meta.env) => {
 
 const API_URL = resolveApiUrl();
 export const AUTH_TOKEN_STORAGE_KEY = "control_finance.auth_token";
+const REQUEST_ID_HEADER_NAME = "x-request-id";
 const isApiConfigured = Boolean(API_URL);
 let unauthorizedHandler: UnauthorizedHandler = undefined;
 
@@ -43,6 +44,85 @@ const createApiConfigurationError = (): ApiConfigurationError => {
   error.code = "API_URL_NOT_CONFIGURED";
   return error;
 };
+
+const createRequestId = () => {
+  if (typeof globalThis !== "undefined" && typeof globalThis.crypto?.randomUUID === "function") {
+    return globalThis.crypto.randomUUID();
+  }
+
+  return `req-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
+};
+
+const setRequestHeader = (
+  config: InternalAxiosRequestConfig,
+  headerName: string,
+  headerValue: string,
+) => {
+  const mutableConfig = config as InternalAxiosRequestConfig & {
+    headers: {
+      set?: (name: string, value: string) => void;
+      [key: string]: unknown;
+    };
+  };
+
+  if (mutableConfig.headers && typeof mutableConfig.headers.set === "function") {
+    mutableConfig.headers.set(headerName, headerValue);
+    return;
+  }
+
+  const headersRecord =
+    mutableConfig.headers && typeof mutableConfig.headers === "object"
+      ? (mutableConfig.headers as Record<string, unknown>)
+      : {};
+
+  mutableConfig.headers = {
+    ...headersRecord,
+    [headerName]: headerValue,
+  } as unknown as InternalAxiosRequestConfig["headers"];
+};
+
+const resolveErrorRequestId = (error: unknown) => {
+  const errorLike = error as {
+    response?: {
+      headers?: Record<string, unknown>;
+      data?: { requestId?: unknown };
+    };
+    config?: {
+      headers?: Record<string, unknown>;
+    };
+  };
+
+  const requestIdFromResponseHeader =
+    typeof errorLike?.response?.headers?.[REQUEST_ID_HEADER_NAME] === "string"
+      ? String(errorLike.response.headers[REQUEST_ID_HEADER_NAME]).trim()
+      : "";
+
+  if (requestIdFromResponseHeader) {
+    return requestIdFromResponseHeader;
+  }
+
+  const requestIdFromBody =
+    typeof errorLike?.response?.data?.requestId === "string"
+      ? errorLike.response.data.requestId.trim()
+      : "";
+
+  if (requestIdFromBody) {
+    return requestIdFromBody;
+  }
+
+  const requestIdFromRequestHeader =
+    typeof errorLike?.config?.headers?.[REQUEST_ID_HEADER_NAME] === "string"
+      ? String(errorLike.config.headers[REQUEST_ID_HEADER_NAME]).trim()
+      : "";
+
+  if (requestIdFromRequestHeader) {
+    return requestIdFromRequestHeader;
+  }
+
+  return "";
+};
+
+const shouldLogApiErrors = () => import.meta.env?.MODE !== "test";
 
 export const getStoredToken = () => {
   if (typeof window === "undefined") {
@@ -93,27 +173,14 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
     return Promise.reject(createApiConfigurationError());
   }
 
+  setRequestHeader(config, REQUEST_ID_HEADER_NAME, createRequestId());
   const token = getStoredToken();
 
   if (!token) {
     return config;
   }
 
-  const mutableConfig = config as InternalAxiosRequestConfig & {
-    headers: {
-      set?: (name: string, value: string) => void;
-      [key: string]: unknown;
-    };
-  };
-
-  if (mutableConfig.headers && typeof mutableConfig.headers.set === "function") {
-    mutableConfig.headers.set("Authorization", `Bearer ${token}`);
-    return config;
-  }
-
-  mutableConfig.headers = {
-    Authorization: `Bearer ${token}`,
-  } as unknown as InternalAxiosRequestConfig["headers"];
+  setRequestHeader(config, "Authorization", `Bearer ${token}`);
 
   return config;
 });
@@ -121,6 +188,18 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    const requestId = resolveErrorRequestId(error);
+
+    if (requestId && shouldLogApiErrors()) {
+      console.error(
+        JSON.stringify({
+          level: "error",
+          event: "web.api.request.error",
+          requestId,
+        }),
+      );
+    }
+
     if (error?.response?.status === 401) {
       clearStoredToken();
 

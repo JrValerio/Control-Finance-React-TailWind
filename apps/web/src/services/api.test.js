@@ -107,6 +107,18 @@ describe("api service", () => {
     });
 
     expect(nextConfig.headers.Authorization).toBe("Bearer jwt_token");
+    expect(typeof nextConfig.headers["x-request-id"]).toBe("string");
+    expect(nextConfig.headers["x-request-id"].length).toBeGreaterThan(0);
+  });
+
+  it("injeta x-request-id mesmo sem token", () => {
+    const nextConfig = requestInterceptor({
+      headers: {},
+    });
+
+    expect(nextConfig.headers.Authorization).toBeUndefined();
+    expect(typeof nextConfig.headers["x-request-id"]).toBe("string");
+    expect(nextConfig.headers["x-request-id"].length).toBeGreaterThan(0);
   });
 
   it("limpa token e executa handler quando API retorna 401", async () => {

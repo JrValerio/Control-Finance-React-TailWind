@@ -106,6 +106,24 @@ export const dbQuery = async (text, params = []) => {
   return dbClient.query(text, params);
 };
 
+export const checkDatabaseHealth = async () => {
+  const startedAt = Date.now();
+
+  try {
+    await dbQuery("SELECT 1");
+
+    return {
+      status: "ok",
+      latencyMs: Math.max(0, Date.now() - startedAt),
+    };
+  } catch {
+    return {
+      status: "error",
+      latencyMs: Math.max(0, Date.now() - startedAt),
+    };
+  }
+};
+
 export const withDbTransaction = async (callback) => {
   const dbClient = getDbClient();
 

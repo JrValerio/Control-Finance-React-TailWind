@@ -12,7 +12,12 @@ Standardize post-release verification for API + Web in production, with traceabl
   - [ ] No duplicate migration errors.
   - [ ] `schema_migrations` updated when release includes new migrations.
   - [ ] No Postgres connection errors.
-- [ ] Confirm `GET /health` returns `{ ok: true, version, commit }`.
+- [ ] Confirm `GET /health` returns:
+  - [ ] `ok: true`
+  - [ ] expected `version` and `commit`
+  - [ ] `buildTimestamp` filled
+  - [ ] `uptimeSeconds` greater than zero
+  - [ ] `db.status = "ok"` with `latencyMs` reported
 - [ ] Validate required environment variables:
   - [ ] `DATABASE_URL`
   - [ ] `JWT_SECRET`

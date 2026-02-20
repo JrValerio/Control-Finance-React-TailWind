@@ -2,6 +2,7 @@ import app from "./app.js";
 import { getDatabaseConnectionDiagnostics } from "./db/index.js";
 import { runMigrations } from "./db/migrate.js";
 import { startImportSessionsCleanupJob } from "./jobs/import-sessions-cleanup.job.js";
+import { logError, logInfo } from "./observability/logger.js";
 
 const port = Number(process.env.PORT) || 3001;
 
@@ -10,12 +11,23 @@ const startServer = async () => {
   startImportSessionsCleanupJob();
 
   app.listen(port, () => {
-    console.log(`api running on http://localhost:${port}`);
+    logInfo({
+      event: "api.server.started",
+      message: `api running on http://localhost:${port}`,
+      port,
+    });
   });
 };
 
 startServer().catch((error) => {
-  console.error("Failed to start API server.", error);
-  console.error("Database connection diagnostics:", getDatabaseConnectionDiagnostics());
+  const shouldExposeStack = process.env.NODE_ENV !== "production";
+
+  logError({
+    event: "api.server.startup_failed",
+    message: "Failed to start API server.",
+    errorMessage: error?.message || "Unexpected error.",
+    stack: shouldExposeStack && typeof error?.stack === "string" ? error.stack : undefined,
+    database: getDatabaseConnectionDiagnostics(),
+  });
   process.exit(1);
 });

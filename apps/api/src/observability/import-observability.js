@@ -1,3 +1,5 @@
+import { logError, logInfo } from "./logger.js";
+
 const METRIC_NAMES = {
   dryRunTotal: "import_dry_run_total",
   commitTotal: "import_commit_total",
@@ -100,7 +102,12 @@ export const logImportEvent = (eventName, payload = {}) => {
     metrics: getImportMetricsSnapshot(),
   };
 
-  console.log(JSON.stringify(structuredLogPayload));
+  if (String(eventName || "").toLowerCase().includes("error")) {
+    logError(structuredLogPayload);
+    return;
+  }
+
+  logInfo(structuredLogPayload);
 };
 
 export const resetImportObservabilityForTests = () => {
@@ -108,4 +115,3 @@ export const resetImportObservabilityForTests = () => {
     importMetricsState[metricName] = 0;
   });
 };
-

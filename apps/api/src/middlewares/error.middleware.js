@@ -1,3 +1,5 @@
+import { logError } from "../observability/logger.js";
+
 const createNotFoundError = () => {
   const error = new Error("Route not found");
   error.status = 404;
@@ -31,12 +33,18 @@ export const errorHandler = (error, req, res, next) => {
   const requestId = req.requestId || null;
   const status = resolveStatusCode(error);
   const message = resolveErrorMessage(error, status);
+  const parsedUserId = Number(req?.user?.id);
+  const userId = Number.isInteger(parsedUserId) && parsedUserId > 0 ? parsedUserId : null;
+  const startedAt = Number(req?.requestStartedAt);
+  const latencyMs = Number.isFinite(startedAt) ? Math.max(0, Date.now() - startedAt) : null;
   const errorLogPayload = {
-    event: "request.error",
+    event: "http.request.error",
     requestId,
     method: req.method,
-    path: req.originalUrl || req.url,
-    statusCode: status,
+    route: (req.originalUrl || req.url || "/").split("?")[0] || "/",
+    status,
+    latencyMs,
+    userId,
     message,
   };
 
@@ -44,9 +52,7 @@ export const errorHandler = (error, req, res, next) => {
     errorLogPayload.stack = error.stack;
   }
 
-  if (process.env.NODE_ENV !== "test") {
-    console.error(JSON.stringify(errorLogPayload));
-  }
+  logError(errorLogPayload);
 
   return res.status(status).json({ message, requestId });
 };
