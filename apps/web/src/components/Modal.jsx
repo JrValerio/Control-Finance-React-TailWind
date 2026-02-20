@@ -28,11 +28,24 @@ const resolveInitialCategoryId = (transaction) => {
   return "";
 };
 
+const hasAvailableCategory = (categories, categoryId) => {
+  const numericCategoryId = Number(categoryId);
+
+  if (!Number.isInteger(numericCategoryId) || numericCategoryId <= 0) {
+    return false;
+  }
+
+  return categories.some((categoryOption) => Number(categoryOption.id) === numericCategoryId);
+};
+
 const Modal = ({
   isOpen,
   onClose,
   onSave,
+  onClearSubmitError,
+  submitErrorMessage = "",
   initialTransaction = null,
+  hasLoadedCategories = false,
   categories = [],
 }) => {
   const [value, setValue] = useState("");
@@ -42,6 +55,7 @@ const Modal = ({
   const [description, setDescription] = useState("");
   const [notes, setNotes] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [removedCategoryMessage, setRemovedCategoryMessage] = useState("");
   const isEditing = Boolean(initialTransaction);
 
   useEffect(() => {
@@ -58,7 +72,23 @@ const Modal = ({
     setDescription(initialTransaction?.description || "");
     setNotes(initialTransaction?.notes || "");
     setErrorMessage("");
+    setRemovedCategoryMessage("");
   }, [initialTransaction, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !isEditing || !hasLoadedCategories || !selectedCategoryId) {
+      return;
+    }
+
+    if (hasAvailableCategory(categories, selectedCategoryId)) {
+      return;
+    }
+
+    setSelectedCategoryId("");
+    setRemovedCategoryMessage(
+      "Categoria removida. Ao salvar, a transacao sera atualizada para Sem categoria.",
+    );
+  }, [categories, hasLoadedCategories, isEditing, isOpen, selectedCategoryId]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -156,6 +186,7 @@ const Modal = ({
                 onChange={(event) => {
                   setValue(event.target.value);
                   setErrorMessage("");
+                  onClearSubmitError?.();
                 }}
               />
             </div>
@@ -173,6 +204,7 @@ const Modal = ({
               onChange={(event) => {
                 setTransactionDate(event.target.value);
                 setErrorMessage("");
+                onClearSubmitError?.();
               }}
             />
           </div>
@@ -189,6 +221,7 @@ const Modal = ({
               onChange={(event) => {
                 setDescription(event.target.value);
                 setErrorMessage("");
+                onClearSubmitError?.();
               }}
               placeholder="Ex.: Mercado, Salario, Aluguel"
             />
@@ -205,6 +238,7 @@ const Modal = ({
               onChange={(event) => {
                 setNotes(event.target.value);
                 setErrorMessage("");
+                onClearSubmitError?.();
               }}
               placeholder="Detalhes opcionais da transacao"
             />
@@ -220,7 +254,10 @@ const Modal = ({
                     ? "border-brand-1 bg-brand-3 text-brand-1"
                     : "border-gray-300 bg-white text-gray-200"
                 }`}
-                onClick={() => setTransactionType(CATEGORY_ENTRY)}
+                onClick={() => {
+                  setTransactionType(CATEGORY_ENTRY);
+                  onClearSubmitError?.();
+                }}
               >
                 Entrada
               </button>
@@ -231,7 +268,10 @@ const Modal = ({
                     ? "border-brand-1 bg-brand-3 text-brand-1"
                     : "border-gray-300 bg-white text-gray-200"
                 }`}
-                onClick={() => setTransactionType(CATEGORY_EXIT)}
+                onClick={() => {
+                  setTransactionType(CATEGORY_EXIT);
+                  onClearSubmitError?.();
+                }}
               >
                 Saida
               </button>
@@ -249,6 +289,8 @@ const Modal = ({
               onChange={(event) => {
                 setSelectedCategoryId(event.target.value);
                 setErrorMessage("");
+                setRemovedCategoryMessage("");
+                onClearSubmitError?.();
               }}
             >
               <option value="">Sem categoria</option>
@@ -260,9 +302,21 @@ const Modal = ({
             </select>
           </div>
 
+          {removedCategoryMessage ? (
+            <p className="text-sm text-amber-700" role="status" aria-live="polite">
+              {removedCategoryMessage}
+            </p>
+          ) : null}
+
           {errorMessage ? (
             <p className="text-sm text-red-600" role="alert">
               {errorMessage}
+            </p>
+          ) : null}
+
+          {!errorMessage && submitErrorMessage ? (
+            <p className="text-sm text-red-600" role="alert">
+              {submitErrorMessage}
             </p>
           ) : null}
 
@@ -291,6 +345,9 @@ Modal.propTypes = {
   isOpen: PropTypes.bool.isRequired,
   onClose: PropTypes.func.isRequired,
   onSave: PropTypes.func.isRequired,
+  onClearSubmitError: PropTypes.func,
+  submitErrorMessage: PropTypes.string,
+  hasLoadedCategories: PropTypes.bool,
   categories: PropTypes.arrayOf(
     PropTypes.shape({
       id: PropTypes.number.isRequired,

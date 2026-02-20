@@ -281,7 +281,10 @@ const hasInitialActiveFilters = (filters) =>
   Boolean(filters.selectedTransactionCategoryId) ||
   Boolean(filters.selectedQuery);
 
-const App = ({ onLogout = undefined }) => {
+const App = ({
+  onLogout = undefined,
+  onOpenCategoriesSettings = undefined,
+}) => {
   const initialFilterState = useMemo(() => getInitialFilterState(), []);
   const initialFiltersAreActive = useMemo(
     () => hasInitialActiveFilters(initialFilterState),
@@ -304,6 +307,7 @@ const App = ({ onLogout = undefined }) => {
   );
   const [selectedSummaryMonth, setSelectedSummaryMonth] = useState(() => getCurrentMonth());
   const [categories, setCategories] = useState([]);
+  const [hasLoadedCategories, setHasLoadedCategories] = useState(false);
   const [customStartDate, setCustomStartDate] = useState(initialFilterState.customStartDate);
   const [customEndDate, setCustomEndDate] = useState(initialFilterState.customEndDate);
   const [currentOffset, setCurrentOffset] = useState(initialPaginationState.offset);
@@ -346,6 +350,7 @@ const App = ({ onLogout = undefined }) => {
   const [budgetMutationError, setBudgetMutationError] = useState("");
   const [isSavingBudget, setSavingBudget] = useState(false);
   const [requestError, setRequestError] = useState("");
+  const [modalRequestError, setModalRequestError] = useState("");
   const [isLoadingBudgets, setLoadingBudgets] = useState(false);
   const undoTimeoutRef = useRef(null);
   const budgetSuccessTimeoutRef = useRef(null);
@@ -512,8 +517,10 @@ const App = ({ onLogout = undefined }) => {
     try {
       const categoryOptions = await transactionsService.listCategories();
       setCategories(Array.isArray(categoryOptions) ? categoryOptions : []);
+      setHasLoadedCategories(true);
     } catch {
       setCategories([]);
+      setHasLoadedCategories(false);
     }
   }, []);
 
@@ -803,7 +810,7 @@ const App = ({ onLogout = undefined }) => {
       categoryName:
         transaction.categoryId === null
           ? "Sem categoria"
-          : categoryNameById.get(transaction.categoryId) || "Categoria nao encontrada",
+          : categoryNameById.get(transaction.categoryId) || "Categoria removida",
     }));
   }, [categoryNameById, filteredTransactions]);
 
@@ -814,13 +821,42 @@ const App = ({ onLogout = undefined }) => {
     ];
   }, [monthlySummary.expense, monthlySummary.income]);
 
+  const summaryByCategoryExpenses = useMemo(() => {
+    if (!Array.isArray(monthlySummary.byCategory)) {
+      return [];
+    }
+
+    return monthlySummary.byCategory
+      .map((categoryItem) => {
+        const normalizedCategoryId = Number(categoryItem?.categoryId);
+        const normalizedExpense = Number(categoryItem?.expense);
+        const normalizedCategoryName =
+          typeof categoryItem?.categoryName === "string" &&
+          categoryItem.categoryName.trim()
+            ? categoryItem.categoryName.trim()
+            : "Sem categoria";
+
+        return {
+          categoryId:
+            Number.isInteger(normalizedCategoryId) && normalizedCategoryId > 0
+              ? normalizedCategoryId
+              : null,
+          categoryName: normalizedCategoryName,
+          expense: Number.isFinite(normalizedExpense) ? normalizedExpense : 0,
+        };
+      })
+      .filter((categoryItem) => categoryItem.expense > 0);
+  }, [monthlySummary.byCategory]);
+
   const openCreateModal = () => {
     setEditingTransaction(null);
+    setModalRequestError("");
     setModalOpen(true);
   };
 
   const openEditModal = (transaction) => {
     setEditingTransaction(transaction);
+    setModalRequestError("");
     setModalOpen(true);
   };
 
@@ -833,6 +869,7 @@ const App = ({ onLogout = undefined }) => {
     categoryId,
   }) => {
     setRequestError("");
+    setModalRequestError("");
 
     try {
       if (editingTransaction) {
@@ -856,20 +893,26 @@ const App = ({ onLogout = undefined }) => {
       }
 
       setEditingTransaction(null);
+      setModalRequestError("");
       setModalOpen(false);
       await loadTransactions();
       await loadMonthlySummary();
       await loadMonthlyBudgets();
       await loadCategories();
     } catch (error) {
-      setRequestError(
-        getApiErrorMessage(
-          error,
-          editingTransaction
-            ? "Nao foi possivel atualizar a transacao."
-            : "Nao foi possivel cadastrar a transacao.",
-        ),
-      );
+      const fallbackMessage = editingTransaction
+        ? "Nao foi possivel atualizar a transacao."
+        : "Nao foi possivel cadastrar a transacao.";
+      const apiMessage = getApiErrorMessage(error, fallbackMessage);
+
+      if (apiMessage === "Categoria nao encontrada.") {
+        setModalRequestError(
+          "A categoria selecionada foi removida. Escolha outra categoria ou use Sem categoria.",
+        );
+        return;
+      }
+
+      setModalRequestError(apiMessage);
     }
   };
 
@@ -968,6 +1011,11 @@ const App = ({ onLogout = undefined }) => {
   const handleOpenImportHistoryModal = () => {
     closeMobileActionsMenu();
     setImportHistoryModalOpen(true);
+  };
+
+  const handleOpenCategoriesSettings = () => {
+    closeMobileActionsMenu();
+    onOpenCategoriesSettings?.();
   };
 
   const handleLogoutFromActionsMenu = () => {
@@ -1362,6 +1410,16 @@ const App = ({ onLogout = undefined }) => {
                     >
                       Historico de imports
                     </button>
+                    {onOpenCategoriesSettings ? (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={handleOpenCategoriesSettings}
+                        className="rounded px-2 py-2 text-left text-xs font-semibold text-gray-900 hover:bg-gray-100"
+                      >
+                        Categorias
+                      </button>
+                    ) : null}
                     {onLogout ? (
                       <>
                         <div className="my-1 h-px bg-gray-200" role="separator" />
@@ -1410,6 +1468,15 @@ const App = ({ onLogout = undefined }) => {
                 >
                   Historico de imports
                 </button>
+                {onOpenCategoriesSettings ? (
+                  <button
+                    type="button"
+                    onClick={handleOpenCategoriesSettings}
+                    className="whitespace-nowrap rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-100 hover:bg-gray-400"
+                  >
+                    Categorias
+                  </button>
+                ) : null}
               </div>
             )}
             <button
@@ -1756,6 +1823,28 @@ const App = ({ onLogout = undefined }) => {
             {!isLoadingSummary && !summaryError && !hasMonthlySummaryData ? (
               <div className="mt-2 rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-600">
                 Sem dados para o mes selecionado.
+              </div>
+            ) : null}
+            {!isLoadingSummary &&
+            !summaryError &&
+            summaryByCategoryExpenses.length > 0 ? (
+              <div className="mt-3 rounded border border-gray-300 bg-white p-3">
+                <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-600">
+                  Despesas por categoria
+                </h4>
+                <ul className="mt-2 space-y-1.5">
+                  {summaryByCategoryExpenses.map((categoryItem) => (
+                    <li
+                      key={`${categoryItem.categoryId ?? "uncategorized"}-${categoryItem.categoryName}`}
+                      className="flex items-center justify-between gap-3 text-sm text-gray-700"
+                    >
+                      <span className="break-words">{categoryItem.categoryName}</span>
+                      <span className="whitespace-nowrap font-semibold">
+                        {formatCurrency(categoryItem.expense)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             ) : null}
           </section>
@@ -2162,9 +2251,13 @@ const App = ({ onLogout = undefined }) => {
         onClose={() => {
           setModalOpen(false);
           setEditingTransaction(null);
+          setModalRequestError("");
         }}
+        onClearSubmitError={() => setModalRequestError("")}
+        submitErrorMessage={modalRequestError}
         onSave={handleSaveTransaction}
         categories={categories}
+        hasLoadedCategories={hasLoadedCategories}
         initialTransaction={editingTransaction}
       />
 
@@ -2186,4 +2279,5 @@ export default App;
 
 App.propTypes = {
   onLogout: PropTypes.func,
+  onOpenCategoriesSettings: PropTypes.func,
 };

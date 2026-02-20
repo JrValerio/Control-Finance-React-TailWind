@@ -1886,6 +1886,93 @@ describe("App", () => {
     expect(screen.getByText("Compra do mes")).toBeInTheDocument();
   });
 
+  it("exibe aviso e salva como Sem categoria ao editar transacao com categoria removida", async () => {
+    const user = userEvent.setup();
+    transactionsService.listCategories.mockResolvedValueOnce([]);
+    transactionsService.listPage.mockResolvedValueOnce(
+      buildPageResponse([
+        {
+          id: 14,
+          value: 85,
+          type: CATEGORY_EXIT,
+          categoryId: 99,
+          date: "2026-02-12",
+          description: "Taxi",
+          notes: "",
+        },
+      ]),
+    );
+    transactionsService.update.mockResolvedValueOnce({
+      id: 14,
+      value: 85,
+      type: CATEGORY_EXIT,
+      categoryId: null,
+      date: "2026-02-12",
+      description: "Taxi",
+      notes: "",
+    });
+
+    render(<App />);
+
+    await screen.findByText("Taxi");
+    await user.click(screen.getByRole("button", { name: /Editar transacao 14/i }));
+
+    expect(
+      await screen.findByText(
+        "Categoria removida. Ao salvar, a transacao sera atualizada para Sem categoria.",
+      ),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Salvar alteracoes" }));
+
+    await waitFor(() => {
+      expect(transactionsService.update).toHaveBeenCalledWith(14, {
+        value: 85,
+        type: CATEGORY_EXIT,
+        category_id: null,
+        date: "2026-02-12",
+        description: "Taxi",
+        notes: "",
+      });
+    });
+  });
+
+  it("orienta uso de Sem categoria quando API retorna categoria nao encontrada ao salvar", async () => {
+    const user = userEvent.setup();
+    transactionsService.listCategories.mockResolvedValueOnce([{ id: 5, name: "Mercado" }]);
+    transactionsService.listPage.mockResolvedValueOnce(buildPageResponse());
+    transactionsService.create.mockRejectedValueOnce({
+      response: {
+        data: {
+          message: "Categoria nao encontrada.",
+        },
+      },
+    });
+
+    render(<App />);
+
+    await screen.findByText("Nenhum valor cadastrado.");
+    await user.click(screen.getByRole("button", { name: "Registrar novo valor" }));
+    const modalForm = screen.getByRole("button", { name: "Inserir valor" }).closest("form");
+
+    if (!modalForm) {
+      throw new Error("Formulario de criacao nao encontrado.");
+    }
+
+    const modalQueries = within(modalForm);
+
+    await user.type(modalQueries.getByLabelText("Valor"), "34,90");
+    await user.type(modalQueries.getByLabelText("Descricao"), "Padaria");
+    await user.selectOptions(modalQueries.getByLabelText("Categoria"), "5");
+    await user.click(modalQueries.getByRole("button", { name: "Inserir valor" }));
+
+    expect(
+      await screen.findByText(
+        "A categoria selecionada foi removida. Escolha outra categoria ou use Sem categoria.",
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("remove e restaura transacao com desfazer", async () => {
     const user = userEvent.setup();
     transactionsService.listPage
