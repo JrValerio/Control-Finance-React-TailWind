@@ -314,7 +314,9 @@ const ensureCategoryBelongsToUser = async (userId, categoryId) => {
     `
       SELECT id
       FROM categories
-      WHERE id = $1 AND user_id = $2
+      WHERE id = $1
+        AND user_id = $2
+        AND deleted_at IS NULL
       LIMIT 1
     `,
     [categoryId, userId],

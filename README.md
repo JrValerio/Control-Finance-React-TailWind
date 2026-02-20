@@ -227,6 +227,12 @@ Notes:
 - `POST /auth/register` cria usuario no Postgres
 - `POST /auth/login` retorna `{ token, user }`
 - `/auth/login` aplica rate limit por IP e bloqueio temporario por brute force
+- `GET /categories` lista categorias ativas do usuario autenticado (`?includeDeleted=true` inclui removidas por soft delete)
+- `POST /categories` cria categoria (`name`) com unicidade por usuario (case/acento-insensitive)
+- `PATCH /categories/:id` renomeia categoria ativa do usuario autenticado
+- `DELETE /categories/:id` aplica soft delete em categoria ativa do usuario autenticado
+- `POST /categories/:id/restore` restaura categoria removida (retorna `409` em conflito de nome ativo)
+- Manutencao: `npm -w apps/api run db:backfill:categories-normalized` para alinhar `normalized_name` legado com a normalizacao atual da API
 - Metas mensais: veja [Monthly Budgets](#monthly-budgets)
 - `GET /transactions` lista transacoes do usuario autenticado com filtros opcionais (`type`, `from`, `to`, `q`, `includeDeleted`, `page`, `limit`, `offset`)
   - defaults: `limit=20`, `offset=0`
