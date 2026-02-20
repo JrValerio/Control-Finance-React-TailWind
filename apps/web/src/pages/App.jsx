@@ -39,9 +39,6 @@ const SORT_OPTIONS = [
 ];
 const FILTER_PRESETS = [
   { id: "this-month", label: "Este mes" },
-  { id: "income", label: "Entradas" },
-  { id: "expense", label: "Saidas" },
-  { id: "clear", label: "Limpar filtros" },
 ];
 const FILTER_BUTTON_LABELS = {
   [CATEGORY_ALL]: "Todas",
@@ -1009,20 +1006,6 @@ const App = ({ onLogout = undefined }) => {
       return;
     }
 
-    if (presetId === "income") {
-      setSelectedCategory(CATEGORY_ENTRY);
-      setCurrentOffset(DEFAULT_OFFSET);
-      scrollToListTop();
-      return;
-    }
-
-    if (presetId === "expense") {
-      setSelectedCategory(CATEGORY_EXIT);
-      setCurrentOffset(DEFAULT_OFFSET);
-      scrollToListTop();
-      return;
-    }
-
     if (presetId === "clear") {
       setSelectedCategory(CATEGORY_ALL);
       setSelectedPeriod(PERIOD_ALL);
@@ -1294,7 +1277,7 @@ const App = ({ onLogout = undefined }) => {
     selectedSort,
     selectedTransactionCategoryId,
   ]);
-  const visibleFilterPresets = FILTER_PRESETS.filter((preset) => preset.id !== "clear");
+  const visibleFilterPresets = FILTER_PRESETS;
   const isPresetActive = (presetId) => {
     if (presetId === "this-month") {
       return (
@@ -1302,14 +1285,6 @@ const App = ({ onLogout = undefined }) => {
         customStartDate === currentMonthRange.startDate &&
         customEndDate === currentMonthRange.endDate
       );
-    }
-
-    if (presetId === "income") {
-      return selectedCategory === CATEGORY_ENTRY;
-    }
-
-    if (presetId === "expense") {
-      return selectedCategory === CATEGORY_EXIT;
     }
 
     return false;

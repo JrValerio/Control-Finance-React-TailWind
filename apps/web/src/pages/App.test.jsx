@@ -894,8 +894,6 @@ describe("App", () => {
 
     expect(await screen.findByText("Sem filtros ativos")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Este mes" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Entradas" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Saidas" })).toBeInTheDocument();
     expect(screen.queryByText(/Filtros ativos \(\d+\)/)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Limpar tudo" })).not.toBeInTheDocument();
 
@@ -906,8 +904,6 @@ describe("App", () => {
     expect(screen.getByText("Filtros ativos (1)")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Limpar tudo" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Este mes" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Entradas" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Saidas" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Editar filtros" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Filtrar entradas" }));
