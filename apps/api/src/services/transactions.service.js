@@ -696,6 +696,14 @@ export const updateTransactionForUser = async (userId, transactionId, payload = 
   const nextDate = normalizeOptionalDate(payload.date);
   const nextDescription = normalizeOptionalText(payload.description, "Descricao");
   const nextNotes = normalizeOptionalText(payload.notes, "Observacoes");
+  const categoryIdFromPayload = resolveCategoryIdFromPayload(payload);
+  const hasCategoryIdInPayload = typeof categoryIdFromPayload !== "undefined";
+  const nextCategoryId = hasCategoryIdInPayload
+    ? await ensureCategoryBelongsToUser(
+        userId,
+        normalizeOptionalPayloadCategoryId(categoryIdFromPayload),
+      )
+    : undefined;
 
   const fieldsToUpdate = [];
   const queryParams = [];
@@ -728,6 +736,12 @@ export const updateTransactionForUser = async (userId, transactionId, payload = 
   if (typeof nextNotes !== "undefined") {
     fieldsToUpdate.push(`notes = $${parameterIndex}`);
     queryParams.push(nextNotes);
+    parameterIndex += 1;
+  }
+
+  if (typeof nextCategoryId !== "undefined") {
+    fieldsToUpdate.push(`category_id = $${parameterIndex}`);
+    queryParams.push(nextCategoryId);
     parameterIndex += 1;
   }
 
