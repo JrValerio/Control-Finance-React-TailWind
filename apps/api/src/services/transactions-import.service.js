@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { parse as parseCsv } from "csv-parse/sync";
 import { dbQuery, withDbTransaction } from "../db/index.js";
+import { normalizeCategoryNameKey } from "./categories-normalization.js";
 
 const CATEGORY_ENTRY = "Entrada";
 const CATEGORY_EXIT = "Saida";
@@ -299,7 +300,8 @@ const resolveCategoryId = (value, categoryMap) => {
     return null;
   }
 
-  const categoryId = categoryMap.get(normalizedCategoryName.toLowerCase());
+  const normalizedCategoryKey = normalizeCategoryNameKey(normalizedCategoryName);
+  const categoryId = categoryMap.get(normalizedCategoryKey);
 
   if (!categoryId) {
     throw new Error("Categoria nao encontrada.");
@@ -311,15 +313,16 @@ const resolveCategoryId = (value, categoryMap) => {
 const loadCategoryMapForUser = async (userId) => {
   const result = await dbQuery(
     `
-      SELECT id, name
+      SELECT id, normalized_name
       FROM categories
       WHERE user_id = $1
+        AND deleted_at IS NULL
     `,
     [userId],
   );
 
   return result.rows.reduce((categoryMap, row) => {
-    categoryMap.set(String(row.name).trim().toLowerCase(), Number(row.id));
+    categoryMap.set(normalizeCategoryNameKey(row.normalized_name), Number(row.id));
     return categoryMap;
   }, new Map());
 };
