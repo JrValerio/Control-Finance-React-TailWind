@@ -1,0 +1,393 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import PropTypes from "prop-types";
+import { useSearchParams } from "react-router-dom";
+import { categoriesService } from "../services/categories.service";
+
+const parseIncludeDeletedParam = (value) =>
+  String(value || "").toLowerCase() === "true";
+
+const getApiErrorMessage = (error, fallbackMessage) =>
+  error?.response?.data?.message || error?.message || fallbackMessage;
+
+const resolveCategoryMutationErrorMessage = (error, fallbackMessage) => {
+  if (error?.response?.status === 409) {
+    return "Categoria ja existe.";
+  }
+
+  if (error?.response?.status === 404) {
+    return "Categoria nao encontrada.";
+  }
+
+  return getApiErrorMessage(error, fallbackMessage);
+};
+
+const CategoriesSettings = ({ onBack = undefined, onLogout = undefined }) => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const includeDeleted = useMemo(
+    () => parseIncludeDeletedParam(searchParams.get("includeDeleted")),
+    [searchParams],
+  );
+  const [categories, setCategories] = useState([]);
+  const [isLoadingCategories, setLoadingCategories] = useState(false);
+  const [isCategoryModalOpen, setCategoryModalOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [categoryFormName, setCategoryFormName] = useState("");
+  const [isSavingCategory, setSavingCategory] = useState(false);
+  const [pageErrorMessage, setPageErrorMessage] = useState("");
+  const [categoryModalErrorMessage, setCategoryModalErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+
+  const loadCategories = useCallback(async () => {
+    setLoadingCategories(true);
+    setPageErrorMessage("");
+
+    try {
+      const response = await categoriesService.listCategories(includeDeleted);
+      setCategories(Array.isArray(response) ? response : []);
+    } catch (error) {
+      setCategories([]);
+      setPageErrorMessage(getApiErrorMessage(error, "Nao foi possivel carregar as categorias."));
+    } finally {
+      setLoadingCategories(false);
+    }
+  }, [includeDeleted]);
+
+  useEffect(() => {
+    void loadCategories();
+  }, [loadCategories]);
+
+  const openCreateCategoryModal = () => {
+    setEditingCategory(null);
+    setCategoryFormName("");
+    setCategoryModalErrorMessage("");
+    setCategoryModalOpen(true);
+  };
+
+  const openRenameCategoryModal = (category) => {
+    setEditingCategory(category);
+    setCategoryFormName(category?.name || "");
+    setCategoryModalErrorMessage("");
+    setCategoryModalOpen(true);
+  };
+
+  const closeCategoryModal = () => {
+    if (isSavingCategory) {
+      return;
+    }
+
+    setCategoryModalOpen(false);
+    setEditingCategory(null);
+    setCategoryFormName("");
+    setCategoryModalErrorMessage("");
+  };
+
+  const handleSubmitCategory = async (event) => {
+    event.preventDefault();
+
+    const normalizedName = String(categoryFormName || "").trim();
+    if (!normalizedName) {
+      setCategoryModalErrorMessage("Nome da categoria e obrigatorio.");
+      return;
+    }
+
+    setSavingCategory(true);
+    setCategoryModalErrorMessage("");
+    setPageErrorMessage("");
+    setSuccessMessage("");
+
+    try {
+      if (editingCategory?.id) {
+        await categoriesService.updateCategory(editingCategory.id, normalizedName);
+        setSuccessMessage("Categoria atualizada.");
+      } else {
+        await categoriesService.createCategory(normalizedName);
+        setSuccessMessage("Categoria criada.");
+      }
+
+      closeCategoryModal();
+      await loadCategories();
+    } catch (error) {
+      setCategoryModalErrorMessage(
+        resolveCategoryMutationErrorMessage(error, "Nao foi possivel salvar a categoria."),
+      );
+    } finally {
+      setSavingCategory(false);
+    }
+  };
+
+  const handleDeleteCategory = async (category) => {
+    const isConfirmed =
+      typeof window === "undefined"
+        ? true
+        : window.confirm(`Remover categoria "${category.name}"?`);
+
+    if (!isConfirmed) {
+      return;
+    }
+
+    setPageErrorMessage("");
+    setSuccessMessage("");
+
+    try {
+      await categoriesService.deleteCategory(category.id);
+      setSuccessMessage("Categoria removida.");
+      await loadCategories();
+    } catch (error) {
+      setPageErrorMessage(
+        resolveCategoryMutationErrorMessage(error, "Nao foi possivel remover a categoria."),
+      );
+    }
+  };
+
+  const handleRestoreCategory = async (category) => {
+    const isConfirmed =
+      typeof window === "undefined"
+        ? true
+        : window.confirm(`Restaurar categoria "${category.name}"?`);
+
+    if (!isConfirmed) {
+      return;
+    }
+
+    setPageErrorMessage("");
+    setSuccessMessage("");
+
+    try {
+      await categoriesService.restoreCategory(category.id);
+      setSuccessMessage("Categoria restaurada.");
+      await loadCategories();
+    } catch (error) {
+      setPageErrorMessage(
+        resolveCategoryMutationErrorMessage(error, "Nao foi possivel restaurar a categoria."),
+      );
+    }
+  };
+
+  const handleToggleIncludeDeleted = (nextCheckedState) => {
+    const nextParams = new URLSearchParams(searchParams);
+
+    if (nextCheckedState) {
+      nextParams.set("includeDeleted", "true");
+    } else {
+      nextParams.delete("includeDeleted");
+    }
+
+    setSearchParams(nextParams, { replace: true });
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-500 py-6">
+      <main className="mx-auto w-full max-w-4xl space-y-4 px-4 sm:px-6">
+        <section className="rounded border border-gray-300 bg-white p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h1 className="text-xl font-semibold text-gray-100">Settings - Categorias</h1>
+              <p className="mt-1 text-sm text-gray-200">
+                Gerencie categorias ativas e removidas para os lancamentos.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={onBack}
+                className="rounded border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-100 hover:bg-gray-400"
+              >
+                Voltar ao dashboard
+              </button>
+              {onLogout ? (
+                <button
+                  type="button"
+                  onClick={onLogout}
+                  className="rounded border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-100 hover:bg-gray-400"
+                >
+                  Sair
+                </button>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded border border-gray-200 bg-gray-50 px-3 py-2">
+            <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={includeDeleted}
+                onChange={(event) => handleToggleIncludeDeleted(event.target.checked)}
+              />
+              Incluir removidas
+            </label>
+            <button
+              type="button"
+              onClick={openCreateCategoryModal}
+              className="rounded bg-brand-1 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-2"
+            >
+              + Nova categoria
+            </button>
+          </div>
+
+          {pageErrorMessage ? (
+            <div
+              className="mt-3 flex items-center justify-between gap-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+              role="alert"
+            >
+              <span>{pageErrorMessage}</span>
+              <button
+                type="button"
+                onClick={loadCategories}
+                className="rounded border border-red-300 px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-100"
+              >
+                Tentar novamente
+              </button>
+            </div>
+          ) : null}
+
+          {!pageErrorMessage && successMessage ? (
+            <p
+              className="mt-3 rounded border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700"
+              role="status"
+              aria-live="polite"
+            >
+              {successMessage}
+            </p>
+          ) : null}
+
+          {isLoadingCategories ? (
+            <div className="mt-3 space-y-2" role="status" aria-live="polite">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div
+                  key={`categories-skeleton-${index + 1}`}
+                  className="h-12 animate-pulse rounded border border-gray-300 bg-gray-100"
+                />
+              ))}
+              <span className="sr-only">Carregando categorias...</span>
+            </div>
+          ) : null}
+
+          {!isLoadingCategories && categories.length === 0 ? (
+            <div className="mt-3 rounded border border-gray-300 bg-gray-50 px-3 py-3 text-sm text-gray-700">
+              Nenhuma categoria encontrada para o filtro atual.
+            </div>
+          ) : null}
+
+          {!isLoadingCategories && categories.length > 0 ? (
+            <ul className="mt-3 space-y-2">
+              {categories.map((category) => {
+                const isDeleted = Boolean(category.deletedAt);
+
+                return (
+                  <li
+                    key={category.id}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded border border-gray-300 bg-white px-3 py-2"
+                  >
+                    <div className="min-w-0">
+                      <p className="break-words text-sm font-semibold text-gray-900">{category.name}</p>
+                      <p className="text-xs text-gray-500">
+                        {isDeleted ? "Removida" : "Ativa"}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      {isDeleted ? (
+                        <button
+                          type="button"
+                          onClick={() => handleRestoreCategory(category)}
+                          className="rounded border border-green-300 bg-green-50 px-2 py-1 text-xs font-semibold text-green-700 hover:bg-green-100"
+                        >
+                          Restaurar
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => openRenameCategoryModal(category)}
+                            className="rounded border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100"
+                          >
+                            Renomear
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteCategory(category)}
+                            className="rounded border border-red-300 bg-red-50 px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-100"
+                          >
+                            Remover
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : null}
+        </section>
+      </main>
+
+      {isCategoryModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-100 bg-opacity-50 p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="category-modal-title"
+            className="w-full max-w-sm rounded bg-white p-4 shadow-lg"
+          >
+            <h2 id="category-modal-title" className="text-base font-semibold text-gray-900">
+              {editingCategory ? "Renomear categoria" : "Nova categoria"}
+            </h2>
+
+            {categoryModalErrorMessage ? (
+              <p
+                className="mt-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+                role="alert"
+              >
+                {categoryModalErrorMessage}
+              </p>
+            ) : null}
+
+            <form onSubmit={handleSubmitCategory} className="mt-3 space-y-3">
+              <div>
+                <label htmlFor="category-name" className="mb-1 block text-xs font-medium text-gray-900">
+                  Nome
+                </label>
+                <input
+                  id="category-name"
+                  type="text"
+                  value={categoryFormName}
+                  onChange={(event) => {
+                    setCategoryFormName(event.target.value);
+                    setCategoryModalErrorMessage("");
+                  }}
+                  placeholder="Ex.: Alimentacao"
+                  className="w-full rounded border border-gray-400 px-3 py-2 text-sm text-gray-900"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={closeCategoryModal}
+                  disabled={isSavingCategory}
+                  className="rounded border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingCategory}
+                  className="rounded bg-brand-1 px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-2 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isSavingCategory ? "Salvando..." : editingCategory ? "Salvar" : "Criar"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+};
+
+CategoriesSettings.propTypes = {
+  onBack: PropTypes.func,
+  onLogout: PropTypes.func,
+};
+
+export default CategoriesSettings;
