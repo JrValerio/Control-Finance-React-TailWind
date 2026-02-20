@@ -64,7 +64,31 @@ Confirm:
 - [ ] No unexpected 429 spike (rate limit).
 - [ ] No CORS errors.
 
-## 4. Incident Severity and Escalation
+## 4. Observability Baseline (Availability)
+
+Reference:
+- [ ] `docs/observability/slo.md` reviewed for current SLI/SLO definitions.
+
+### SLI
+- [ ] Availability SLI is based on `GET /health` success rate (`HTTP 200`).
+
+### SLO
+- [ ] Target availability: `>= 99.5%` over a rolling 30-day window.
+- [ ] Error budget acknowledged: `216 minutes` per 30 days.
+
+### UptimeRobot Baseline
+- [ ] Monitor type: HTTP(s)
+- [ ] URL: `https://control-finance-react-tailwind.onrender.com/health`
+- [ ] Interval: 1 minute
+- [ ] Timeout: 10 seconds
+- [ ] Alert trigger: 2 consecutive failures
+
+### Alert Severity Mapping
+- [ ] P1: `/health` unavailable for > 2 minutes.
+- [ ] P2: recurring degradation or partial service impact.
+- [ ] P3: informational/low-impact alert.
+
+## 5. Incident Severity and Escalation
 
 Severity criteria:
 - **P1 (Critical):** production unavailable, sustained 5xx spike, auth failure for most users, or data integrity risk.
@@ -78,7 +102,7 @@ Escalation flow:
 4. For P2: create mitigation plan and keep monitoring window active.
 5. For P3: register issue and schedule fix in next planned iteration.
 
-## 5. Rollback Plan
+## 6. Rollback Plan
 
 If critical issue happens:
 1. Identify last stable commit.
@@ -86,7 +110,7 @@ If critical issue happens:
 3. Re-check `GET /health`.
 4. Record incident in runbook.
 
-## 6. Runbook Entry (Per Release)
+## 7. Runbook Entry (Per Release)
 
 ```md
 Release: vX.Y.Z
@@ -101,7 +125,7 @@ Rollback required: yes/no
 Notes:
 ```
 
-## 7. Evidences (Per Release)
+## 8. Evidences (Per Release)
 
 > Copy this block for each new release and keep history at the end of this file.
 
@@ -215,7 +239,7 @@ try {
 Production is aligned with `origin/main` and `v1.13.1` (version + commit).
 Observability endpoints are behaving as expected.
 
-## 8. Suggested Operational Sequence
+## 9. Suggested Operational Sequence
 
 For each release:
 1. Open and merge PR.
