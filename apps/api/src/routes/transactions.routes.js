@@ -110,7 +110,11 @@ router.get("/export.csv", async (req, res, next) => {
 
 router.get("/summary", async (req, res, next) => {
   try {
-    const summary = await getMonthlySummaryForUser(req.user.id, req.query.month);
+    const summary = await getMonthlySummaryForUser(
+      req.user.id,
+      req.query.month,
+      req.query.compare,
+    );
     res.status(200).json(summary);
   } catch (error) {
     next(error);
