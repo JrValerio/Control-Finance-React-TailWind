@@ -9,6 +9,7 @@ import budgetsRoutes from "./routes/budgets.routes.js";
 import analyticsRoutes from "./routes/analytics.routes.js";
 import transactionsRoutes from "./routes/transactions.routes.js";
 import billingRoutes from "./routes/billing.routes.js";
+import stripeWebhooksRoutes from "./routes/stripe-webhooks.routes.js";
 import { notFoundHandler, errorHandler } from "./middlewares/error.middleware.js";
 import { requestIdMiddleware } from "./middlewares/request-id.middleware.js";
 import { requestLoggingMiddleware } from "./middlewares/request-logging.middleware.js";
@@ -71,6 +72,7 @@ app.use(
   }),
 );
 
+app.use("/billing/webhooks", stripeWebhooksRoutes);
 app.use(express.json());
 app.use("/health", healthRoutes);
 app.use("/metrics", metricsRoutes);

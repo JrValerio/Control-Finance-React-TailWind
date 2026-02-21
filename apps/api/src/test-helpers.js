@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import request from "supertest";
 import { expect } from "vitest";
 import { newDb } from "pg-mem";
@@ -107,4 +108,11 @@ export const restoreAuthSecurityEnv = (snapshot) => {
     }
     process.env[key] = snapshot[key];
   });
+};
+
+export const generateStripeSignature = (payload, secret) => {
+  const timestamp = Math.floor(Date.now() / 1000);
+  const body = typeof payload === "string" ? payload : JSON.stringify(payload);
+  const sig = createHmac("sha256", secret).update(`${timestamp}.${body}`).digest("hex");
+  return { header: `t=${timestamp},v1=${sig}`, body };
 };
