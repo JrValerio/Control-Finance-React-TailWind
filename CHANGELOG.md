@@ -2,6 +2,50 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.15.0] - 2026-02-21
+
+### Highlights
+
+- Dashboard now provides month-over-month (MoM) insight for Income, Expense and Balance.
+- Budget Alert Center introduces actionable risk visibility for near-limit and exceeded budgets.
+- API now exposes monthly financial trend analytics with zero-filled month series.
+
+### Added
+
+- Web: MoM indicators on monthly summary cards (direction, percentage delta and absolute delta).
+- Web: Expense-aware MoM semantics (`expense` up is treated as negative signal).
+- Web: Budget Alert Center ordered by severity (`exceeded` first), with direct CTAs:
+  - `View transactions`: applies category + selected month filters and scrolls to the list.
+  - `Adjust budget`: opens the budget edit modal.
+- API: authenticated endpoint `GET /analytics/trend?months=...` returning monthly:
+  - `month` (`YYYY-MM`)
+  - `income`
+  - `expense`
+  - `balance`
+
+### Changed
+
+- API: `months` query param is validated with:
+  - default `6`
+  - allowed range `1..24`
+  - `400` for invalid values
+- API: trend aggregation excludes soft-deleted transactions (`deleted_at IS NULL`).
+- API: transaction type values were centralized into shared constants for service consistency.
+
+### Quality
+
+- API contract tests added for `/analytics/trend` covering:
+  - `401` without token
+  - `400` invalid `months` inputs
+  - default 6-month zero-filled series
+  - mixed-month aggregation with empty months
+  - soft-deleted transaction exclusion
+- Web tests expanded for:
+  - MoM rendering, fallback and edge cases
+  - Budget Alert Center ordering and CTA behaviors
+- Test infrastructure compatibility:
+  - analytics service includes a `pg-mem` fallback path for monthly trend tests without changing API contract.
+
 ## [1.14.0] - 2026-02-21
 
 ### Added
