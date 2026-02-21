@@ -131,6 +131,21 @@ const getCurrentMonthRangeForTest = (referenceDate = new Date()) => {
   };
 };
 
+const createDeferred = () => {
+  let resolve = () => {};
+  let reject = () => {};
+  const promise = new Promise((nextResolve, nextReject) => {
+    resolve = nextResolve;
+    reject = nextReject;
+  });
+
+  return {
+    promise,
+    resolve,
+    reject,
+  };
+};
+
 describe("App", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -200,6 +215,118 @@ describe("App", () => {
     expect(screen.getByText("R$ 1500.00")).toBeInTheDocument();
     expect(screen.getByText("R$ 420.50")).toBeInTheDocument();
     expect(transactionsService.getMonthlySummary).toHaveBeenCalledWith(expect.any(String));
+  });
+
+  it("exibe comparativo mensal (MoM) com direcao, percentual e delta absoluto", async () => {
+    transactionsService.getMonthlySummary
+      .mockResolvedValueOnce(
+        buildSummaryResponse({
+          month: "2026-02",
+          income: 1300,
+          expense: 280,
+          balance: 1020,
+        }),
+      )
+      .mockResolvedValueOnce(
+        buildSummaryResponse({
+          month: "2026-01",
+          income: 1200,
+          expense: 300,
+          balance: 900,
+        }),
+      );
+
+    render(<App />);
+
+    expect(await screen.findByText("R$ 1020.00")).toBeInTheDocument();
+    expect(screen.getByTestId("mom-income")).toHaveTextContent("MoM: ↑ +8.3% (+R$ 100.00)");
+    expect(screen.getByTestId("mom-balance")).toHaveTextContent("MoM: ↑ +13.3% (+R$ 120.00)");
+    expect(screen.getByTestId("mom-expense")).toHaveTextContent("MoM: ↓ -6.7% (-R$ 20.00)");
+    expect(screen.getByTestId("mom-expense")).toHaveClass("text-green-200");
+  });
+
+  it("mostra percentual MoM como indisponivel quando mes anterior e zero", async () => {
+    transactionsService.getMonthlySummary
+      .mockResolvedValueOnce(
+        buildSummaryResponse({
+          month: "2026-02",
+          income: 100,
+          expense: 0,
+          balance: 100,
+        }),
+      )
+      .mockResolvedValueOnce(
+        buildSummaryResponse({
+          month: "2026-01",
+          income: 0,
+          expense: 0,
+          balance: 0,
+        }),
+      );
+
+    render(<App />);
+
+    expect(await screen.findByTestId("mom-income")).toBeInTheDocument();
+    expect(screen.getByTestId("mom-income")).toHaveTextContent("MoM: ↑ — (+R$ 100.00)");
+  });
+
+  it("exibe loading de comparacao mensal enquanto os resumos sao carregados", async () => {
+    const currentMonthDeferred = createDeferred();
+    const previousMonthDeferred = createDeferred();
+
+    transactionsService.getMonthlySummary
+      .mockReturnValueOnce(currentMonthDeferred.promise)
+      .mockReturnValueOnce(previousMonthDeferred.promise);
+
+    render(<App />);
+
+    expect(await screen.findByTestId("mom-balance")).toHaveTextContent("MoM: Calculando...");
+    expect(screen.getByTestId("mom-income")).toHaveTextContent("MoM: Calculando...");
+    expect(screen.getByTestId("mom-expense")).toHaveTextContent("MoM: Calculando...");
+
+    await act(async () => {
+      currentMonthDeferred.resolve(
+        buildSummaryResponse({
+          month: "2026-02",
+          income: 200,
+          expense: 50,
+          balance: 150,
+        }),
+      );
+      previousMonthDeferred.resolve(
+        buildSummaryResponse({
+          month: "2026-01",
+          income: 100,
+          expense: 70,
+          balance: 30,
+        }),
+      );
+    });
+
+    expect(screen.getByTestId("mom-balance")).not.toHaveTextContent("MoM: Calculando...");
+  });
+
+  it("mostra fallback de MoM quando resumo do mes anterior falha", async () => {
+    transactionsService.getMonthlySummary
+      .mockResolvedValueOnce(
+        buildSummaryResponse({
+          month: "2026-02",
+          income: 1100,
+          expense: 400,
+          balance: 700,
+        }),
+      )
+      .mockRejectedValueOnce({
+        response: { data: { message: "Comparacao mensal indisponivel." } },
+      });
+
+    render(<App />);
+
+    expect(await screen.findByText("R$ 700.00")).toBeInTheDocument();
+    expect(await screen.findByText("Comparacao mensal indisponivel.")).toBeInTheDocument();
+    expect(screen.getByTestId("mom-income")).toHaveTextContent("MoM: —");
+    expect(screen.getByTestId("mom-balance")).toHaveTextContent("MoM: —");
+    expect(screen.getByTestId("mom-expense")).toHaveTextContent("MoM: —");
   });
 
   it("carrega metas mensais e exibe progresso por categoria", async () => {
@@ -1082,9 +1209,23 @@ describe("App", () => {
       .mockRejectedValueOnce({})
       .mockResolvedValueOnce(
         buildSummaryResponse({
+          income: 850,
+          expense: 260,
+          balance: 590,
+        }),
+      )
+      .mockResolvedValueOnce(
+        buildSummaryResponse({
           income: 900,
           expense: 200,
           balance: 700,
+        }),
+      )
+      .mockResolvedValueOnce(
+        buildSummaryResponse({
+          income: 880,
+          expense: 220,
+          balance: 660,
         }),
       );
 
@@ -1096,7 +1237,8 @@ describe("App", () => {
 
     await user.click(screen.getByRole("button", { name: "Tentar novamente" }));
 
-    expect(await screen.findByText("R$ 700.00")).toBeInTheDocument();
+    expect(await screen.findByTestId("mom-balance")).toBeInTheDocument();
+    expect(screen.getByText("R$ 700.00")).toBeInTheDocument();
     expect(screen.queryByText("Nao foi possivel carregar o resumo mensal.")).not.toBeInTheDocument();
   });
 
@@ -1485,7 +1627,7 @@ describe("App", () => {
         "11111111-1111-4111-8111-111111111111",
       );
       expect(transactionsService.listPage).toHaveBeenCalledTimes(2);
-      expect(transactionsService.getMonthlySummary).toHaveBeenCalledTimes(2);
+      expect(transactionsService.getMonthlySummary).toHaveBeenCalledTimes(4);
     });
 
     expect(screen.queryByLabelText("Arquivo CSV")).not.toBeInTheDocument();
