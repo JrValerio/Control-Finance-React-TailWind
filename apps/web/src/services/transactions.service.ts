@@ -368,7 +368,7 @@ const buildTransactionParams = (options: TransactionListOptions = {}): Record<st
     params.type = options.type;
   }
 
-  if (Number.isInteger(options.categoryId) && options.categoryId > 0) {
+  if (typeof options.categoryId === "number" && Number.isInteger(options.categoryId) && options.categoryId > 0) {
     params.categoryId = String(options.categoryId);
   }
 
@@ -388,15 +388,15 @@ const buildTransactionParams = (options: TransactionListOptions = {}): Record<st
     params.sort = options.sort.trim();
   }
 
-  if (Number.isInteger(options.page) && options.page > 0) {
+  if (typeof options.page === "number" && Number.isInteger(options.page) && options.page > 0) {
     params.page = String(options.page);
   }
 
-  if (Number.isInteger(options.limit) && options.limit > 0) {
+  if (typeof options.limit === "number" && Number.isInteger(options.limit) && options.limit > 0) {
     params.limit = String(options.limit);
   }
 
-  if (Number.isInteger(options.offset) && options.offset >= 0) {
+  if (typeof options.offset === "number" && Number.isInteger(options.offset) && options.offset >= 0) {
     params.offset = String(options.offset);
   }
 
