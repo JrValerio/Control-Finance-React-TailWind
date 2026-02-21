@@ -2596,7 +2596,11 @@ const App = ({
               </div>
             }
           >
-            <TrendChart data={trend} onMonthClick={handleTrendMonthClick} />
+            <TrendChart
+                data={trend}
+                onMonthClick={handleTrendMonthClick}
+                selectedMonth={selectedSummaryMonth}
+              />
           </Suspense>
         )}
       </section>
