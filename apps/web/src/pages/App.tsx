@@ -123,7 +123,7 @@ const FILTER_BUTTON_ARIA_LABELS: Record<SelectedCategory, string> = {
 };
 const DEFAULT_OFFSET = 0;
 const DEFAULT_LIMIT = 20;
-const MOBILE_HEADER_ACTIONS_BREAKPOINT = 420;
+const MOBILE_HEADER_ACTIONS_BREAKPOINT = 640;
 const MOBILE_ACTIONS_MENU_ID = "mobile-header-actions-menu";
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
 const PAGE_SIZE_STORAGE_KEY = "control_finance.page_size";
