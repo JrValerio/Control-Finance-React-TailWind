@@ -86,13 +86,16 @@ Confirm:
 Reference:
 - [ ] [`docs/observability/slo.md`](../observability/slo.md) reviewed for current SLI/SLO definitions.
 - [ ] [`docs/observability/grafana-cloud.md`](../observability/grafana-cloud.md) reviewed for metrics ingestion and alerting setup.
+- [ ] [`docs/runbooks/api-5xx-incident.md`](./api-5xx-incident.md) reviewed for incident response.
 
 ### SLI
 - [ ] Availability SLI is based on `GET /health` success rate (`HTTP 200`).
+- [ ] 5xx SLI is based on `http_requests_total{status="5xx"}` ratio.
 
 ### SLO
 - [ ] Target availability: `>= 99.5%` over a rolling 30-day window.
 - [ ] Error budget acknowledged: `216 minutes` per 30 days.
+- [ ] Target 5xx ratio: `<= 1.0%` over a rolling 30-day window.
 
 ### UptimeRobot Baseline
 - [ ] Monitor type: HTTP(s)
@@ -111,7 +114,8 @@ Reference:
 
 ### Alert Severity Mapping
 - [ ] P1: `/health` unavailable for > 2 minutes.
-- [ ] P2: recurring degradation or partial service impact.
+- [ ] P1: `5xx` absolute rate above baseline threshold for sustained window.
+- [ ] P2: recurring degradation, elevated `5xx` ratio, or partial service impact.
 - [ ] P3: informational/low-impact alert.
 
 ## 5. Incident Severity and Escalation

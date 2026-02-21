@@ -16,6 +16,7 @@ groups:
         annotations:
           summary: "p95 latency high on /transactions"
           description: "p95 latency on /transactions is above 500ms for 10 minutes."
+          runbook_url: "docs/runbooks/api-5xx-incident.md"
 
       - alert: ControlFinanceApi5xxRateHigh
         expr: |
@@ -27,6 +28,7 @@ groups:
         annotations:
           summary: "5xx rate is high"
           description: "5xx rate is above 0.2 req/s for 5 minutes. Investigate errors and evaluate rollback."
+          runbook_url: "docs/runbooks/api-5xx-incident.md"
 
       - alert: ControlFinanceApi5xxPercentHigh
         expr: |
@@ -42,3 +44,4 @@ groups:
         annotations:
           summary: "5xx error ratio elevated"
           description: "5xx ratio is above 2% for 5 minutes."
+          runbook_url: "docs/runbooks/api-5xx-incident.md"
