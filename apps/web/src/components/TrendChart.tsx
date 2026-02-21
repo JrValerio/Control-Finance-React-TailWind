@@ -31,6 +31,7 @@ const formatDelta = (delta: number): string => {
 
 type PointDelta = { income: number; expense: number; balance: number };
 
+// points must be sorted ascending by month (API contract); delta is undefined for the first point
 const buildDeltaMap = (points: TrendPoint[]): Map<string, PointDelta> => {
   const map = new Map<string, PointDelta>();
   for (let i = 1; i < points.length; i++) {
