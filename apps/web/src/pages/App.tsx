@@ -42,6 +42,9 @@ type SelectedPeriod =
   | "Personalizado";
 type FilterPresetId = "this-month" | "clear";
 type RemovableChipId = "q" | "type" | "period" | "category" | "sort";
+type SummaryMetricKey = "income" | "expense" | "balance";
+type MonthOverMonthDirection = "up" | "down" | "flat";
+type MonthOverMonthTone = "good" | "bad" | "neutral";
 
 interface FilterState {
   selectedCategory: SelectedCategory;
@@ -91,6 +94,13 @@ interface TransactionModalPayload {
   date: string;
   description: string;
   notes: string;
+}
+
+interface MonthOverMonthMetric {
+  delta: number;
+  deltaPercent: number | null;
+  direction: MonthOverMonthDirection;
+  tone: MonthOverMonthTone;
 }
 
 interface ApiLikeError {
@@ -151,6 +161,12 @@ const DEFAULT_MONTHLY_SUMMARY: MonthlySummary = {
   balance: 0,
   byCategory: [],
 };
+const MONTH_VALUE_REGEX = /^\d{4}-(0[1-9]|1[0-2])$/;
+const MOM_TONE_CLASSNAMES: Record<MonthOverMonthTone, string> = {
+  good: "text-green-200",
+  bad: "text-red-200",
+  neutral: "text-gray-200",
+};
 const DEFAULT_MONTHLY_BUDGETS: MonthlyBudget[] = [];
 const DEFAULT_BUDGET_FORM: BudgetFormState = {
   categoryId: "",
@@ -179,6 +195,19 @@ const isSelectedPeriod = (value: string | null): value is SelectedPeriod =>
   value === PERIOD_CUSTOM;
 
 const getCurrentMonth = () => getTodayISODate().slice(0, 7);
+const getPreviousMonth = (monthValue: string): string => {
+  if (!MONTH_VALUE_REGEX.test(String(monthValue || "").trim())) {
+    return getCurrentMonth();
+  }
+
+  const [yearPart, monthPart] = monthValue.split("-");
+  const year = Number(yearPart);
+  const month = Number(monthPart);
+  const previousMonthDate = new Date(year, month - 2, 1);
+  const normalizedMonth = String(previousMonthDate.getMonth() + 1).padStart(2, "0");
+
+  return `${previousMonthDate.getFullYear()}-${normalizedMonth}`;
+};
 const getCurrentMonthRange = (referenceDate = new Date()) => {
   const year = referenceDate.getFullYear();
   const month = referenceDate.getMonth();
@@ -366,10 +395,70 @@ const getInitialPaginationState = (): PaginationState => {
 
 const formatCurrency = (value: number) => `R$ ${Number(value || 0).toFixed(2)}`;
 const formatPercentage = (value: number) => `${Number(value || 0).toFixed(2)}%`;
+const formatSignedCurrency = (value: number) => {
+  if (value > 0) {
+    return `+${formatCurrency(value)}`;
+  }
+
+  if (value < 0) {
+    return `-${formatCurrency(Math.abs(value))}`;
+  }
+
+  return formatCurrency(0);
+};
+const formatSignedPercentage = (value: number | null) => {
+  if (value === null) {
+    return "—";
+  }
+
+  const normalizedValue = Number(value) || 0;
+  const prefix = normalizedValue > 0 ? "+" : "";
+  return `${prefix}${normalizedValue.toFixed(1)}%`;
+};
 const isCompactHeaderActionsMode = (): boolean =>
   typeof window !== "undefined" && window.innerWidth < MOBILE_HEADER_ACTIONS_BREAKPOINT;
 const isCompactFiltersPanelMode = (): boolean =>
   typeof window !== "undefined" && window.innerWidth < MOBILE_FILTERS_BREAKPOINT;
+const normalizeMonthlySummary = (summary: MonthlySummary, fallbackMonth: string): MonthlySummary => ({
+  month: summary?.month || fallbackMonth,
+  income: Number(summary?.income) || 0,
+  expense: Number(summary?.expense) || 0,
+  balance: Number(summary?.balance) || 0,
+  byCategory: Array.isArray(summary?.byCategory) ? summary.byCategory : [],
+});
+const calculateMonthOverMonthMetric = (
+  metricKey: SummaryMetricKey,
+  currentValue: number,
+  previousValue: number,
+): MonthOverMonthMetric => {
+  const normalizedCurrent = Number(currentValue) || 0;
+  const normalizedPrevious = Number(previousValue) || 0;
+  const delta = normalizedCurrent - normalizedPrevious;
+  const direction: MonthOverMonthDirection = delta > 0 ? "up" : delta < 0 ? "down" : "flat";
+  const deltaPercent =
+    normalizedPrevious === 0
+      ? normalizedCurrent === 0
+        ? 0
+        : null
+      : (delta / normalizedPrevious) * 100;
+
+  let tone: MonthOverMonthTone = "neutral";
+
+  if (direction !== "flat") {
+    if (metricKey === "expense") {
+      tone = direction === "down" ? "good" : "bad";
+    } else {
+      tone = direction === "up" ? "good" : "bad";
+    }
+  }
+
+  return {
+    delta,
+    deltaPercent,
+    direction,
+    tone,
+  };
+};
 const hasInitialActiveFilters = (filters: FilterState): boolean =>
   filters.selectedCategory !== CATEGORY_ALL ||
   filters.selectedPeriod !== PERIOD_ALL ||
@@ -440,8 +529,13 @@ const App = ({
   const [isLoadingSummary, setLoadingSummary] = useState(false);
   const [isExportingCsv, setExportingCsv] = useState(false);
   const [monthlySummary, setMonthlySummary] = useState<MonthlySummary>(DEFAULT_MONTHLY_SUMMARY);
+  const [previousMonthlySummary, setPreviousMonthlySummary] = useState<MonthlySummary>(() => ({
+    ...DEFAULT_MONTHLY_SUMMARY,
+    month: getPreviousMonth(getCurrentMonth()),
+  }));
   const [monthlyBudgets, setMonthlyBudgets] = useState<MonthlyBudget[]>(DEFAULT_MONTHLY_BUDGETS);
   const [summaryError, setSummaryError] = useState("");
+  const [momError, setMomError] = useState("");
   const [budgetsError, setBudgetsError] = useState("");
   const [budgetSuccessMessage, setBudgetSuccessMessage] = useState("");
   const [budgetMutationError, setBudgetMutationError] = useState("");
@@ -628,25 +722,41 @@ const App = ({
   const loadMonthlySummary = useCallback(async () => {
     setLoadingSummary(true);
     setSummaryError("");
+    setMomError("");
+    const previousSummaryMonth = getPreviousMonth(selectedSummaryMonth);
 
-    try {
-      const summary = await transactionsService.getMonthlySummary(selectedSummaryMonth);
-      setMonthlySummary({
-        month: summary.month || selectedSummaryMonth,
-        income: Number(summary.income) || 0,
-        expense: Number(summary.expense) || 0,
-        balance: Number(summary.balance) || 0,
-        byCategory: Array.isArray(summary.byCategory) ? summary.byCategory : [],
-      });
-    } catch (error) {
+    const [currentSummaryResult, previousSummaryResult] = await Promise.allSettled([
+      transactionsService.getMonthlySummary(selectedSummaryMonth),
+      transactionsService.getMonthlySummary(previousSummaryMonth),
+    ]);
+
+    if (currentSummaryResult.status === "fulfilled") {
+      setMonthlySummary(normalizeMonthlySummary(currentSummaryResult.value, selectedSummaryMonth));
+    } else {
       setMonthlySummary({
         ...DEFAULT_MONTHLY_SUMMARY,
         month: selectedSummaryMonth,
       });
-      setSummaryError(getApiErrorMessage(error, "Nao foi possivel carregar o resumo mensal."));
-    } finally {
-      setLoadingSummary(false);
+      setSummaryError(
+        getApiErrorMessage(currentSummaryResult.reason, "Nao foi possivel carregar o resumo mensal."),
+      );
     }
+
+    if (previousSummaryResult.status === "fulfilled") {
+      setPreviousMonthlySummary(
+        normalizeMonthlySummary(previousSummaryResult.value, previousSummaryMonth),
+      );
+    } else {
+      setPreviousMonthlySummary({
+        ...DEFAULT_MONTHLY_SUMMARY,
+        month: previousSummaryMonth,
+      });
+      setMomError(
+        getApiErrorMessage(previousSummaryResult.reason, "Comparacao mensal indisponivel."),
+      );
+    }
+
+    setLoadingSummary(false);
   }, [selectedSummaryMonth]);
 
   useEffect(() => {
@@ -947,6 +1057,34 @@ const App = ({
       })
       .filter((categoryItem) => categoryItem.expense > 0);
   }, [monthlySummary.byCategory]);
+
+  const monthOverMonthMetrics = useMemo(
+    () => ({
+      balance: calculateMonthOverMonthMetric(
+        "balance",
+        monthlySummary.balance,
+        previousMonthlySummary.balance,
+      ),
+      income: calculateMonthOverMonthMetric(
+        "income",
+        monthlySummary.income,
+        previousMonthlySummary.income,
+      ),
+      expense: calculateMonthOverMonthMetric(
+        "expense",
+        monthlySummary.expense,
+        previousMonthlySummary.expense,
+      ),
+    }),
+    [
+      monthlySummary.balance,
+      monthlySummary.expense,
+      monthlySummary.income,
+      previousMonthlySummary.balance,
+      previousMonthlySummary.expense,
+      previousMonthlySummary.income,
+    ],
+  );
 
   const openCreateModal = () => {
     setEditingTransaction(null);
@@ -1909,11 +2047,51 @@ const App = ({
             <p className="text-base font-medium text-gray-100">
               {isLoadingSummary ? "Carregando..." : formatCurrency(monthlySummary.balance)}
             </p>
+            <p
+              className={`mt-1 text-xs font-medium ${
+                isLoadingSummary || summaryError || momError
+                  ? MOM_TONE_CLASSNAMES.neutral
+                  : MOM_TONE_CLASSNAMES[monthOverMonthMetrics.balance.tone]
+              }`}
+              data-testid="mom-balance"
+            >
+              {isLoadingSummary
+                ? "MoM: Calculando..."
+                : summaryError || momError
+                  ? "MoM: —"
+                  : `MoM: ${
+                      monthOverMonthMetrics.balance.direction === "up"
+                        ? "↑"
+                        : monthOverMonthMetrics.balance.direction === "down"
+                          ? "↓"
+                          : "→"
+                    } ${formatSignedPercentage(monthOverMonthMetrics.balance.deltaPercent)} (${formatSignedCurrency(monthOverMonthMetrics.balance.delta)})`}
+            </p>
           </div>
           <div className="rounded border border-brand-1 bg-gray-400 px-4 py-3.5">
             <p className="text-xs font-medium uppercase text-gray-200">Entradas</p>
             <p className="text-base font-medium text-gray-100">
               {isLoadingSummary ? "Carregando..." : formatCurrency(monthlySummary.income)}
+            </p>
+            <p
+              className={`mt-1 text-xs font-medium ${
+                isLoadingSummary || summaryError || momError
+                  ? MOM_TONE_CLASSNAMES.neutral
+                  : MOM_TONE_CLASSNAMES[monthOverMonthMetrics.income.tone]
+              }`}
+              data-testid="mom-income"
+            >
+              {isLoadingSummary
+                ? "MoM: Calculando..."
+                : summaryError || momError
+                  ? "MoM: —"
+                  : `MoM: ${
+                      monthOverMonthMetrics.income.direction === "up"
+                        ? "↑"
+                        : monthOverMonthMetrics.income.direction === "down"
+                          ? "↓"
+                          : "→"
+                    } ${formatSignedPercentage(monthOverMonthMetrics.income.deltaPercent)} (${formatSignedCurrency(monthOverMonthMetrics.income.delta)})`}
             </p>
           </div>
           <div className="rounded border border-brand-1 bg-gray-400 px-4 py-3.5">
@@ -1921,8 +2099,33 @@ const App = ({
             <p className="text-base font-medium text-gray-100">
               {isLoadingSummary ? "Carregando..." : formatCurrency(monthlySummary.expense)}
             </p>
+            <p
+              className={`mt-1 text-xs font-medium ${
+                isLoadingSummary || summaryError || momError
+                  ? MOM_TONE_CLASSNAMES.neutral
+                  : MOM_TONE_CLASSNAMES[monthOverMonthMetrics.expense.tone]
+              }`}
+              data-testid="mom-expense"
+            >
+              {isLoadingSummary
+                ? "MoM: Calculando..."
+                : summaryError || momError
+                  ? "MoM: —"
+                  : `MoM: ${
+                      monthOverMonthMetrics.expense.direction === "up"
+                        ? "↑"
+                        : monthOverMonthMetrics.expense.direction === "down"
+                          ? "↓"
+                          : "→"
+                    } ${formatSignedPercentage(monthOverMonthMetrics.expense.deltaPercent)} (${formatSignedCurrency(monthOverMonthMetrics.expense.delta)})`}
+            </p>
           </div>
             </div>
+            {!isLoadingSummary && !summaryError && momError ? (
+              <div className="mt-2 rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-600">
+                {momError}
+              </div>
+            ) : null}
             {!isLoadingSummary && !summaryError && !hasMonthlySummaryData ? (
               <div className="mt-2 rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-600">
                 Sem dados para o mes selecionado.
