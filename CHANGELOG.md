@@ -2,6 +2,41 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.14.0] - 2026-02-21
+
+### Added
+
+- Web core pages migrated to TypeScript:
+  - `App.tsx`
+  - `Login.tsx`
+  - `CategoriesSettings.tsx`
+- Observability operational assets:
+  - Grafana Alloy worker config for authenticated `/metrics` scrape and remote_write
+  - baseline dashboard and alert rules
+  - warmup traffic script for metrics ingestion
+  - observability validation order guide
+- Availability SLI/SLO baseline documentation and runbook integration.
+
+### Changed
+
+- CI now enforces full Web typecheck in pull requests.
+- API write endpoints now apply per-user rate limiting.
+- Alloy config now uses inline static targets in `prometheus.scrape` (removing unsupported `discovery.static` usage).
+
+### Security
+
+- `/metrics` remains protected in production with `Authorization: Bearer <METRICS_AUTH_TOKEN>`.
+- Added `ops/alloy/.env.example` with safe placeholders for Render Worker configuration.
+
+### Quality
+
+- Production observability ingestion validated in Grafana Cloud (`http_requests_total` rate > 0).
+- CI checks remained green across API/Web/Vercel for release-line pull requests.
+
+### Scope
+
+- Release focused on type safety, observability operability, and runtime hardening.
+
 ## [1.13.1] - 2026-02-20
 
 ### Added
