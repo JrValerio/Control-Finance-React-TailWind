@@ -2,6 +2,56 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.21.0] - 2026-02-21
+
+### Title
+
+v1.21.0 - Billing Entitlements Foundation (Provider-Agnostic)
+
+### Highlights
+
+- Adds a billing foundation with plan features and subscription lifecycle states.
+- Introduces entitlement middleware for premium gates and numeric caps.
+- Enforces feature access for import/export and analytics trend history.
+
+### Added
+
+- Billing data model:
+  - `plans` table with JSONB feature entitlements (`free`, `pro`)
+  - `subscriptions` table with partial unique index enforcing one active/trialing/past_due subscription per user
+- Billing service:
+  - `getActivePlanFeaturesForUser()` with lazy fallback to free plan
+  - `getSubscriptionSummaryForUser()` for subscription payload shaping
+- Billing endpoint:
+  - `GET /billing/subscription` (authenticated)
+- Entitlement middleware:
+  - `requireFeature(feature)` returns `402` + `Recurso disponivel apenas no plano Pro.`
+  - `attachEntitlements` exposes `req.entitlements` for numeric caps
+
+### Changed
+
+- Premium feature gates:
+  - CSV import (`/transactions/import/dry-run`, `/transactions/import/commit`) requires `csv_import`
+  - CSV export (`/transactions/export.csv`) requires `csv_export`
+  - Analytics trend (`/analytics/trend`) capped by `analytics_months_max`
+    - free default is capped to 3 months
+    - explicit requests above cap return `402` + `Limite de historico excedido no plano gratuito.`
+- Integration tests now promote users to `pro` where premium flows are intentionally validated.
+
+### Quality
+
+- Added `apps/api/src/billing.test.js` with end-to-end entitlement scenarios.
+- Full API suite green after changes (`135/135`).
+- Full monorepo gates green:
+  - `npm run lint`
+  - `npm run test`
+  - `npm run build`
+
+### Impact
+
+- From: "single-plan behavior with no enforcement."
+- To: "plan-aware feature access with explicit gates and upgrade path."
+
 ## [1.19.0] - 2026-02-21
 
 ### Title
