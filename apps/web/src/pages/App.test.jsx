@@ -4,9 +4,35 @@ import userEvent from "@testing-library/user-event";
 import App from "./App";
 import { CATEGORY_ENTRY, CATEGORY_EXIT } from "../components/DatabaseUtils";
 import { transactionsService } from "../services/transactions.service";
+import { analyticsService } from "../services/analytics.service";
 
 vi.mock("../components/TransactionChart", () => ({
   default: () => <div data-testid="transaction-chart" />,
+}));
+
+vi.mock("../components/TrendChart", () => ({
+  default: ({ data, onMonthClick }) =>
+    Array.isArray(data) && data.length > 0 ? (
+      <div data-testid="trend-chart">
+        {data.map((point) => (
+          <button
+            key={point.month}
+            data-testid={`trend-month-${point.month}`}
+            onClick={() => onMonthClick?.(point.month)}
+          >
+            {point.month}
+          </button>
+        ))}
+      </div>
+    ) : (
+      <div>Sem dados suficientes para exibir a evolucao historica.</div>
+    ),
+}));
+
+vi.mock("../services/analytics.service", () => ({
+  analyticsService: {
+    getMonthlyTrend: vi.fn(),
+  },
 }));
 
 vi.mock("../services/transactions.service", () => ({
@@ -82,6 +108,18 @@ const buildSummaryCompareResponse = (summary = {}) => ({
 });
 
 const buildMonthlyBudgetsResponse = (items = []) => items;
+
+const buildTrendResponse = (overrides = []) =>
+  overrides.length > 0
+    ? overrides
+    : [
+        { month: "2025-09", income: 1800, expense: 600, balance: 1200 },
+        { month: "2025-10", income: 2000, expense: 700, balance: 1300 },
+        { month: "2025-11", income: 2200, expense: 750, balance: 1450 },
+        { month: "2025-12", income: 2400, expense: 800, balance: 1600 },
+        { month: "2026-01", income: 2100, expense: 650, balance: 1450 },
+        { month: "2026-02", income: 2500, expense: 730, balance: 1770 },
+      ];
 
 const buildImportDryRunResponse = (payload = {}) => ({
   importId: "11111111-1111-4111-8111-111111111111",
@@ -196,6 +234,7 @@ describe("App", () => {
     });
     transactionsService.update.mockResolvedValue({});
     transactionsService.restore.mockResolvedValue({});
+    analyticsService.getMonthlyTrend.mockResolvedValue(buildTrendResponse());
     transactionsService.exportCsv.mockResolvedValue({
       blob: new Blob(["id,type\n1,Entrada"], { type: "text/csv;charset=utf-8" }),
       fileName: "transacoes.csv",
@@ -2579,5 +2618,88 @@ describe("App", () => {
       URL.createObjectURL = originalCreateObjectURL;
       URL.revokeObjectURL = originalRevokeObjectURL;
     }
+  });
+
+  describe("grafico de evolucao historica (TrendChart)", () => {
+    it("renderiza o grafico de evolucao quando a API retorna dados", async () => {
+      analyticsService.getMonthlyTrend.mockResolvedValueOnce(buildTrendResponse());
+
+      render(<App />);
+
+      expect(await screen.findByTestId("trend-chart")).toBeInTheDocument();
+    });
+
+    it("exibe mensagem de erro quando a API de trend falha", async () => {
+      analyticsService.getMonthlyTrend.mockRejectedValueOnce(new Error("network error"));
+
+      render(<App />);
+
+      expect(
+        await screen.findByText("Grafico de evolucao indisponivel."),
+      ).toBeInTheDocument();
+    });
+
+    it("exibe skeleton de loading enquanto a requisicao de trend esta pendente", async () => {
+      const deferred = createDeferred();
+      analyticsService.getMonthlyTrend.mockReturnValueOnce(deferred.promise);
+
+      render(<App />);
+
+      expect(await screen.findByText("Carregando evolucao...")).toBeInTheDocument();
+
+      await act(async () => {
+        deferred.resolve(buildTrendResponse());
+      });
+    });
+
+    it("chama getMonthlyTrend com months=6", async () => {
+      analyticsService.getMonthlyTrend.mockResolvedValueOnce(buildTrendResponse());
+
+      render(<App />);
+
+      await screen.findByTestId("trend-chart");
+
+      expect(analyticsService.getMonthlyTrend).toHaveBeenCalledWith(6);
+    });
+
+    it("clicar num mes do grafico recarrega summary e budgets para o mes clicado", async () => {
+      render(<App />);
+
+      await screen.findByTestId("trend-chart");
+
+      transactionsService.getMonthlySummary.mockClear();
+      transactionsService.getMonthlySummaryCompare.mockClear();
+      transactionsService.getMonthlyBudgets.mockClear();
+
+      await userEvent.click(screen.getByTestId("trend-month-2025-10"));
+
+      await waitFor(() => {
+        expect(transactionsService.getMonthlySummary).toHaveBeenCalledWith("2025-10");
+        expect(transactionsService.getMonthlySummaryCompare).toHaveBeenCalledWith("2025-10");
+        expect(transactionsService.getMonthlyBudgets).toHaveBeenCalledWith("2025-10");
+      });
+    });
+
+    it("clicar em meses distintos aciona re-fetch para cada mes clicado", async () => {
+      render(<App />);
+
+      await screen.findByTestId("trend-chart");
+
+      transactionsService.getMonthlySummary.mockClear();
+
+      await userEvent.click(screen.getByTestId("trend-month-2025-11"));
+
+      await waitFor(() => {
+        expect(transactionsService.getMonthlySummary).toHaveBeenCalledWith("2025-11");
+      });
+
+      transactionsService.getMonthlySummary.mockClear();
+
+      await userEvent.click(screen.getByTestId("trend-month-2025-12"));
+
+      await waitFor(() => {
+        expect(transactionsService.getMonthlySummary).toHaveBeenCalledWith("2025-12");
+      });
+    });
   });
 });

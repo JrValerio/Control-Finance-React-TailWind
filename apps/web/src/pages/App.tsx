@@ -31,8 +31,10 @@ import {
   normalizeTransactionDate,
   resolvePeriodRange,
 } from "../components/DatabaseUtils";
+import { analyticsService, type TrendPoint } from "../services/analytics.service";
 
 const TransactionChart = lazy(() => import("../components/TransactionChart"));
+const TrendChart = lazy(() => import("../components/TrendChart"));
 
 type SelectedCategory = "Todos" | TransactionType;
 type SelectedPeriod =
@@ -191,6 +193,8 @@ const MOM_TONE_CLASSNAMES: Record<MonthOverMonthTone, string> = {
   neutral: "text-gray-200",
 };
 const DEFAULT_MONTHLY_BUDGETS: MonthlyBudget[] = [];
+const TREND_MONTHS = 6;
+const DEFAULT_TREND: TrendPoint[] = [];
 const DEFAULT_BUDGET_FORM: BudgetFormState = {
   categoryId: "",
   amount: "",
@@ -572,6 +576,9 @@ const App = ({
   const [requestError, setRequestError] = useState("");
   const [modalRequestError, setModalRequestError] = useState("");
   const [isLoadingBudgets, setLoadingBudgets] = useState(false);
+  const [trend, setTrend] = useState<TrendPoint[]>(DEFAULT_TREND);
+  const [isLoadingTrend, setLoadingTrend] = useState(false);
+  const [trendError, setTrendError] = useState("");
   const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const budgetSuccessTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -804,6 +811,31 @@ const App = ({
   useEffect(() => {
     loadMonthlyBudgets();
   }, [loadMonthlyBudgets]);
+
+  const loadTrend = useCallback(async () => {
+    setLoadingTrend(true);
+    setTrendError("");
+
+    try {
+      const trendData = await analyticsService.getMonthlyTrend(TREND_MONTHS);
+      setTrend(Array.isArray(trendData) ? trendData : DEFAULT_TREND);
+    } catch {
+      setTrend(DEFAULT_TREND);
+      setTrendError("Grafico de evolucao indisponivel.");
+    } finally {
+      setLoadingTrend(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadTrend();
+  }, [loadTrend]);
+
+  const handleTrendMonthClick = useCallback((month: string) => {
+    if (MONTH_VALUE_REGEX.test(String(month || "").trim())) {
+      setSelectedSummaryMonth(month.trim());
+    }
+  }, []);
 
   const openCreateBudgetModal = () => {
     setEditingBudget(null);
@@ -2519,6 +2551,33 @@ const App = ({
         >
           <TransactionChart data={chartData} />
         </Suspense>
+      </section>
+
+      <section>
+        {trendError ? (
+          <div className="rounded border border-brand-1 bg-gray-500 p-4 text-center text-sm text-gray-100">
+            {trendError}
+          </div>
+        ) : isLoadingTrend ? (
+          <div
+            className="rounded border border-brand-1 bg-gray-500 p-4"
+            role="status"
+            aria-live="polite"
+          >
+            <div className="h-64 animate-pulse rounded bg-gray-400" />
+            <span className="sr-only">Carregando evolucao...</span>
+          </div>
+        ) : (
+          <Suspense
+            fallback={
+              <div className="rounded border border-brand-1 bg-gray-500 p-4 text-sm text-gray-100">
+                Carregando evolucao...
+              </div>
+            }
+          >
+            <TrendChart data={trend} onMonthClick={handleTrendMonthClick} />
+          </Suspense>
+        )}
       </section>
 
       <section ref={listSectionRef} className="rounded border border-brand-1 bg-gray-500 px-4 py-3.5">
