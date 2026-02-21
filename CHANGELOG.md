@@ -2,6 +2,51 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.18.0] - 2026-02-21
+
+### Title
+
+v1.18.0 — Deep-linked Month Navigation + Trend UX Polish
+
+### Highlights
+
+- The selected month in the dashboard is now persistent: shareable via URL, refresh-safe, and Back/Forward-aware.
+- The trend chart speaks the user's language: pt-BR labels, a visible marker on the active month, and an explicit click affordance.
+
+### Added
+
+- URL persistence for `selectedSummaryMonth` (Web):
+  - `?summaryMonth=YYYY-MM` read on init via `getInitialSummaryMonth()`; invalid values fall back to current month
+  - Existing URL-sync `useEffect` extended: writes `summaryMonth` alongside all filter/pagination params
+  - `popstate` listener syncs state on browser Back/Forward
+- TrendChart UX polish (Web):
+  - `formatMonthLabel`: converts `YYYY-MM` to `Fev/26` style (pt-BR static array, no `Intl` / locale risk)
+  - `XAxis tickFormatter` and `CustomTooltip` header both use `formatMonthLabel`
+  - `selectedMonth?: string` prop: `ReferenceLine` (brand purple, dashed) marks the active month when it falls within the trend data range
+  - Click affordance: heading appends `— clique em um mes para navegar` hint when `onMonthClick` is wired
+
+### Changed
+
+- Dashboard month selection now persists in URL and survives refresh, deep-link, and browser navigation.
+- Trend chart axis labels changed from raw `YYYY-MM` to `Mmm/YY` (pt-BR).
+
+### Quality
+
+- 6 new tests in `App.test.jsx`:
+  - Initializes `selectedSummaryMonth` from valid `?summaryMonth` in URL
+  - Ignores invalid `?summaryMonth` and falls back to current month
+  - Month click updates `summaryMonth` in URL
+  - Other query params preserved when updating `summaryMonth`
+  - `selectedMonth` prop passed to TrendChart from URL init
+  - `selectedMonth` prop reflects new month after chart click
+- Web gates green (`typecheck`, `lint`, `test` 100/100, `build`)
+- CI green across `api`, `web`, `Vercel` for both PRs (#136, #137)
+
+### Impact
+
+- From: "Click a month, lose it on refresh."
+- To: "Click a month, share the link, come back tomorrow — same context."
+
 ## [1.17.0] - 2026-02-21
 
 ### Title
