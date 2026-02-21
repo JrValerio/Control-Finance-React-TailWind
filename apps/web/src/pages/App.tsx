@@ -1062,7 +1062,12 @@ const App = ({
           expense: Number.isFinite(normalizedExpense) ? normalizedExpense : 0,
         };
       })
-      .filter((categoryItem) => categoryItem.expense > 0);
+      .filter((categoryItem) => categoryItem.expense > 0)
+      .sort((a, b) => {
+        if (a.categoryId === null && b.categoryId !== null) return 1;
+        if (b.categoryId === null && a.categoryId !== null) return -1;
+        return b.expense - a.expense;
+      });
   }, [monthlySummary.byCategory]);
 
   const monthOverMonthMetrics = useMemo(
