@@ -2798,4 +2798,22 @@ describe("App", () => {
       delete window.HTMLElement.prototype.scrollIntoView;
     });
   });
+
+  it("fechar modal de budget ao abrir modal de transacao (isolamento de modais)", async () => {
+    const user = userEvent.setup();
+    transactionsService.listCategories.mockResolvedValueOnce([{ id: 1, name: "Alimentacao" }]);
+
+    render(<App />);
+
+    const newBudgetButton = screen.getByRole("button", { name: "+ Nova meta" });
+    await waitFor(() => expect(newBudgetButton).toBeEnabled());
+    await user.click(newBudgetButton);
+
+    expect(screen.getByRole("dialog", { name: "Meta do mes" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Registrar novo valor" }));
+
+    expect(screen.queryByRole("dialog", { name: "Meta do mes" })).not.toBeInTheDocument();
+    expect(screen.getByText("Registro de valor")).toBeInTheDocument();
+  });
 });

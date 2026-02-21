@@ -1167,12 +1167,14 @@ const App = ({
   );
 
   const openCreateModal = () => {
+    setBudgetModalOpen(false);
     setEditingTransaction(null);
     setModalRequestError("");
     setModalOpen(true);
   };
 
   const openEditModal = (transaction: TransactionWithCategoryName) => {
+    setBudgetModalOpen(false);
     setEditingTransaction(transaction);
     setModalRequestError("");
     setModalOpen(true);
@@ -1235,6 +1237,7 @@ const App = ({
   };
 
   const requestDeleteTransaction = (id: number) => {
+    setBudgetModalOpen(false);
     setPendingDeleteTransactionId(id);
   };
 
