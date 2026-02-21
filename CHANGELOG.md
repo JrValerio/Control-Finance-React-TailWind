@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.24.0] - 2026-02-21
+
+### Title
+
+v1.24.0 - Stripe Checkout & Modal Isolation
+
+### Added
+
+- `POST /billing/checkout` (requires Bearer token) — creates a Stripe Checkout Session for Pro plan upgrade.
+  - Returns `{ url }` (201) pointing to the hosted Stripe Checkout page.
+  - 409 if the user already has an `active`, `trialing`, or `past_due` subscription.
+  - Price resolved from DB (`plans.stripe_price_id WHERE name='pro'`) with `STRIPE_PRICE_ID_PRO` env fallback.
+  - Passes `metadata.userId`, `customer_email`, `allow_promotion_codes`, `billing_address_collection: "auto"`.
+  - New env vars required at runtime: `STRIPE_SECRET_KEY`, `STRIPE_CHECKOUT_SUCCESS_URL`, `STRIPE_CHECKOUT_CANCEL_URL`.
+
+### Fixed
+
+- Budget modal now closes before transaction create, transaction edit, or delete confirm overlays open,
+  preventing two `z-50` layers from stacking simultaneously (`openCreateModal`, `openEditModal`,
+  `requestDeleteTransaction` in `App.tsx`).
+
+### Quality
+
+- 7 new integration tests in `apps/api/src/billing-checkout.test.js` — auth guard, conflict guard,
+  Stripe session arg contract (price, metadata, URLs), `customer_email` passthrough, env-var guard paths.
+- Regression test in `apps/web/src/pages/App.test.jsx` asserting budget modal closes on
+  "Registrar novo valor" click.
+- Full suite green: **156/156** (api), **112/112** (web).
+
 ## [1.23.0] - 2026-02-21
 
 ### Title
