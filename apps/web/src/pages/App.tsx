@@ -1116,6 +1116,17 @@ const App = ({
         }),
     [monthlyBudgets],
   );
+  const proactiveNearLimitBudget = useMemo(
+    () =>
+      monthlyBudgets
+        .filter(
+          (budget): budget is MonthlyBudget & { status: "near_limit" } =>
+            budget.status === "near_limit",
+        )
+        .sort((leftBudget, rightBudget) => rightBudget.percentage - leftBudget.percentage)[0] ||
+      null,
+    [monthlyBudgets],
+  );
 
   const openCreateModal = () => {
     setEditingTransaction(null);
@@ -2235,6 +2246,16 @@ const App = ({
               aria-live="polite"
             >
               {budgetSuccessMessage}
+            </div>
+          ) : null}
+          {!isLoadingBudgets && !budgetsError && proactiveNearLimitBudget ? (
+            <div
+              className="mb-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800"
+              role="status"
+              aria-live="polite"
+              data-testid="budget-near-limit-banner"
+            >
+              {`Alerta: voce ja utilizou ${formatPercentage(proactiveNearLimitBudget.percentage)} da meta de ${proactiveNearLimitBudget.categoryName} neste mes.`}
             </div>
           ) : null}
           {!isLoadingBudgets && !budgetsError && budgetAlerts.length > 0 ? (

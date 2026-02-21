@@ -471,6 +471,54 @@ describe("App", () => {
     expect(within(alertItems[1]).getByText("Alimentacao")).toBeInTheDocument();
   });
 
+  it("exibe banner proativo quando existe meta em near_limit", async () => {
+    transactionsService.getMonthlyBudgets.mockResolvedValueOnce(
+      buildMonthlyBudgetsResponse([
+        {
+          id: 21,
+          categoryId: 4,
+          categoryName: "Alimentacao",
+          month: "2026-02",
+          budget: 1200,
+          actual: 984,
+          remaining: 216,
+          percentage: 82,
+          status: "near_limit",
+        },
+      ]),
+    );
+
+    render(<App />);
+
+    const proactiveBanner = await screen.findByTestId("budget-near-limit-banner");
+    expect(proactiveBanner).toHaveTextContent(
+      "Alerta: voce ja utilizou 82.00% da meta de Alimentacao neste mes.",
+    );
+  });
+
+  it("nao exibe banner proativo quando existem apenas metas exceeded", async () => {
+    transactionsService.getMonthlyBudgets.mockResolvedValueOnce(
+      buildMonthlyBudgetsResponse([
+        {
+          id: 22,
+          categoryId: 10,
+          categoryName: "Moradia",
+          month: "2026-02",
+          budget: 1800,
+          actual: 2000,
+          remaining: -200,
+          percentage: 111.11,
+          status: "exceeded",
+        },
+      ]),
+    );
+
+    render(<App />);
+
+    expect((await screen.findAllByText("Moradia")).length).toBeGreaterThan(0);
+    expect(screen.queryByTestId("budget-near-limit-banner")).not.toBeInTheDocument();
+  });
+
   it("aplica filtro de categoria e periodo ao clicar em ver transacoes no alerta", async () => {
     const user = userEvent.setup();
     transactionsService.listCategories.mockResolvedValueOnce([{ id: 9, name: "Lazer" }]);
