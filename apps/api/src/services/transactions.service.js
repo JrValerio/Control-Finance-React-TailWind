@@ -1,7 +1,11 @@
 import { dbQuery } from "../db/index.js";
+import {
+  TRANSACTION_TYPE_ENTRY,
+  TRANSACTION_TYPE_EXIT,
+} from "../constants/transaction-types.js";
 
-const CATEGORY_ENTRY = "Entrada";
-const CATEGORY_EXIT = "Saida";
+const CATEGORY_ENTRY = TRANSACTION_TYPE_ENTRY;
+const CATEGORY_EXIT = TRANSACTION_TYPE_EXIT;
 const VALID_TYPES = new Set([CATEGORY_ENTRY, CATEGORY_EXIT]);
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 const ISO_MONTH_REGEX = /^\d{4}-\d{2}$/;

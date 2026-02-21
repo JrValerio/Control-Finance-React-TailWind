@@ -1,10 +1,11 @@
 import { dbQuery } from "../db/index.js";
+import { TRANSACTION_TYPE_EXIT } from "../constants/transaction-types.js";
 
 const ISO_MONTH_REGEX = /^\d{4}-(0[1-9]|1[0-2])$/;
 const STATUS_OK = "ok";
 const STATUS_NEAR_LIMIT = "near_limit";
 const STATUS_EXCEEDED = "exceeded";
-const CATEGORY_EXIT = "Saida";
+const CATEGORY_EXIT = TRANSACTION_TYPE_EXIT;
 
 const createError = (status, message) => {
   const error = new Error(message);
