@@ -165,7 +165,7 @@ export function useFilters({
     isCompactFiltersPanelMode(),
   );
   const [isFiltersPanelOpen, setIsFiltersPanelOpen] = useState(
-    () => !isCompactFiltersPanelMode() || hasInitialActiveFilters(initialState),
+    () => hasInitialActiveFilters(initialState),
   );
 
   // Sync responsive layout on window resize
@@ -175,9 +175,6 @@ export function useFilters({
     const syncMobileFiltersMode = () => {
       const isMobileMode = isCompactFiltersPanelMode();
       setIsMobileFiltersPanel(isMobileMode);
-      if (!isMobileMode) {
-        setIsFiltersPanelOpen(true);
-      }
     };
 
     syncMobileFiltersMode();
@@ -358,9 +355,7 @@ export function useFilters({
   );
 
   const handleEditFilters = useCallback(() => {
-    if (isMobileFiltersPanel) {
-      setIsFiltersPanelOpen(true);
-    }
+    setIsFiltersPanelOpen(true);
 
     const focusSearchInput = () => {
       searchInputRef.current?.focus();
@@ -368,19 +363,15 @@ export function useFilters({
 
     if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
       window.requestAnimationFrame(() => {
-        if (isMobileFiltersPanel) {
-          filtersPanelRef.current?.scrollIntoView?.({ behavior: "smooth", block: "start" });
-        }
+        filtersPanelRef.current?.scrollIntoView?.({ behavior: "smooth", block: "start" });
         window.requestAnimationFrame(focusSearchInput);
       });
       return;
     }
 
-    if (isMobileFiltersPanel) {
-      filtersPanelRef.current?.scrollIntoView?.({ block: "start" });
-    }
+    filtersPanelRef.current?.scrollIntoView?.({ block: "start" });
     focusSearchInput();
-  }, [isMobileFiltersPanel]);
+  }, []);
 
   return {
     selectedCategory,

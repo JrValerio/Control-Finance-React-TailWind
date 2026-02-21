@@ -534,6 +534,7 @@ describe("App", () => {
       expect(lastCall.to).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     });
 
+    await user.click(screen.getByRole("button", { name: "Filtros" }));
     expect(screen.getByLabelText("Categoria")).toHaveValue("5");
   });
 
@@ -694,6 +695,7 @@ describe("App", () => {
       expect(lastCall.to).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     });
 
+    await user.click(screen.getByRole("button", { name: "Filtros" }));
     expect(screen.getByLabelText("Categoria")).toHaveValue("9");
   });
 
@@ -931,6 +933,7 @@ describe("App", () => {
     render(<App />);
 
     expect(await screen.findByText("Inicial")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Filtros" }));
     await user.selectOptions(screen.getByLabelText("Categoria"), "1");
     expect(await screen.findByText("Filtrada")).toBeInTheDocument();
     expect(screen.getAllByText("Categoria: Alimentacao").length).toBeGreaterThan(0);
@@ -946,6 +949,7 @@ describe("App", () => {
   });
 
   it("aplica sort da querystring ao carregar transacoes", async () => {
+    const user = userEvent.setup();
     window.history.replaceState(null, "", "/app?sort=amount:desc&limit=20&offset=0");
     transactionsService.listPage.mockResolvedValueOnce(
       buildPageResponse([
@@ -971,6 +975,7 @@ describe("App", () => {
       type: undefined,
       categoryId: undefined,
     });
+    await user.click(screen.getByRole("button", { name: "Filtros" }));
     expect(screen.getByLabelText("Ordenar por")).toHaveValue("amount:desc");
   });
 
@@ -1026,6 +1031,7 @@ describe("App", () => {
     expect(await screen.findByText("Pagina inicial")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Proxima" }));
     expect(await screen.findByText("Antes do sort")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Filtros" }));
     await user.selectOptions(screen.getByLabelText("Ordenar por"), "amount:desc");
 
     expect(await screen.findByText("Apos sort")).toBeInTheDocument();
@@ -1111,7 +1117,7 @@ describe("App", () => {
     render(<App />);
 
     expect(await screen.findByText("Antes da busca")).toBeInTheDocument();
-
+    await user.click(screen.getByRole("button", { name: "Filtros" }));
     await user.type(screen.getByLabelText("Buscar"), "padaria");
     await user.click(screen.getByRole("button", { name: "Aplicar" }));
 
@@ -1147,7 +1153,7 @@ describe("App", () => {
     render(<App />);
 
     expect(await screen.findByText("Lista inicial")).toBeInTheDocument();
-
+    await user.click(screen.getByRole("button", { name: "Filtros" }));
     const searchInput = screen.getByLabelText("Buscar");
     const initialCallCount = transactionsService.listPage.mock.calls.length;
 
@@ -1257,6 +1263,7 @@ describe("App", () => {
     render(<App />);
 
     expect(await screen.findByText("Antes do preset")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Filtros" }));
     expect(screen.getByRole("button", { name: "Este mes" })).toHaveAttribute("aria-pressed", "false");
     await user.click(screen.getByRole("button", { name: "Este mes" }));
 
@@ -1411,6 +1418,7 @@ describe("App", () => {
     render(<App />);
 
     expect(await screen.findByText("Sem filtros ativos")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Filtros" }));
     expect(screen.getByRole("button", { name: "Este mes" })).toBeInTheDocument();
     expect(screen.queryByText(/Filtros ativos \(\d+\)/)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Limpar tudo" })).not.toBeInTheDocument();
@@ -2236,6 +2244,7 @@ describe("App", () => {
     expect(await screen.findByText("Saida p2")).toBeInTheDocument();
     expect(screen.getByText("Pagina 2 de 2")).toBeInTheDocument();
 
+    await user.click(screen.getByRole("button", { name: "Filtros" }));
     await user.click(screen.getByRole("button", { name: "Filtrar entradas" }));
 
     expect(await screen.findByText("Entrada filtrada")).toBeInTheDocument();
@@ -2595,6 +2604,7 @@ describe("App", () => {
       render(<App />);
 
       await screen.findByText("Resumo financeiro");
+      await user.click(screen.getByRole("button", { name: "Filtros" }));
       await user.selectOptions(screen.getByLabelText("Periodo"), "Personalizado");
       fireEvent.change(screen.getByLabelText("Data inicial"), {
         target: { value: "2026-02-01" },

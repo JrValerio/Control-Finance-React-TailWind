@@ -533,7 +533,6 @@ const App = ({
     setCustomEndDate,
     isFiltersPanelOpen,
     setIsFiltersPanelOpen,
-    isMobileFiltersPanel,
     filtersPanelRef,
     searchInputRef,
     periodRange,
@@ -1434,7 +1433,7 @@ const App = ({
     () => getCurrentMonthRange(new Date(`${todayISO}T00:00:00`)),
     [todayISO],
   );
-  const isFiltersContentVisible = !isMobileFiltersPanel || isFiltersPanelOpen;
+  const isFiltersContentVisible = isFiltersPanelOpen;
   const shouldShowPresets = !hasActiveFilters;
   const hasMonthlySummaryData =
     monthlySummary.income > 0 ||
@@ -1602,21 +1601,14 @@ const App = ({
             <div className="flex items-start justify-between gap-3 rounded border border-gray-200 bg-gray-50 px-3 py-2">
               <h2 className="text-base font-semibold text-gray-100">Resumo financeiro</h2>
               <div className="flex items-center gap-2">
-                {!hasActiveFilters && !isMobileFiltersPanel ? (
-                  <span className="rounded-full border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-600">
-                    Sem filtros ativos
-                  </span>
-                ) : null}
-                {isMobileFiltersPanel ? (
-                  <button
-                    type="button"
-                    onClick={() => setIsFiltersPanelOpen(!isFiltersPanelOpen)}
-                    aria-expanded={isFiltersPanelOpen}
-                    className="whitespace-nowrap rounded border border-gray-300 bg-white px-2.5 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100"
-                  >
-                    {isFiltersPanelOpen ? "Ocultar" : "Filtros"}
-                  </button>
-                ) : null}
+                <button
+                  type="button"
+                  onClick={() => setIsFiltersPanelOpen(!isFiltersPanelOpen)}
+                  aria-expanded={isFiltersPanelOpen}
+                  className="whitespace-nowrap rounded border border-gray-300 bg-white px-2.5 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100"
+                >
+                  {isFiltersPanelOpen ? "Ocultar" : "Filtros"}
+                </button>
               </div>
             </div>
 
