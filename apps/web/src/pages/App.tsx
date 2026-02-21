@@ -45,6 +45,7 @@ type RemovableChipId = "q" | "type" | "period" | "category" | "sort";
 type SummaryMetricKey = "income" | "expense" | "balance";
 type MonthOverMonthDirection = "up" | "down" | "flat";
 type MonthOverMonthTone = "good" | "bad" | "neutral";
+type BudgetAlertStatus = Exclude<MonthlyBudgetStatus, "ok">;
 
 interface FilterState {
   selectedCategory: SelectedCategory;
@@ -187,6 +188,10 @@ const BUDGET_STATUS_BAR_CLASSNAMES: Record<MonthlyBudgetStatus, string> = {
   near_limit: "bg-amber-500",
   exceeded: "bg-red-500",
 };
+const BUDGET_ALERT_SEVERITY: Record<BudgetAlertStatus, number> = {
+  near_limit: 1,
+  exceeded: 2,
+};
 const isSelectedPeriod = (value: string | null): value is SelectedPeriod =>
   value === PERIOD_ALL ||
   value === PERIOD_TODAY ||
@@ -219,6 +224,17 @@ const getCurrentMonthRange = (referenceDate = new Date()) => {
     startDate: getTodayISODate(startDate),
     endDate: getTodayISODate(endDate),
   };
+};
+const getMonthRange = (monthValue: string) => {
+  if (!MONTH_VALUE_REGEX.test(String(monthValue || "").trim())) {
+    return getCurrentMonthRange();
+  }
+
+  const [yearPart, monthPart] = monthValue.split("-");
+  const year = Number(yearPart);
+  const month = Number(monthPart);
+
+  return getCurrentMonthRange(new Date(year, month - 1, 1));
 };
 
 const parseIntegerInRange = (
@@ -1085,6 +1101,25 @@ const App = ({
       previousMonthlySummary.income,
     ],
   );
+  const budgetAlerts = useMemo(
+    () =>
+      monthlyBudgets
+        .filter(
+          (budget): budget is MonthlyBudget & { status: BudgetAlertStatus } =>
+            budget.status === "near_limit" || budget.status === "exceeded",
+        )
+        .sort((leftBudget, rightBudget) => {
+          const severityDifference =
+            BUDGET_ALERT_SEVERITY[rightBudget.status] - BUDGET_ALERT_SEVERITY[leftBudget.status];
+
+          if (severityDifference !== 0) {
+            return severityDifference;
+          }
+
+          return rightBudget.percentage - leftBudget.percentage;
+        }),
+    [monthlyBudgets],
+  );
 
   const openCreateModal = () => {
     setEditingTransaction(null);
@@ -1282,6 +1317,16 @@ const App = ({
       behavior: "smooth",
       block: "start",
     });
+  };
+
+  const handleViewBudgetTransactions = (budget: MonthlyBudget) => {
+    const monthRange = getMonthRange(selectedSummaryMonth);
+    setSelectedTransactionCategoryId(String(budget.categoryId));
+    setSelectedPeriod(PERIOD_CUSTOM);
+    setCustomStartDate(monthRange.startDate);
+    setCustomEndDate(monthRange.endDate);
+    setCurrentOffset(DEFAULT_OFFSET);
+    scrollToListTop();
   };
 
   const applyFilterPreset = (presetId: FilterPresetId) => {
@@ -2194,6 +2239,62 @@ const App = ({
               aria-live="polite"
             >
               {budgetSuccessMessage}
+            </div>
+          ) : null}
+          {!isLoadingBudgets && !budgetsError && budgetAlerts.length > 0 ? (
+            <div
+              className="mb-3 rounded border border-amber-200 bg-amber-50 px-3 py-3"
+              role="region"
+              aria-label="Alertas de orcamento"
+            >
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <h4 className="text-xs font-semibold uppercase tracking-wide text-amber-700">
+                  Alertas de orcamento
+                </h4>
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
+                  {budgetAlerts.length}
+                </span>
+              </div>
+              <ul className="space-y-2">
+                {budgetAlerts.map((budget) => (
+                  <li
+                    key={`budget-alert-${budget.id}`}
+                    data-testid="budget-alert-item"
+                    className="rounded border border-amber-200 bg-white px-3 py-2 text-sm text-gray-800"
+                  >
+                    <div className="mb-1 flex items-center justify-between gap-2">
+                      <p className="font-semibold text-gray-900">{budget.categoryName}</p>
+                      <span
+                        className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${BUDGET_STATUS_BADGE_CLASSNAMES[budget.status]}`}
+                      >
+                        {BUDGET_STATUS_LABELS[budget.status]}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-700">
+                      Uso: {formatPercentage(budget.percentage)} ({formatCurrency(budget.actual)} de{" "}
+                      {formatCurrency(budget.budget)})
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        aria-label={`Ver transacoes: ${budget.categoryName}`}
+                        onClick={() => handleViewBudgetTransactions(budget)}
+                        className="rounded border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-800 hover:bg-gray-100"
+                      >
+                        Ver transacoes
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Ajustar meta: ${budget.categoryName}`}
+                        onClick={() => openEditBudgetModal(budget)}
+                        className="rounded border border-amber-300 bg-white px-2 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-100"
+                      >
+                        Ajustar meta
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
             </div>
           ) : null}
           {isLoadingBudgets ? (

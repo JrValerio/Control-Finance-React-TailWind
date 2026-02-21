@@ -348,13 +348,148 @@ describe("App", () => {
 
     render(<App />);
 
-    expect(await screen.findByText("Alimentacao")).toBeInTheDocument();
-    expect(screen.getByText("Proximo do limite")).toBeInTheDocument();
+    expect((await screen.findAllByText("Alimentacao")).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Proximo do limite").length).toBeGreaterThan(0);
     expect(screen.getByText("Orcado: R$ 1000.00")).toBeInTheDocument();
     expect(screen.getByText("Realizado: R$ 855.50")).toBeInTheDocument();
     expect(screen.getByText("Restante: R$ 144.50")).toBeInTheDocument();
     expect(screen.getByText("Uso: 85.55%")).toBeInTheDocument();
     expect(transactionsService.getMonthlyBudgets).toHaveBeenCalledWith(expect.any(String));
+  });
+
+  it("exibe alertas de orcamento e prioriza status exceeded", async () => {
+    transactionsService.getMonthlyBudgets.mockResolvedValueOnce(
+      buildMonthlyBudgetsResponse([
+        {
+          id: 1,
+          categoryId: 3,
+          categoryName: "Alimentacao",
+          month: "2026-02",
+          budget: 1000,
+          actual: 820,
+          remaining: 180,
+          percentage: 82,
+          status: "near_limit",
+        },
+        {
+          id: 2,
+          categoryId: 7,
+          categoryName: "Moradia",
+          month: "2026-02",
+          budget: 1500,
+          actual: 1700,
+          remaining: -200,
+          percentage: 113.33,
+          status: "exceeded",
+        },
+        {
+          id: 3,
+          categoryId: 8,
+          categoryName: "Saude",
+          month: "2026-02",
+          budget: 400,
+          actual: 120,
+          remaining: 280,
+          percentage: 30,
+          status: "ok",
+        },
+      ]),
+    );
+
+    render(<App />);
+
+    const alertRegion = await screen.findByRole("region", { name: "Alertas de orcamento" });
+    const alertItems = within(alertRegion).getAllByTestId("budget-alert-item");
+
+    expect(alertItems).toHaveLength(2);
+    expect(within(alertItems[0]).getByText("Moradia")).toBeInTheDocument();
+    expect(within(alertItems[1]).getByText("Alimentacao")).toBeInTheDocument();
+  });
+
+  it("aplica filtro de categoria e periodo ao clicar em ver transacoes no alerta", async () => {
+    const user = userEvent.setup();
+    transactionsService.listCategories.mockResolvedValueOnce([{ id: 9, name: "Lazer" }]);
+    transactionsService.getMonthlyBudgets.mockResolvedValueOnce(
+      buildMonthlyBudgetsResponse([
+        {
+          id: 4,
+          categoryId: 9,
+          categoryName: "Lazer",
+          month: "2026-02",
+          budget: 300,
+          actual: 320,
+          remaining: -20,
+          percentage: 106.67,
+          status: "exceeded",
+        },
+      ]),
+    );
+
+    render(<App />);
+
+    await screen.findByRole("region", { name: "Alertas de orcamento" });
+    await user.click(screen.getByRole("button", { name: "Ver transacoes: Lazer" }));
+
+    await waitFor(() => {
+      const calls = transactionsService.listPage.mock.calls;
+      const lastCall = calls[calls.length - 1][0];
+      expect(lastCall.categoryId).toBe(9);
+      expect(lastCall.from).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(lastCall.to).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    });
+
+    expect(screen.getByLabelText("Categoria")).toHaveValue("9");
+  });
+
+  it("abre modal de edicao ao clicar em ajustar meta no alerta", async () => {
+    const user = userEvent.setup();
+    transactionsService.getMonthlyBudgets.mockResolvedValueOnce(
+      buildMonthlyBudgetsResponse([
+        {
+          id: 5,
+          categoryId: 11,
+          categoryName: "Educacao",
+          month: "2026-02",
+          budget: 700,
+          actual: 620,
+          remaining: 80,
+          percentage: 88.57,
+          status: "near_limit",
+        },
+      ]),
+    );
+
+    render(<App />);
+
+    await screen.findByRole("region", { name: "Alertas de orcamento" });
+    await user.click(screen.getByRole("button", { name: "Ajustar meta: Educacao" }));
+
+    const budgetDialog = screen.getByRole("dialog", { name: "Meta do mes" });
+    expect(within(budgetDialog).getByText("Editando:")).toBeInTheDocument();
+    expect(within(budgetDialog).getByText("Educacao")).toBeInTheDocument();
+  });
+
+  it("nao exibe centro de alertas quando todas as metas estao dentro do limite", async () => {
+    transactionsService.getMonthlyBudgets.mockResolvedValueOnce(
+      buildMonthlyBudgetsResponse([
+        {
+          id: 6,
+          categoryId: 12,
+          categoryName: "Transporte",
+          month: "2026-02",
+          budget: 500,
+          actual: 200,
+          remaining: 300,
+          percentage: 40,
+          status: "ok",
+        },
+      ]),
+    );
+
+    render(<App />);
+
+    expect(await screen.findByText("Transporte")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Alertas de orcamento" })).not.toBeInTheDocument();
   });
 
   it("exibe erro nas metas mensais e permite tentar novamente", async () => {
