@@ -2,6 +2,49 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.19.0] - 2026-02-21
+
+### Title
+
+v1.19.0 - Scroll-to-Summary Drilldown + Trend Delta Tooltip
+
+### Highlights
+
+- Trend month click now auto-scrolls to the monthly summary section after month sync.
+- Trend tooltip now includes month-over-month deltas for income, expense, and balance.
+- Scroll behavior remains guarded by valid month input, and delta sorting contract is documented.
+
+### Added
+
+- Dashboard drilldown scroll (Web):
+  - `summarySectionRef` attached to the "Resumo mensal" section
+  - `handleTrendMonthClick` now calls `scrollIntoView({ behavior: "smooth", block: "start" })` after valid month selection
+- Trend tooltip delta details (Web):
+  - `buildDeltaMap` computes month-over-month deltas for income/expense/balance
+  - Tooltip displays absolute value plus directional delta text
+  - First month intentionally omits delta text (no previous baseline)
+- Developer contract note:
+  - `TrendChart` now documents that points must be sorted ascending by month (API contract)
+
+### Changed
+
+- Month click in `TrendChart` now both updates dashboard month state and focuses the summary section.
+- Chart click affordance uses class-based pointer styling when navigation is enabled.
+
+### Quality
+
+- Extended `App.test.jsx` with scroll-to-summary assertion (`scrollIntoView` call on month click).
+- Full monorepo validation green:
+  - `npm run lint`
+  - `npm run test`
+  - `npm run build`
+- CI checks green for PR #139 (`api`, `web`, `Vercel`).
+
+### Impact
+
+- From: "Month click updates context only."
+- To: "Month click updates context and moves focus to the summary users need next."
+
 ## [1.18.0] - 2026-02-21
 
 ### Title
