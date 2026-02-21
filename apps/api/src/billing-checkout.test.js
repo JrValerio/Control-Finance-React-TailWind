@@ -1,0 +1,143 @@
+import request from "supertest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import app from "./app.js";
+import { clearDbClientForTests, dbQuery } from "./db/index.js";
+import { resetLoginProtectionState } from "./middlewares/login-protection.middleware.js";
+import {
+  resetImportRateLimiterState,
+  resetWriteRateLimiterState,
+} from "./middlewares/rate-limit.middleware.js";
+import { resetHttpMetricsForTests } from "./observability/http-metrics.js";
+import { makeProUser, registerAndLogin, setupTestDb } from "./test-helpers.js";
+
+const { mockSessionCreate } = vi.hoisted(() => ({
+  mockSessionCreate: vi.fn(),
+}));
+
+vi.mock("stripe", () => ({
+  default: vi.fn().mockImplementation(() => ({
+    checkout: { sessions: { create: mockSessionCreate } },
+  })),
+}));
+
+describe("billing checkout", () => {
+  beforeAll(async () => {
+    await setupTestDb();
+    process.env.STRIPE_SECRET_KEY = "sk_test_mock_controlfinance";
+    process.env.STRIPE_CHECKOUT_SUCCESS_URL = "https://app.test/billing/success";
+    process.env.STRIPE_CHECKOUT_CANCEL_URL = "https://app.test/billing/cancel";
+    await dbQuery(`UPDATE plans SET stripe_price_id = 'price_pro_monthly' WHERE name = 'pro'`);
+  });
+
+  afterAll(async () => {
+    await clearDbClientForTests();
+    delete process.env.STRIPE_SECRET_KEY;
+    delete process.env.STRIPE_CHECKOUT_SUCCESS_URL;
+    delete process.env.STRIPE_CHECKOUT_CANCEL_URL;
+  });
+
+  beforeEach(async () => {
+    resetLoginProtectionState();
+    resetImportRateLimiterState();
+    resetWriteRateLimiterState();
+    resetHttpMetricsForTests();
+    await dbQuery("DELETE FROM subscriptions");
+    await dbQuery("DELETE FROM transactions");
+    await dbQuery("DELETE FROM users");
+    mockSessionCreate.mockReset();
+    mockSessionCreate.mockResolvedValue({ url: "https://checkout.stripe.com/test-session-001" });
+  });
+
+  it("retorna 401 sem token", async () => {
+    const response = await request(app).post("/billing/checkout");
+    expect(response.status).toBe(401);
+  });
+
+  it("retorna 409 se usuario ja possui assinatura ativa", async () => {
+    const email = "checkout-already-pro@controlfinance.dev";
+    const token = await registerAndLogin(email);
+    await makeProUser(email);
+
+    const response = await request(app)
+      .post("/billing/checkout")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(409);
+    expect(response.body.message).toBe("Voce ja possui uma assinatura ativa.");
+    expect(mockSessionCreate).not.toHaveBeenCalled();
+  });
+
+  it("retorna 201 com url para usuario free", async () => {
+    const token = await registerAndLogin("checkout-free@controlfinance.dev");
+
+    const response = await request(app)
+      .post("/billing/checkout")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(201);
+    expect(response.body.url).toBe("https://checkout.stripe.com/test-session-001");
+  });
+
+  it("passa metadata.userId, price_id e URLs corretos para Stripe", async () => {
+    const email = "checkout-meta@controlfinance.dev";
+    const token = await registerAndLogin(email);
+    const userResult = await dbQuery(`SELECT id FROM users WHERE email = $1`, [email]);
+    const userId = userResult.rows[0].id;
+
+    await request(app)
+      .post("/billing/checkout")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(mockSessionCreate).toHaveBeenCalledOnce();
+    const args = mockSessionCreate.mock.calls[0][0];
+    expect(args.mode).toBe("subscription");
+    expect(args.line_items[0].price).toBe("price_pro_monthly");
+    expect(args.line_items[0].quantity).toBe(1);
+    expect(args.metadata.userId).toBe(String(userId));
+    expect(args.success_url).toBe("https://app.test/billing/success");
+    expect(args.cancel_url).toBe("https://app.test/billing/cancel");
+  });
+
+  it("passa customer_email quando disponivel no token", async () => {
+    const email = "checkout-email@controlfinance.dev";
+    const token = await registerAndLogin(email);
+
+    await request(app)
+      .post("/billing/checkout")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(mockSessionCreate).toHaveBeenCalledOnce();
+    const args = mockSessionCreate.mock.calls[0][0];
+    expect(args.customer_email).toBe(email);
+  });
+
+  it("retorna 500 se STRIPE_SECRET_KEY nao configurado", async () => {
+    const saved = process.env.STRIPE_SECRET_KEY;
+    delete process.env.STRIPE_SECRET_KEY;
+    try {
+      const token = await registerAndLogin("checkout-no-key@controlfinance.dev");
+      const response = await request(app)
+        .post("/billing/checkout")
+        .set("Authorization", `Bearer ${token}`);
+      expect(response.status).toBe(500);
+      expect(mockSessionCreate).not.toHaveBeenCalled();
+    } finally {
+      process.env.STRIPE_SECRET_KEY = saved;
+    }
+  });
+
+  it("retorna 500 se checkout URLs nao configurados", async () => {
+    const saved = process.env.STRIPE_CHECKOUT_SUCCESS_URL;
+    delete process.env.STRIPE_CHECKOUT_SUCCESS_URL;
+    try {
+      const token = await registerAndLogin("checkout-no-url@controlfinance.dev");
+      const response = await request(app)
+        .post("/billing/checkout")
+        .set("Authorization", `Bearer ${token}`);
+      expect(response.status).toBe(500);
+      expect(mockSessionCreate).not.toHaveBeenCalled();
+    } finally {
+      process.env.STRIPE_CHECKOUT_SUCCESS_URL = saved;
+    }
+  });
+});
