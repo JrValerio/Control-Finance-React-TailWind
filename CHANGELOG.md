@@ -2,6 +2,56 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.22.0] - 2026-02-21
+
+### Title
+
+v1.22.0 - Stripe Webhooks (Subscription Lifecycle)
+
+### Highlights
+
+- Adds a Stripe webhook ingestion endpoint with hardened signature verification.
+- Enables subscription lifecycle updates from Stripe events into the internal billing model.
+- Keeps billing core provider-agnostic: lifecycle state comes from webhook payload processing.
+
+### Added
+
+- Stripe webhook route:
+  - `POST /billing/webhooks/stripe` registered before `express.json()` to preserve raw body
+- Stripe webhook service:
+  - Event dispatcher for:
+    - `checkout.session.completed`
+    - `customer.subscription.updated`
+    - `customer.subscription.deleted`
+    - `invoice.payment_failed`
+- Test helper:
+  - `generateStripeSignature(payload, secret)` in `apps/api/src/test-helpers.js`
+- Integration tests:
+  - `apps/api/src/stripe-webhooks.test.js` with 12 scenarios
+
+### Changed
+
+- Signature verification hardening:
+  - Compare HMAC signatures as hex bytes (not UTF-8 strings)
+  - Sign the raw request `Buffer` directly
+  - Support multiple `v1=` entries in `Stripe-Signature`
+  - Validate hex format before `timingSafeEqual`
+  - Guard malformed/expired timestamp with finite check + 300s tolerance
+- Webhook handler returns deterministic error responses for missing/malformed signatures.
+
+### Quality
+
+- Full API suite green after webhook addition (`147/147`).
+- Full monorepo gates green:
+  - `npm run lint`
+  - `npm run test`
+  - `npm run build`
+
+### Impact
+
+- From: "subscriptions updated only by internal flows."
+- To: "Stripe event lifecycle is ingested and reconciled in near real time."
+
 ## [1.21.0] - 2026-02-21
 
 ### Title
