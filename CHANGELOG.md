@@ -2,6 +2,51 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.17.0] - 2026-02-21
+
+### Title
+
+v1.17.0 — Historical Trend Chart: 6-Month Evolution + Month Click Sync
+
+### Highlights
+
+- Adds historical context directly into the dashboard with a 6-month trend chart (income / expense / balance).
+- Turns the trend chart into navigation: clicking a month syncs the whole dashboard (summary, MoM compare, budgets).
+
+### Added
+
+- Historical trend chart (Web):
+  - `GET /analytics/trend?months=6` consumption via a new typed service (`analytics.service.ts`)
+  - Lazy-loaded `TrendChart` component using Recharts (3 series: income, expense, balance; custom tooltip; empty state)
+  - Dashboard section: **Evolucao (ultimos 6 meses)**
+  - Loading skeleton + error fallback states
+- Interactive month drilldown (Web):
+  - Clicking a month in the trend chart updates `selectedSummaryMonth`
+  - Automatically reloads summary, MoM compare, and budgets in sync
+  - Guard against malformed month strings (`MONTH_VALUE_REGEX`)
+
+### Changed
+
+- Dashboard now connects historical view with monthly insights through a single interaction (chart click).
+- Trend loading flow added with explicit loading and error states.
+
+### Quality
+
+- Extended `App.test.jsx` coverage:
+  - trend render when API returns data
+  - error fallback when trend request fails
+  - loading state for pending promise
+  - confirms `getMonthlyTrend` called with `months=6`
+  - month click triggers synchronized reload of summary / compare / budgets
+  - sequential month clicks trigger sequential synchronized reloads
+- Web gates green (`typecheck`, `lint`, `test` 94/94, `build`)
+- `TrendChart` ships as a separate lazy chunk (12.71 kB)
+
+### Impact
+
+- From: "Static dashboard sections."
+- To: "A dashboard that lets you drill down month-by-month from the trend itself."
+
 ## [1.16.0] - 2026-02-21
 
 ### Title
