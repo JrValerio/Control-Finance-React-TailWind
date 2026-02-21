@@ -1,19 +1,32 @@
 {
   "compilerOptions": {
     "target": "ES2020",
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "lib": [
+      "ES2020",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "jsx": "react-jsx",
     "allowJs": true,
     "checkJs": false,
     "noEmit": true,
-    "strict": false,
+    "strict": true,
     "noImplicitAny": true,
     "skipLibCheck": true,
     "isolatedModules": true,
-    "types": ["vite/client"]
+    "types": [
+      "vite/client"
+    ]
   },
-  "include": ["src", "vite-env.d.ts"],
-  "references": [{ "path": "./tsconfig.node.json" }]
+  "include": [
+    "src",
+    "vite-env.d.ts"
+  ],
+  "references": [
+    {
+      "path": "./tsconfig.node.json"
+    }
+  ]
 }

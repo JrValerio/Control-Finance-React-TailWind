@@ -310,8 +310,8 @@ const getInitialFilterState = (): FilterState => {
   const selectedCategory =
     queryType === CATEGORY_ENTRY || queryType === CATEGORY_EXIT ? queryType : CATEGORY_ALL;
   let selectedPeriod: SelectedPeriod = isSelectedPeriod(queryPeriod) ? queryPeriod : PERIOD_ALL;
-  const customStartDate = isValidISODate(queryFrom) ? queryFrom : "";
-  const customEndDate = isValidISODate(queryTo) ? queryTo : "";
+  const customStartDate: string = isValidISODate(queryFrom) ? (queryFrom ?? "") : "";
+  const customEndDate: string = isValidISODate(queryTo) ? (queryTo ?? "") : "";
 
   if (selectedPeriod === PERIOD_ALL && (customStartDate || customEndDate)) {
     selectedPeriod = PERIOD_CUSTOM;
@@ -381,7 +381,7 @@ const getInitialPageSize = (): number => {
     max: 100,
   });
 
-  if (PAGE_SIZE_OPTIONS.includes(queryLimit)) {
+  if (queryLimit !== null && PAGE_SIZE_OPTIONS.includes(queryLimit)) {
     return queryLimit;
   }
 
