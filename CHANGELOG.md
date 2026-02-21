@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.23.0] - 2026-02-21
+
+### Title
+
+v1.23.0 - Auth Identity Endpoint
+
+### Added
+
+- `GET /auth/me` (requires Bearer token) — returns `{ id, email }` from JWT without DB access.
+  Enables userId resolution in operational smoke tests and unblocks the billing checkout flow (PR-K).
+
+### Quality
+
+- 2 new tests in `apps/api/src/auth.test.js` covering 401 (no token) and 200 (valid token) cases.
+- Full suite green: **149/149**.
+
 ## [1.22.0] - 2026-02-21
 
 ### Title
