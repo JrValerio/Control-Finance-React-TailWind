@@ -239,4 +239,24 @@ describe("auth", () => {
 
     expect(response.status).toBe(201);
   });
+
+  it("GET /auth/me retorna 401 sem token", async () => {
+    const response = await request(app).get("/auth/me");
+    expect(response.status).toBe(401);
+  });
+
+  it("GET /auth/me retorna id e email do usuario autenticado", async () => {
+    const reg = await request(app)
+      .post("/auth/register")
+      .send({ email: "me@controlfinance.dev", password: "Senha123" });
+
+    const response = await request(app)
+      .get("/auth/me")
+      .set("Authorization", `Bearer ${reg.body.token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.email).toBe("me@controlfinance.dev");
+    expect(Number.isInteger(response.body.id)).toBe(true);
+    expect(response.body.id).toBeGreaterThan(0);
+  });
 });
