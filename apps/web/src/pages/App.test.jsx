@@ -394,6 +394,107 @@ describe("App", () => {
     expect(screen.getByTestId("mom-expense")).toHaveTextContent("MoM: —");
   });
 
+  it("exibe top 3 variacoes por categoria ordenadas por maior delta absoluto", async () => {
+    transactionsService.getMonthlySummaryCompare.mockResolvedValueOnce(
+      buildSummaryCompareResponse({
+        byCategoryDelta: [
+          {
+            categoryId: 1,
+            categoryName: "Alimentacao",
+            current: 900,
+            previous: 700,
+            delta: 200,
+            deltaPct: 28.57,
+          },
+          {
+            categoryId: 2,
+            categoryName: "Transporte",
+            current: 280,
+            previous: 400,
+            delta: -120,
+            deltaPct: -30,
+          },
+          {
+            categoryId: 3,
+            categoryName: "Lazer",
+            current: 340,
+            previous: 250,
+            delta: 90,
+            deltaPct: 36,
+          },
+          {
+            categoryId: 4,
+            categoryName: "Saude",
+            current: 240,
+            previous: 260,
+            delta: -20,
+            deltaPct: -7.69,
+          },
+        ],
+      }),
+    );
+
+    render(<App />);
+
+    const moversRegion = await screen.findByRole("region", {
+      name: "Top variacoes por categoria",
+    });
+    const moverItems = within(moversRegion).getAllByTestId("category-mover-item");
+
+    expect(moverItems).toHaveLength(3);
+    expect(within(moverItems[0]).getByText("Alimentacao")).toBeInTheDocument();
+    expect(within(moverItems[1]).getByText("Transporte")).toBeInTheDocument();
+    expect(within(moverItems[2]).getByText("Lazer")).toBeInTheDocument();
+  });
+
+  it("exibe fallback de top variacoes quando byCategoryDelta esta vazio", async () => {
+    transactionsService.getMonthlySummaryCompare.mockResolvedValueOnce(
+      buildSummaryCompareResponse({
+        byCategoryDelta: [],
+      }),
+    );
+
+    render(<App />);
+
+    expect(
+      await screen.findByText("Sem variacoes por categoria para o comparativo do mes."),
+    ).toBeInTheDocument();
+  });
+
+  it("aplica filtro por categoria ao clicar em ver transacoes no top mover", async () => {
+    const user = userEvent.setup();
+    transactionsService.listCategories.mockResolvedValueOnce([{ id: 5, name: "Mercado" }]);
+    transactionsService.getMonthlySummaryCompare.mockResolvedValueOnce(
+      buildSummaryCompareResponse({
+        byCategoryDelta: [
+          {
+            categoryId: 5,
+            categoryName: "Mercado",
+            current: 820,
+            previous: 640,
+            delta: 180,
+            deltaPct: 28.13,
+          },
+        ],
+      }),
+    );
+
+    render(<App />);
+
+    await screen.findByRole("region", { name: "Top variacoes por categoria" });
+    await user.click(screen.getByRole("button", { name: "Ver transacoes categoria: Mercado" }));
+
+    await waitFor(() => {
+      const calls = transactionsService.listPage.mock.calls;
+      const lastCall = calls[calls.length - 1][0];
+      expect(lastCall.categoryId).toBe(5);
+      expect(lastCall.from).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(lastCall.to).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    });
+
+    expect(screen.getByLabelText("Categoria")).toHaveValue("5");
+  });
+
   it("carrega metas mensais e exibe progresso por categoria", async () => {
     transactionsService.getMonthlyBudgets.mockResolvedValueOnce(
       buildMonthlyBudgetsResponse([
