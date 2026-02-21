@@ -2,6 +2,65 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.16.0] - 2026-02-21
+
+### Title
+
+v1.16.0 - Product Insights: MoM Compare, Proactive Budget Alerts, and Category Movers
+
+### Highlights
+
+- This release transforms Control Finance from a transaction recorder into a product that actively surfaces insights and drives user action.
+- Month-over-Month (MoM) comparison powered by a single API contract (`compare=prev`).
+- Proactive in-app budget alert when a category reaches near limit (>=80%).
+- Top Category Movers section showing the most impactful spending changes.
+
+### Added
+
+- MoM compare as a single source of truth:
+  - `GET /transactions/summary?month=YYYY-MM&compare=prev`
+  - backend-driven delta calculation (`current`, `previous`, `delta`, `byCategoryDelta`)
+  - frontend MoM cards consume absolute delta, percentage delta (with `null` fallback), and correct tone semantics
+  - centralized month-over-month logic in API.
+- Proactive budget alert (Web):
+  - dashboard banner triggered when at least one budget is in `near_limit` status
+  - banner focuses on the highest `near_limit` percentage for urgency
+  - no additional infra (UI-only, no email dependency)
+  - existing Budget Alert Center preserved (`near_limit` + `exceeded`).
+- Top Category Movers (Web):
+  - new dashboard section: `Top variacoes por categoria`
+  - uses `byCategoryDelta` from MoM compare
+  - top 3 categories ordered by `abs(delta)`
+  - directional badges (`↑/↓/→`) with percentage and absolute currency delta
+  - CTA per category applies filter + selected month range and scrolls to transactions list
+  - graceful empty fallback when no variation exists.
+
+### Changed
+
+- Dashboard MoM flow migrated from dual summary calls to a single `compare=prev` call.
+- Frontend delta math removed in favor of API-calculated compare contract.
+- Improved consistency between summary cards and category-level insights.
+
+### Quality
+
+- Extended `App.test.jsx` coverage:
+  - MoM render and fallback scenarios
+  - `previous=0` percentage edge case
+  - proactive near-limit banner visibility
+  - category movers ordering (top 3 by absolute delta)
+  - CTA applying category + month range filter.
+- Full monorepo validation:
+  - `lint`
+  - `typecheck`
+  - `test`
+  - `build`
+- PR checks green (`api` / `web` / `vercel`).
+
+### Impact
+
+- From: "Here are your transactions."
+- To: "Here is what changed, where it changed, and what you should act on."
+
 ## [1.15.0] - 2026-02-21
 
 ### Highlights
