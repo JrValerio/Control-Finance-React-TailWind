@@ -11,9 +11,12 @@ vi.mock("../components/TransactionChart", () => ({
 }));
 
 vi.mock("../components/TrendChart", () => ({
-  default: ({ data, onMonthClick }) =>
+  default: ({ data, onMonthClick, selectedMonth }) =>
     Array.isArray(data) && data.length > 0 ? (
       <div data-testid="trend-chart">
+        {selectedMonth && (
+          <span data-testid="trend-selected-month">{selectedMonth}</span>
+        )}
         {data.map((point) => (
           <button
             key={point.month}
@@ -2753,6 +2756,28 @@ describe("App", () => {
 
       await waitFor(() => {
         expect(transactionsService.getMonthlySummary).toHaveBeenCalledWith("2025-12");
+      });
+    });
+
+    it("passa selectedMonth corrente para o TrendChart", async () => {
+      window.history.replaceState(null, "", "/app?summaryMonth=2025-11");
+
+      render(<App />);
+
+      await screen.findByTestId("trend-chart");
+
+      expect(screen.getByTestId("trend-selected-month")).toHaveTextContent("2025-11");
+    });
+
+    it("atualiza selectedMonth no TrendChart apos clique num mes", async () => {
+      render(<App />);
+
+      await screen.findByTestId("trend-chart");
+
+      await userEvent.click(screen.getByTestId("trend-month-2025-10"));
+
+      await waitFor(() => {
+        expect(screen.getByTestId("trend-selected-month")).toHaveTextContent("2025-10");
       });
     });
   });

@@ -3,6 +3,7 @@ import {
   Legend,
   Line,
   LineChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -11,6 +12,16 @@ import {
 import type { TrendPoint } from "../services/analytics.service";
 
 const formatCurrency = (value: number) => `R$ ${Number(value || 0).toFixed(2)}`;
+
+const MONTH_NAMES_PT = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
+const formatMonthLabel = (value: string): string => {
+  if (typeof value !== "string" || !value) return value;
+  const [year, month] = value.split("-");
+  const monthIndex = Number(month) - 1;
+  if (!year || monthIndex < 0 || monthIndex > 11) return value;
+  return `${MONTH_NAMES_PT[monthIndex]}/${year.slice(2)}`;
+};
 
 interface TooltipEntry {
   dataKey?: string;
@@ -32,7 +43,7 @@ const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
 
   return (
     <div className="rounded border border-gray-300 bg-white px-3 py-2 text-xs shadow-sm">
-      <p className="mb-1 font-semibold text-gray-900">{label}</p>
+      <p className="mb-1 font-semibold text-gray-900">{formatMonthLabel(String(label || ""))}</p>
       {payload.map((entry) => (
         <p key={entry.dataKey} style={{ color: entry.color }}>
           {entry.name}: {formatCurrency(Number(entry.value || 0))}
@@ -49,9 +60,10 @@ interface ChartClickData {
 interface TrendChartProps {
   data: TrendPoint[];
   onMonthClick?: (month: string) => void;
+  selectedMonth?: string;
 }
 
-const TrendChart = ({ data, onMonthClick }: TrendChartProps) => {
+const TrendChart = ({ data, onMonthClick, selectedMonth }: TrendChartProps) => {
   const hasAnyValue = data.some(
     (point) => point.income > 0 || point.expense > 0 || point.balance !== 0,
   );
@@ -64,9 +76,20 @@ const TrendChart = ({ data, onMonthClick }: TrendChartProps) => {
     );
   }
 
+  const isSelectedInRange = selectedMonth
+    ? data.some((point) => point.month === selectedMonth)
+    : false;
+
   return (
     <div className="rounded border border-brand-1 bg-white p-4">
-      <h3 className="mb-3 text-sm font-semibold text-gray-100">Evolucao (ultimos 6 meses)</h3>
+      <h3 className="mb-3 text-sm font-semibold text-gray-100">
+        Evolucao (ultimos 6 meses)
+        {onMonthClick && (
+          <span className="ml-2 text-xs font-normal text-gray-300">
+            — clique em um mes para navegar
+          </span>
+        )}
+      </h3>
       <div className="h-64 w-full">
         <ResponsiveContainer>
           <LineChart
@@ -81,10 +104,19 @@ const TrendChart = ({ data, onMonthClick }: TrendChartProps) => {
           style={{ cursor: onMonthClick ? "pointer" : undefined }}
         >
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="month" stroke="#495057" />
+            <XAxis dataKey="month" stroke="#495057" tickFormatter={formatMonthLabel} />
             <YAxis stroke="#495057" width={90} tickFormatter={formatCurrency} />
             <Tooltip content={<CustomTooltip />} />
             <Legend />
+            {isSelectedInRange && (
+              <ReferenceLine
+                x={selectedMonth}
+                stroke="#6741D9"
+                strokeDasharray="4 2"
+                strokeWidth={2}
+                label={{ value: formatMonthLabel(selectedMonth!), fill: "#6741D9", fontSize: 11 }}
+              />
+            )}
             <Line
               type="monotone"
               dataKey="income"
