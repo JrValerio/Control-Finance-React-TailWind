@@ -1,8 +1,4 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type {
-  FormEvent,
-  KeyboardEvent as ReactKeyboardEvent,
-} from "react";
 import Modal from "../components/Modal";
 import ImportCsvModal from "../components/ImportCsvModal";
 import ImportHistoryModal from "../components/ImportHistoryModal";
@@ -29,36 +25,27 @@ import {
   PERIOD_TODAY,
   getTodayISODate,
   normalizeTransactionDate,
-  resolvePeriodRange,
 } from "../components/DatabaseUtils";
 import { analyticsService, type TrendPoint } from "../services/analytics.service";
+import {
+  useFilters,
+  type FilterState,
+  type SelectedCategory,
+  type SelectedPeriod,
+  DEFAULT_SORT,
+  SORT_OPTIONS,
+  getCurrentMonthRange,
+  normalizeSortOption,
+  isSelectedPeriod,
+} from "../features/filters/useFilters";
 
 const TransactionChart = lazy(() => import("../components/TransactionChart"));
 const TrendChart = lazy(() => import("../components/TrendChart"));
 
-type SelectedCategory = "Todos" | TransactionType;
-type SelectedPeriod =
-  | "Todo periodo"
-  | "Hoje"
-  | "Ultimos 7 dias"
-  | "Ultimos 30 dias"
-  | "Personalizado";
-type FilterPresetId = "this-month" | "clear";
-type RemovableChipId = "q" | "type" | "period" | "category" | "sort";
 type SummaryMetricKey = "income" | "expense" | "balance";
 type MonthOverMonthDirection = "up" | "down" | "flat";
 type MonthOverMonthTone = "good" | "bad" | "neutral";
 type BudgetAlertStatus = Exclude<MonthlyBudgetStatus, "ok">;
-
-interface FilterState {
-  selectedCategory: SelectedCategory;
-  selectedPeriod: SelectedPeriod;
-  selectedSort: string;
-  selectedQuery: string;
-  selectedTransactionCategoryId: string;
-  customStartDate: string;
-  customEndDate: string;
-}
 
 interface PaginationState {
   page: number;
@@ -78,13 +65,6 @@ interface UndoState {
 interface BudgetFormState {
   categoryId: string;
   amount: string;
-}
-
-interface AppliedChip {
-  id: RemovableChipId;
-  text: string;
-  removable: boolean;
-  removeLabel: string;
 }
 
 interface TransactionWithCategoryName extends Transaction {
@@ -128,14 +108,6 @@ const PERIOD_OPTIONS = [
   PERIOD_LAST_30_DAYS,
   PERIOD_CUSTOM,
 ];
-const SORT_OPTIONS = [
-  { value: "date:asc", label: "Data (mais antigas)" },
-  { value: "date:desc", label: "Data (mais recentes)" },
-  { value: "amount:desc", label: "Valor (maior)" },
-  { value: "amount:asc", label: "Valor (menor)" },
-  { value: "description:asc", label: "Descricao (A-Z)" },
-  { value: "description:desc", label: "Descricao (Z-A)" },
-];
 const FILTER_PRESETS = [
   { id: "this-month", label: "Este mes" },
 ] as const;
@@ -149,12 +121,9 @@ const FILTER_BUTTON_ARIA_LABELS: Record<SelectedCategory, string> = {
   Entrada: "Filtrar entradas",
   Saida: "Filtrar saidas",
 };
-const SORT_OPTION_VALUES = new Set(SORT_OPTIONS.map((option) => option.value));
-const DEFAULT_SORT = "date:asc";
 const DEFAULT_OFFSET = 0;
 const DEFAULT_LIMIT = 20;
 const MOBILE_HEADER_ACTIONS_BREAKPOINT = 420;
-const MOBILE_FILTERS_BREAKPOINT = 640;
 const MOBILE_ACTIONS_MENU_ID = "mobile-header-actions-menu";
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
 const PAGE_SIZE_STORAGE_KEY = "control_finance.page_size";
@@ -218,30 +187,11 @@ const BUDGET_ALERT_SEVERITY: Record<BudgetAlertStatus, number> = {
   near_limit: 1,
   exceeded: 2,
 };
-const isSelectedPeriod = (value: string | null): value is SelectedPeriod =>
-  value === PERIOD_ALL ||
-  value === PERIOD_TODAY ||
-  value === PERIOD_LAST_7_DAYS ||
-  value === PERIOD_LAST_30_DAYS ||
-  value === PERIOD_CUSTOM;
-
 const getCurrentMonth = () => getTodayISODate().slice(0, 7);
 const getInitialSummaryMonth = (): string => {
   if (typeof window === "undefined") return getCurrentMonth();
   const param = new URLSearchParams(window.location.search).get("summaryMonth");
   return param && MONTH_VALUE_REGEX.test(param) ? param : getCurrentMonth();
-};
-const getCurrentMonthRange = (referenceDate = new Date()) => {
-  const year = referenceDate.getFullYear();
-  const month = referenceDate.getMonth();
-
-  const startDate = new Date(year, month, 1);
-  const endDate = new Date(year, month + 1, 0);
-
-  return {
-    startDate: getTodayISODate(startDate),
-    endDate: getTodayISODate(endDate),
-  };
 };
 const getMonthRange = (monthValue: string) => {
   if (!MONTH_VALUE_REGEX.test(String(monthValue || "").trim())) {
@@ -270,15 +220,6 @@ const parseIntegerInRange = (
   }
 
   return parsedValue;
-};
-
-const normalizeSortOption = (value: string | null | undefined): string => {
-  if (typeof value !== "string") {
-    return DEFAULT_SORT;
-  }
-
-  const normalizedValue = value.trim().toLowerCase();
-  return SORT_OPTION_VALUES.has(normalizedValue) ? normalizedValue : DEFAULT_SORT;
 };
 
 const getInitialFilterState = (): FilterState => {
@@ -462,8 +403,6 @@ const getDirectionArrow = (direction: MonthOverMonthDirection): string => {
 };
 const isCompactHeaderActionsMode = (): boolean =>
   typeof window !== "undefined" && window.innerWidth < MOBILE_HEADER_ACTIONS_BREAKPOINT;
-const isCompactFiltersPanelMode = (): boolean =>
-  typeof window !== "undefined" && window.innerWidth < MOBILE_FILTERS_BREAKPOINT;
 const normalizeMonthlySummary = (summary: MonthlySummary, fallbackMonth: string): MonthlySummary => ({
   month: summary?.month || fallbackMonth,
   income: Number(summary?.income) || 0,
@@ -498,44 +437,20 @@ const calculateMonthOverMonthMetric = (
     tone,
   };
 };
-const hasInitialActiveFilters = (filters: FilterState): boolean =>
-  filters.selectedCategory !== CATEGORY_ALL ||
-  filters.selectedPeriod !== PERIOD_ALL ||
-  Boolean(filters.selectedTransactionCategoryId) ||
-  Boolean(filters.selectedQuery);
-
 const App = ({
   onLogout = undefined,
   onOpenCategoriesSettings = undefined,
 }: AppProps): JSX.Element => {
   const initialFilterState = useMemo(() => getInitialFilterState(), []);
-  const initialFiltersAreActive = useMemo(
-    () => hasInitialActiveFilters(initialFilterState),
-    [initialFilterState],
-  );
   const initialPaginationState = useMemo(() => getInitialPaginationState(), []);
   const listSectionRef = useRef<HTMLElement | null>(null);
   const summarySectionRef = useRef<HTMLElement | null>(null);
-  const filtersPanelRef = useRef<HTMLElement | null>(null);
-  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const mobileActionsButtonRef = useRef<HTMLButtonElement | null>(null);
   const mobileActionsMenuRef = useRef<HTMLDivElement | null>(null);
   const firstMobileActionsItemRef = useRef<HTMLButtonElement | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<SelectedCategory>(
-    initialFilterState.selectedCategory,
-  );
-  const [selectedPeriod, setSelectedPeriod] = useState<SelectedPeriod>(initialFilterState.selectedPeriod);
-  const [selectedSort, setSelectedSort] = useState(initialFilterState.selectedSort || DEFAULT_SORT);
-  const [selectedQuery, setSelectedQuery] = useState(initialFilterState.selectedQuery || "");
-  const [queryInput, setQueryInput] = useState(initialFilterState.selectedQuery || "");
-  const [selectedTransactionCategoryId, setSelectedTransactionCategoryId] = useState(
-    initialFilterState.selectedTransactionCategoryId,
-  );
   const [selectedSummaryMonth, setSelectedSummaryMonth] = useState(() => getInitialSummaryMonth());
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [hasLoadedCategories, setHasLoadedCategories] = useState(false);
-  const [customStartDate, setCustomStartDate] = useState(initialFilterState.customStartDate);
-  const [customEndDate, setCustomEndDate] = useState(initialFilterState.customEndDate);
   const [currentOffset, setCurrentOffset] = useState(initialPaginationState.offset);
   const [pageSize, setPageSize] = useState(initialPaginationState.limit);
   const [paginationMeta, setPaginationMeta] = useState<PaginationMeta>(() => ({
@@ -551,12 +466,6 @@ const App = ({
   const [isMobileActionsMenuOpen, setMobileActionsMenuOpen] = useState(false);
   const [useMobileActionsMenu, setUseMobileActionsMenu] = useState(() =>
     isCompactHeaderActionsMode(),
-  );
-  const [isMobileFiltersPanel, setIsMobileFiltersPanel] = useState(() =>
-    isCompactFiltersPanelMode(),
-  );
-  const [isFiltersPanelOpen, setIsFiltersPanelOpen] = useState(() =>
-    !isCompactFiltersPanelMode() || initialFiltersAreActive,
   );
   const [isBudgetModalOpen, setBudgetModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<TransactionWithCategoryName | null>(null);
@@ -588,14 +497,60 @@ const App = ({
   const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const budgetSuccessTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const periodRange = useMemo(
-    () =>
-      resolvePeriodRange(selectedPeriod, {
-        startDate: customStartDate,
-        endDate: customEndDate,
-      }),
-    [selectedPeriod, customStartDate, customEndDate],
-  );
+  const categoryNameById = useMemo(() => {
+    const map = new Map<number, string>();
+    categories.forEach((category) => {
+      map.set(Number(category.id), category.name);
+    });
+    return map;
+  }, [categories]);
+
+  const scrollToListTop = useCallback(() => {
+    const scrollTarget = listSectionRef.current;
+    if (!scrollTarget || typeof scrollTarget.scrollIntoView !== "function") {
+      return;
+    }
+    scrollTarget.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
+  const onPaginationReset = useCallback(() => setCurrentOffset(DEFAULT_OFFSET), []);
+
+  const {
+    selectedCategory,
+    setSelectedCategory,
+    selectedPeriod,
+    setSelectedPeriod,
+    selectedSort,
+    setSelectedSort,
+    selectedQuery,
+    queryInput,
+    setQueryInput,
+    selectedTransactionCategoryId,
+    setSelectedTransactionCategoryId,
+    customStartDate,
+    customEndDate,
+    setCustomStartDate,
+    setCustomEndDate,
+    isFiltersPanelOpen,
+    setIsFiltersPanelOpen,
+    isMobileFiltersPanel,
+    filtersPanelRef,
+    searchInputRef,
+    periodRange,
+    activeFiltersCount,
+    hasActiveFilters,
+    appliedChips,
+    handleApplyQueryFilter,
+    handleQueryInputKeyDown,
+    handleRemoveAppliedChip,
+    applyFilterPreset,
+    handleEditFilters,
+  } = useFilters({
+    initialState: initialFilterState,
+    onPaginationReset,
+    scrollToListTop,
+    categoryNameById,
+  });
 
   const clearUndoState = useCallback(() => {
     if (undoTimeoutRef.current) {
@@ -644,28 +599,6 @@ const App = ({
 
     return () => {
       window.removeEventListener("resize", syncMobileActionsMode);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return undefined;
-    }
-
-    const syncMobileFiltersMode = () => {
-      const isMobileMode = isCompactFiltersPanelMode();
-      setIsMobileFiltersPanel(isMobileMode);
-
-      if (!isMobileMode) {
-        setIsFiltersPanelOpen(true);
-      }
-    };
-
-    syncMobileFiltersMode();
-    window.addEventListener("resize", syncMobileFiltersMode);
-
-    return () => {
-      window.removeEventListener("resize", syncMobileFiltersMode);
     };
   }, []);
 
@@ -1089,21 +1022,13 @@ const App = ({
     return transactions;
   }, [transactions]);
 
-  const categoryNameById = useMemo(() => {
-    const map = new Map();
-    categories.forEach((category) => {
-      map.set(Number(category.id), category.name);
-    });
-    return map;
-  }, [categories]);
-
   const transactionsWithCategoryName = useMemo(() => {
     return filteredTransactions.map((transaction) => ({
       ...transaction,
       categoryName:
         transaction.categoryId === null
           ? "Sem categoria"
-          : categoryNameById.get(transaction.categoryId) || "Categoria removida",
+          : categoryNameById.get(transaction.categoryId as number) || "Categoria removida",
     }));
   }, [categoryNameById, filteredTransactions]);
 
@@ -1426,19 +1351,6 @@ const App = ({
     setImportModalOpen(false);
   }, [loadMonthlyBudgets, loadMonthlySummary, loadTransactions]);
 
-  const scrollToListTop = () => {
-    const scrollTarget = listSectionRef.current;
-
-    if (!scrollTarget || typeof scrollTarget.scrollIntoView !== "function") {
-      return;
-    }
-
-    scrollTarget.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
-  };
-
   const handleViewBudgetTransactions = (budget: MonthlyBudget) => {
     const monthRange = getMonthRange(selectedSummaryMonth);
     setSelectedTransactionCategoryId(String(budget.categoryId));
@@ -1459,30 +1371,6 @@ const App = ({
     setCustomEndDate(monthRange.endDate);
     setCurrentOffset(DEFAULT_OFFSET);
     scrollToListTop();
-  };
-
-  const applyFilterPreset = (presetId: FilterPresetId) => {
-    if (presetId === "this-month") {
-      const { startDate, endDate } = getCurrentMonthRange();
-      setSelectedPeriod(PERIOD_CUSTOM);
-      setCustomStartDate(startDate);
-      setCustomEndDate(endDate);
-      setCurrentOffset(DEFAULT_OFFSET);
-      scrollToListTop();
-      return;
-    }
-
-    if (presetId === "clear") {
-      setSelectedCategory(CATEGORY_ALL);
-      setSelectedPeriod(PERIOD_ALL);
-      setCustomStartDate("");
-      setCustomEndDate("");
-      setSelectedTransactionCategoryId("");
-      setQueryInput("");
-      setSelectedQuery("");
-      setCurrentOffset(DEFAULT_OFFSET);
-      scrollToListTop();
-    }
   };
 
   const goToOffset = (nextOffset: number) => {
@@ -1537,132 +1425,12 @@ const App = ({
     scrollToListTop();
   };
 
-  const handleApplyQueryFilter = (event?: FormEvent<HTMLFormElement>) => {
-    if (event) {
-      event.preventDefault();
-    }
-
-    const normalizedQuery = queryInput.trim();
-    setQueryInput(normalizedQuery);
-    setSelectedQuery(normalizedQuery);
-    setCurrentOffset(DEFAULT_OFFSET);
-  };
-  const handleQueryInputKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
-    if (event.key !== "Escape") {
-      return;
-    }
-
-    const normalizedInput = queryInput.trim();
-    const normalizedSelectedQuery = selectedQuery.trim();
-
-    if (!normalizedInput && !normalizedSelectedQuery) {
-      return;
-    }
-
-    event.preventDefault();
-
-    if (normalizedSelectedQuery && normalizedInput === normalizedSelectedQuery) {
-      handleRemoveAppliedChip("q");
-      return;
-    }
-
-    if (normalizedInput) {
-      setQueryInput("");
-      return;
-    }
-
-    if (normalizedSelectedQuery) {
-      handleRemoveAppliedChip("q");
-    }
-  };
-  const handleRemoveAppliedChip = (chipId: RemovableChipId) => {
-    let shouldFocusSearchInput = false;
-
-    if (chipId === "q") {
-      setQueryInput("");
-      setSelectedQuery("");
-      shouldFocusSearchInput = true;
-    } else if (chipId === "type") {
-      setSelectedCategory(CATEGORY_ALL);
-    } else if (chipId === "period") {
-      setSelectedPeriod(PERIOD_ALL);
-      setCustomStartDate("");
-      setCustomEndDate("");
-    } else if (chipId === "category") {
-      setSelectedTransactionCategoryId("");
-    } else if (chipId === "sort") {
-      setSelectedSort(DEFAULT_SORT);
-    } else {
-      return;
-    }
-
-    setCurrentOffset(DEFAULT_OFFSET);
-    scrollToListTop();
-
-    if (shouldFocusSearchInput) {
-      if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
-        window.requestAnimationFrame(() => {
-          searchInputRef.current?.focus();
-        });
-      } else {
-        searchInputRef.current?.focus();
-      }
-    }
-  };
-  const handleEditFilters = useCallback(() => {
-    if (isMobileFiltersPanel) {
-      setIsFiltersPanelOpen(true);
-    }
-
-    const focusSearchInput = () => {
-      searchInputRef.current?.focus();
-    };
-
-    if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
-      window.requestAnimationFrame(() => {
-        if (isMobileFiltersPanel) {
-          filtersPanelRef.current?.scrollIntoView?.({ behavior: "smooth", block: "start" });
-        }
-        window.requestAnimationFrame(focusSearchInput);
-      });
-      return;
-    }
-
-    if (isMobileFiltersPanel) {
-      filtersPanelRef.current?.scrollIntoView?.({ block: "start" });
-    }
-
-    focusSearchInput();
-  }, [isMobileFiltersPanel]);
-
   const filterButtons: SelectedCategory[] = [CATEGORY_ALL, CATEGORY_ENTRY, CATEGORY_EXIT];
   const todayISO = getTodayISODate();
   const currentMonthRange = useMemo(
     () => getCurrentMonthRange(new Date(`${todayISO}T00:00:00`)),
     [todayISO],
   );
-  const activeFiltersCount = useMemo(() => {
-    let count = 0;
-
-    if (selectedCategory !== CATEGORY_ALL) {
-      count += 1;
-    }
-
-    if (selectedPeriod !== PERIOD_ALL) {
-      count += 1;
-    }
-
-    if (selectedTransactionCategoryId) {
-      count += 1;
-    }
-
-    if (selectedQuery) {
-      count += 1;
-    }
-
-    return count;
-  }, [selectedCategory, selectedPeriod, selectedQuery, selectedTransactionCategoryId]);
-  const hasActiveFilters = activeFiltersCount > 0;
   const isFiltersContentVisible = !isMobileFiltersPanel || isFiltersPanelOpen;
   const shouldShowPresets = !hasActiveFilters;
   const hasMonthlySummaryData =
@@ -1671,78 +1439,6 @@ const App = ({
     monthlySummary.byCategory.length > 0;
   const hasMonthlyBudgetsData = monthlyBudgets.length > 0;
   const canCreateBudget = categories.length > 0 && !isLoadingBudgets && !isSavingBudget;
-  const appliedChips = useMemo<AppliedChip[]>(() => {
-    const chips: AppliedChip[] = [];
-
-    if (selectedQuery) {
-      chips.push({
-        id: "q",
-        text: `Busca: "${selectedQuery}"`,
-        removable: true,
-        removeLabel: "Busca",
-      });
-    }
-
-    if (selectedCategory !== CATEGORY_ALL) {
-      const categoryTypeLabel = selectedCategory === CATEGORY_ENTRY ? "Entradas" : "Saidas";
-      chips.push({
-        id: "type",
-        text: `Tipo: ${categoryTypeLabel}`,
-        removable: true,
-        removeLabel: "Tipo",
-      });
-    }
-
-    if (selectedPeriod !== PERIOD_ALL) {
-      if (selectedPeriod === PERIOD_CUSTOM) {
-        const startLabel = customStartDate || "--";
-        const endLabel = customEndDate || "--";
-        chips.push({
-          id: "period",
-          text: `Periodo: ${startLabel} -> ${endLabel}`,
-          removable: true,
-          removeLabel: "Periodo",
-        });
-      } else {
-        chips.push({
-          id: "period",
-          text: `Periodo: ${selectedPeriod}`,
-          removable: true,
-          removeLabel: "Periodo",
-        });
-      }
-    }
-
-    if (selectedTransactionCategoryId) {
-      const categoryName = categoryNameById.get(Number(selectedTransactionCategoryId));
-      chips.push({
-        id: "category",
-        text: `Categoria: ${categoryName || `#${selectedTransactionCategoryId}`}`,
-        removable: true,
-        removeLabel: "Categoria",
-      });
-    }
-
-    const selectedSortLabel =
-      SORT_OPTIONS.find((sortOption) => sortOption.value === selectedSort)?.label || selectedSort;
-    chips.push({
-      id: "sort",
-      text: `Ordenacao: ${selectedSortLabel}`,
-      removable: true,
-      removeLabel: "Ordenacao",
-    });
-
-    return chips;
-  }, [
-    categoryNameById,
-    customEndDate,
-    customStartDate,
-    selectedCategory,
-    selectedPeriod,
-    selectedQuery,
-    selectedSort,
-    selectedTransactionCategoryId,
-  ]);
   const visibleFilterPresets = FILTER_PRESETS;
   const isPresetActive = (presetId: (typeof FILTER_PRESETS)[number]["id"]): boolean => {
     if (presetId === "this-month") {
@@ -1761,16 +1457,6 @@ const App = ({
     paginationMeta.offset + filteredTransactions.length,
     paginationMeta.total,
   );
-
-  useEffect(() => {
-    if (!isMobileFiltersPanel) {
-      return;
-    }
-
-    if (hasActiveFilters) {
-      setIsFiltersPanelOpen(true);
-    }
-  }, [hasActiveFilters, isMobileFiltersPanel]);
 
   return (
     <div className="App min-h-screen bg-white pb-10">
@@ -1921,7 +1607,7 @@ const App = ({
                 {isMobileFiltersPanel ? (
                   <button
                     type="button"
-                    onClick={() => setIsFiltersPanelOpen((currentValue) => !currentValue)}
+                    onClick={() => setIsFiltersPanelOpen(!isFiltersPanelOpen)}
                     aria-expanded={isFiltersPanelOpen}
                     className="whitespace-nowrap rounded border border-gray-300 bg-white px-2.5 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100"
                   >
