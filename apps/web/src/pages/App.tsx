@@ -440,6 +440,17 @@ const formatSignedPercentage = (value: number | null) => {
   const prefix = normalizedValue > 0 ? "+" : "";
   return `${prefix}${normalizedValue.toFixed(1)}%`;
 };
+const getDirectionArrow = (direction: MonthOverMonthDirection): string => {
+  if (direction === "up") {
+    return "â†‘";
+  }
+
+  if (direction === "down") {
+    return "â†“";
+  }
+
+  return "â†’";
+};
 const isCompactHeaderActionsMode = (): boolean =>
   typeof window !== "undefined" && window.innerWidth < MOBILE_HEADER_ACTIONS_BREAKPOINT;
 const isCompactFiltersPanelMode = (): boolean =>
@@ -1097,6 +1108,48 @@ const App = ({
       monthlySummaryCompare.delta.incomePct,
     ],
   );
+  const topCategoryMovers = useMemo(
+    () =>
+      Array.isArray(monthlySummaryCompare.byCategoryDelta)
+        ? monthlySummaryCompare.byCategoryDelta
+            .filter(
+              (item) =>
+                typeof item?.categoryName === "string" &&
+                item.categoryName.trim() &&
+                (Number(item?.current) !== 0 || Number(item?.previous) !== 0),
+            )
+            .map((item) => {
+              const normalizedDelta = Number(item.delta) || 0;
+              const normalizedDirection: MonthOverMonthDirection =
+                normalizedDelta > 0 ? "up" : normalizedDelta < 0 ? "down" : "flat";
+
+              return {
+                categoryId:
+                  Number.isInteger(Number(item.categoryId)) && Number(item.categoryId) > 0
+                    ? Number(item.categoryId)
+                    : null,
+                categoryName: item.categoryName.trim(),
+                delta: normalizedDelta,
+                deltaPct:
+                  item.deltaPct === null
+                    ? null
+                    : Number.isFinite(Number(item.deltaPct))
+                      ? Number(item.deltaPct)
+                      : 0,
+                direction: normalizedDirection,
+                tone:
+                  normalizedDirection === "up"
+                    ? ("bad" as MonthOverMonthTone)
+                    : normalizedDirection === "down"
+                      ? ("good" as MonthOverMonthTone)
+                      : ("neutral" as MonthOverMonthTone),
+              };
+            })
+            .sort((leftItem, rightItem) => Math.abs(rightItem.delta) - Math.abs(leftItem.delta))
+            .slice(0, 3)
+        : [],
+    [monthlySummaryCompare.byCategoryDelta],
+  );
   const budgetAlerts = useMemo(
     () =>
       monthlyBudgets
@@ -1329,6 +1382,18 @@ const App = ({
   const handleViewBudgetTransactions = (budget: MonthlyBudget) => {
     const monthRange = getMonthRange(selectedSummaryMonth);
     setSelectedTransactionCategoryId(String(budget.categoryId));
+    setSelectedPeriod(PERIOD_CUSTOM);
+    setCustomStartDate(monthRange.startDate);
+    setCustomEndDate(monthRange.endDate);
+    setCurrentOffset(DEFAULT_OFFSET);
+    scrollToListTop();
+  };
+  const handleViewCategoryMoverTransactions = (categoryId: number | null) => {
+    const monthRange = getMonthRange(selectedSummaryMonth);
+
+    setSelectedTransactionCategoryId(
+      Number.isInteger(Number(categoryId)) && Number(categoryId) > 0 ? String(categoryId) : "",
+    );
     setSelectedPeriod(PERIOD_CUSTOM);
     setCustomStartDate(monthRange.startDate);
     setCustomEndDate(monthRange.endDate);
@@ -2203,6 +2268,51 @@ const App = ({
                     </li>
                   ))}
                 </ul>
+              </div>
+            ) : null}
+            {!isLoadingSummary && !summaryError && !momError ? (
+              <div
+                className="mt-3 rounded border border-gray-300 bg-white p-3"
+                role="region"
+                aria-label="Top variacoes por categoria"
+              >
+                <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-600">
+                  Top variacoes por categoria
+                </h4>
+                {topCategoryMovers.length > 0 ? (
+                  <ul className="mt-2 space-y-2">
+                    {topCategoryMovers.map((item) => (
+                      <li
+                        key={`category-mover-${item.categoryId ?? item.categoryName}`}
+                        data-testid="category-mover-item"
+                        className="rounded border border-gray-200 bg-gray-50 px-2.5 py-2 text-sm"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-semibold text-gray-900">{item.categoryName}</p>
+                          <span
+                            className={`text-xs font-semibold ${MOM_TONE_CLASSNAMES[item.tone]}`}
+                          >
+                            {`${getDirectionArrow(item.direction)} ${formatSignedPercentage(item.deltaPct)} (${formatSignedCurrency(item.delta)})`}
+                          </span>
+                        </div>
+                        <div className="mt-2 flex justify-end">
+                          <button
+                            type="button"
+                            aria-label={`Ver transacoes categoria: ${item.categoryName}`}
+                            onClick={() => handleViewCategoryMoverTransactions(item.categoryId)}
+                            className="rounded border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-800 hover:bg-gray-100"
+                          >
+                            Ver transacoes
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-sm text-gray-600">
+                    Sem variacoes por categoria para o comparativo do mes.
+                  </p>
+                )}
               </div>
             ) : null}
           </section>
