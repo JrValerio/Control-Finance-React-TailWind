@@ -5,6 +5,8 @@ This folder versions the baseline observability assets for Control Finance:
 - Dashboard JSON (in `docs/observability/dashboards/`)
 - Alert rules YAML (in `docs/observability/alerts/`)
 - Setup guide (in `docs/observability/grafana-cloud.md`)
+- SLO baseline (in `docs/observability/slo.md`)
+- 5xx incident runbook (in `docs/runbooks/api-5xx-incident.md`)
 
 ## Golden Validation Order (do not skip)
 
@@ -59,6 +61,8 @@ After applying:
 
 ## References
 - Grafana Cloud setup: `docs/observability/grafana-cloud.md`
+- SLO baseline: `docs/observability/slo.md`
+- 5xx runbook: `docs/runbooks/api-5xx-incident.md`
 - Release checklist: `docs/runbooks/release-production-checklist.md`
 - Alloy worker: `ops/alloy/README.md`
 - Dashboard: `docs/observability/dashboards/control-finance-api-min.json`
