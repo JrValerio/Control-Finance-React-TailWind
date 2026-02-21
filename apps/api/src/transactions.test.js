@@ -13,6 +13,7 @@ import { resetHttpMetricsForTests } from "./observability/http-metrics.js";
 import {
   createTransactionsForUser,
   expectErrorResponseWithRequestId,
+  makeProUser,
   registerAndLogin,
   setupTestDb,
 } from "./test-helpers.js";
@@ -32,6 +33,7 @@ describe("transactions", () => {
     resetWriteRateLimiterState();
     resetHttpMetricsForTests();
     await dbQuery("DELETE FROM transactions");
+    await dbQuery("DELETE FROM subscriptions");
     await dbQuery("DELETE FROM users");
   });
 
@@ -620,6 +622,7 @@ describe("transactions", () => {
 
   it("exporta CSV filtrado com totais", async () => {
     const token = await registerAndLogin("export@controlfinance.dev");
+    await makeProUser("export@controlfinance.dev");
 
     await request(app)
       .post("/transactions")
@@ -669,6 +672,7 @@ describe("transactions", () => {
 
   it("exporta CSV incluindo category_name quando a transacao possui categoria", async () => {
     const token = await registerAndLogin("export-category@controlfinance.dev");
+    await makeProUser("export-category@controlfinance.dev");
 
     const categoryResponse = await request(app)
       .post("/categories")

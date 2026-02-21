@@ -55,7 +55,7 @@ describe("analytics", () => {
     },
   );
 
-  it("GET /analytics/trend retorna 6 meses por padrao com months vazios zerados", async () => {
+  it("GET /analytics/trend retorna 3 meses por padrao para usuario free (limite do plano)", async () => {
     const token = await registerAndLogin("analytics-trend-default@controlfinance.dev");
 
     const response = await request(app)
@@ -64,8 +64,8 @@ describe("analytics", () => {
 
     expect(response.status).toBe(200);
     expect(Array.isArray(response.body)).toBe(true);
-    expect(response.body).toHaveLength(6);
-    expect(response.body.map((item) => item.month)).toEqual(getExpectedTrendMonths(6));
+    expect(response.body).toHaveLength(3);
+    expect(response.body.map((item) => item.month)).toEqual(getExpectedTrendMonths(3));
     response.body.forEach((item) => {
       expect(typeof item.month).toBe("string");
       expect(item.month).toMatch(/^\d{4}-\d{2}$/);

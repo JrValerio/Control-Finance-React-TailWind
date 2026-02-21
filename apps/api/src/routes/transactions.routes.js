@@ -6,6 +6,7 @@ import {
   importRateLimiter,
   transactionsWriteRateLimiter,
 } from "../middlewares/rate-limit.middleware.js";
+import { requireFeature } from "../middlewares/entitlement.middleware.js";
 import {
   createElapsedTimer,
   logImportEvent,
@@ -89,7 +90,7 @@ const getListFiltersFromQuery = (query = {}, options = {}) => {
   return filters;
 };
 
-router.get("/export.csv", async (req, res, next) => {
+router.get("/export.csv", requireFeature("csv_export"), async (req, res, next) => {
   try {
     const csvExport = await exportTransactionsCsvByUser(
       req.user.id,
@@ -265,7 +266,7 @@ router.post("/:id/restore", transactionsWriteRateLimiter, async (req, res, next)
   }
 });
 
-router.post("/import/dry-run", importRateLimiter, (req, res, next) => {
+router.post("/import/dry-run", importRateLimiter, requireFeature("csv_import"), (req, res, next) => {
   const elapsedTimer = createElapsedTimer();
   const userId = Number(req.user.id);
   const requestId = req.requestId || null;
@@ -331,7 +332,7 @@ router.post("/import/dry-run", importRateLimiter, (req, res, next) => {
   });
 });
 
-router.post("/import/commit", importRateLimiter, async (req, res, next) => {
+router.post("/import/commit", importRateLimiter, requireFeature("csv_import"), async (req, res, next) => {
   const elapsedTimer = createElapsedTimer();
   const userId = Number(req.user.id);
   const requestId = req.requestId || null;
