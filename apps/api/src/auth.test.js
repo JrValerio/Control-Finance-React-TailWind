@@ -1,7 +1,7 @@
 import request from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import app from "./app.js";
-import { clearDbClientForTests, dbQuery, setDbClientForTests } from "./db/index.js";
+import { clearDbClientForTests, dbQuery } from "./db/index.js";
 import {
   LOGIN_THROTTLE_MESSAGE,
   resetLoginProtectionState,
