@@ -1,0 +1,148 @@
+import request from "supertest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import app from "./app.js";
+import { clearDbClientForTests, dbQuery } from "./db/index.js";
+import { resetLoginProtectionState } from "./middlewares/login-protection.middleware.js";
+import {
+  resetImportRateLimiterState,
+  resetWriteRateLimiterState,
+} from "./middlewares/rate-limit.middleware.js";
+import { resetHttpMetricsForTests } from "./observability/http-metrics.js";
+import {
+  expectErrorResponseWithRequestId,
+  makeProUser,
+  registerAndLogin,
+  setupTestDb,
+} from "./test-helpers.js";
+
+describe("billing", () => {
+  beforeAll(async () => {
+    await setupTestDb();
+  });
+
+  afterAll(async () => {
+    await clearDbClientForTests();
+  });
+
+  beforeEach(async () => {
+    resetLoginProtectionState();
+    resetImportRateLimiterState();
+    resetWriteRateLimiterState();
+    resetHttpMetricsForTests();
+    await dbQuery("DELETE FROM subscriptions");
+    await dbQuery("DELETE FROM transactions");
+    await dbQuery("DELETE FROM users");
+  });
+
+  it("GET /billing/subscription retorna 401 sem token", async () => {
+    const response = await request(app).get("/billing/subscription");
+
+    expectErrorResponseWithRequestId(response, 401, "Token de autenticacao ausente ou invalido.");
+  });
+
+  it("GET /billing/subscription retorna plano free para novo usuario sem subscription", async () => {
+    const token = await registerAndLogin("billing-free@controlfinance.dev");
+
+    const response = await request(app)
+      .get("/billing/subscription")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.plan).toBe("free");
+    expect(response.body.subscription).toBeNull();
+  });
+
+  it("GET /billing/subscription retorna shape consistente", async () => {
+    const email = "billing-shape@controlfinance.dev";
+    const token = await registerAndLogin(email);
+
+    const response = await request(app)
+      .get("/billing/subscription")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(typeof response.body.plan).toBe("string");
+    expect(typeof response.body.displayName).toBe("string");
+    expect(typeof response.body.features).toBe("object");
+    expect(response.body.features).toMatchObject({
+      csv_import: expect.any(Boolean),
+      csv_export: expect.any(Boolean),
+      analytics_months_max: expect.any(Number),
+      budget_tracking: expect.any(Boolean),
+    });
+  });
+
+  it("POST /transactions/import/dry-run retorna 402 para usuario free", async () => {
+    const token = await registerAndLogin("billing-dryrun-free@controlfinance.dev");
+
+    const response = await request(app)
+      .post("/transactions/import/dry-run")
+      .set("Authorization", `Bearer ${token}`)
+      .send({});
+
+    expectErrorResponseWithRequestId(response, 402, "Recurso disponivel apenas no plano Pro.");
+  });
+
+  it("GET /transactions/export.csv retorna 402 para usuario free", async () => {
+    const token = await registerAndLogin("billing-export-free@controlfinance.dev");
+
+    const response = await request(app)
+      .get("/transactions/export.csv")
+      .set("Authorization", `Bearer ${token}`);
+
+    expectErrorResponseWithRequestId(response, 402, "Recurso disponivel apenas no plano Pro.");
+  });
+
+  it("GET /analytics/trend retorna 3 meses para usuario free (limite do plano)", async () => {
+    const token = await registerAndLogin("billing-trend-free@controlfinance.dev");
+
+    const response = await request(app)
+      .get("/analytics/trend")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(Array.isArray(response.body)).toBe(true);
+    expect(response.body).toHaveLength(3);
+  });
+
+  it("GET /analytics/trend retorna 402 ao solicitar 6 meses com plano free", async () => {
+    const token = await registerAndLogin("billing-trend-exceeded@controlfinance.dev");
+
+    const response = await request(app)
+      .get("/analytics/trend")
+      .query({ months: 6 })
+      .set("Authorization", `Bearer ${token}`);
+
+    expectErrorResponseWithRequestId(response, 402, "Limite de historico excedido no plano gratuito.");
+  });
+
+  it("usuario pro acessa dry-run normalmente", async () => {
+    const email = "billing-dryrun-pro@controlfinance.dev";
+    const token = await registerAndLogin(email);
+    await makeProUser(email);
+
+    const csvContent = "type,value,date,description\nEntrada,100,2026-01-01,Salario";
+
+    const response = await request(app)
+      .post("/transactions/import/dry-run")
+      .set("Authorization", `Bearer ${token}`)
+      .attach("file", Buffer.from(csvContent, "utf8"), {
+        filename: "import.csv",
+        contentType: "text/csv",
+      });
+
+    expect(response.status).toBe(200);
+  });
+
+  it("usuario pro acessa export.csv normalmente", async () => {
+    const email = "billing-export-pro@controlfinance.dev";
+    const token = await registerAndLogin(email);
+    await makeProUser(email);
+
+    const response = await request(app)
+      .get("/transactions/export.csv")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+  });
+});

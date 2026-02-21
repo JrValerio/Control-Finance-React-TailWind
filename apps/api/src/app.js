@@ -8,6 +8,7 @@ import categoriesRoutes from "./routes/categories.routes.js";
 import budgetsRoutes from "./routes/budgets.routes.js";
 import analyticsRoutes from "./routes/analytics.routes.js";
 import transactionsRoutes from "./routes/transactions.routes.js";
+import billingRoutes from "./routes/billing.routes.js";
 import { notFoundHandler, errorHandler } from "./middlewares/error.middleware.js";
 import { requestIdMiddleware } from "./middlewares/request-id.middleware.js";
 import { requestLoggingMiddleware } from "./middlewares/request-logging.middleware.js";
@@ -78,6 +79,7 @@ app.use("/categories", categoriesRoutes);
 app.use("/budgets", budgetsRoutes);
 app.use("/analytics", analyticsRoutes);
 app.use("/transactions", transactionsRoutes);
+app.use("/billing", billingRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

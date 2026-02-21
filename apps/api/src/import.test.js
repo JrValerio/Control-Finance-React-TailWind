@@ -14,6 +14,7 @@ import {
   csvFile,
   expectErrorResponseWithRequestId,
   getUserIdByEmail,
+  makeProUser,
   registerAndLogin,
   setupTestDb,
 } from "./test-helpers.js";
@@ -33,6 +34,7 @@ describe("transaction imports", () => {
     resetWriteRateLimiterState();
     resetHttpMetricsForTests();
     await dbQuery("DELETE FROM transactions");
+    await dbQuery("DELETE FROM subscriptions");
     await dbQuery("DELETE FROM users");
   });
 
@@ -294,6 +296,7 @@ describe("transaction imports", () => {
 
   it("POST /transactions/import/dry-run retorna 400 sem arquivo", async () => {
     const token = await registerAndLogin("import-sem-arquivo@controlfinance.dev");
+    await makeProUser("import-sem-arquivo@controlfinance.dev");
 
     const response = await request(app)
       .post("/transactions/import/dry-run")
@@ -304,6 +307,7 @@ describe("transaction imports", () => {
 
   it("POST /transactions/import/dry-run retorna 400 para arquivo sem formato CSV", async () => {
     const token = await registerAndLogin("import-arquivo-invalido@controlfinance.dev");
+    await makeProUser("import-arquivo-invalido@controlfinance.dev");
     const invalidFile = csvFile("conteudo sem cabecalho", "import.txt");
 
     const response = await request(app)
@@ -319,6 +323,7 @@ describe("transaction imports", () => {
 
   it("POST /transactions/import/dry-run retorna 413 quando arquivo excede limite", async () => {
     const token = await registerAndLogin("import-arquivo-grande@controlfinance.dev");
+    await makeProUser("import-arquivo-grande@controlfinance.dev");
     const oversizedContent = `date,type,value,description\n${"a".repeat(2 * 1024 * 1024 + 1)}`;
     const oversizedCsvFile = csvFile(oversizedContent, "oversized.csv");
 
@@ -335,6 +340,7 @@ describe("transaction imports", () => {
 
   it("POST /transactions/import/dry-run retorna 400 quando CSV excede o limite de linhas", async () => {
     const token = await registerAndLogin("import-linhas-maximo@controlfinance.dev");
+    await makeProUser("import-linhas-maximo@controlfinance.dev");
     const rows = ["date,type,value,description"];
 
     for (let lineNumber = 1; lineNumber <= 2001; lineNumber += 1) {
@@ -356,6 +362,7 @@ describe("transaction imports", () => {
 
   it("POST /transactions/import/dry-run retorna 429 quando excede o limite de requisicoes", async () => {
     const token = await registerAndLogin("import-rate-limit@controlfinance.dev");
+    await makeProUser("import-rate-limit@controlfinance.dev");
     const validCsv = csvFile("date,type,value,description\n2026-03-01,Entrada,100,Teste");
 
     for (let attempt = 1; attempt <= 10; attempt += 1) {
@@ -387,6 +394,7 @@ describe("transaction imports", () => {
 
   it("POST /transactions/import/dry-run retorna 400 para cabecalho invalido", async () => {
     const token = await registerAndLogin("import-cabecalho@controlfinance.dev");
+    await makeProUser("import-cabecalho@controlfinance.dev");
     const invalidHeaderCsv = csvFile("tipo,valor,descricao\nSaida,100,Mercado");
 
     const response = await request(app)
@@ -406,6 +414,7 @@ describe("transaction imports", () => {
 
   it("POST /transactions/import/dry-run valida linhas e persiste sessao", async () => {
     const token = await registerAndLogin("import-sessao@controlfinance.dev");
+    await makeProUser("import-sessao@controlfinance.dev");
     const categoryResponse = await request(app)
       .post("/categories")
       .set("Authorization", `Bearer ${token}`)
@@ -538,6 +547,7 @@ describe("transaction imports", () => {
 
   it("POST /transactions/import/dry-run marca date e type invalidos por linha", async () => {
     const token = await registerAndLogin("import-date-type@controlfinance.dev");
+    await makeProUser("import-date-type@controlfinance.dev");
     const invalidCsv = csvFile(
       [
         "date,type,value,description,notes,category",
@@ -584,6 +594,7 @@ describe("transaction imports", () => {
 
   it("POST /transactions/import/commit retorna 429 quando excede o limite de requisicoes", async () => {
     const token = await registerAndLogin("import-commit-rate-limit@controlfinance.dev");
+    await makeProUser("import-commit-rate-limit@controlfinance.dev");
     const invalidPayload = { importId: "abc" };
 
     for (let attempt = 1; attempt <= 10; attempt += 1) {
@@ -609,6 +620,7 @@ describe("transaction imports", () => {
 
   it("POST /transactions/import/commit retorna 400 sem importId", async () => {
     const token = await registerAndLogin("import-commit-sem-id@controlfinance.dev");
+    await makeProUser("import-commit-sem-id@controlfinance.dev");
 
     const response = await request(app)
       .post("/transactions/import/commit")
@@ -620,6 +632,7 @@ describe("transaction imports", () => {
 
   it("POST /transactions/import/commit retorna 400 com importId invalido", async () => {
     const token = await registerAndLogin("import-commit-id-invalido@controlfinance.dev");
+    await makeProUser("import-commit-id-invalido@controlfinance.dev");
 
     const response = await request(app)
       .post("/transactions/import/commit")
@@ -633,6 +646,7 @@ describe("transaction imports", () => {
 
   it("POST /transactions/import/commit importa linhas validas e marca sessao como confirmada", async () => {
     const token = await registerAndLogin("import-commit-sucesso@controlfinance.dev");
+    await makeProUser("import-commit-sucesso@controlfinance.dev");
     const categoryResponse = await request(app)
       .post("/categories")
       .set("Authorization", `Bearer ${token}`)
@@ -711,7 +725,9 @@ describe("transaction imports", () => {
 
   it("POST /transactions/import/commit retorna 404 para sessao de outro usuario", async () => {
     const ownerToken = await registerAndLogin("import-commit-owner@controlfinance.dev");
+    await makeProUser("import-commit-owner@controlfinance.dev");
     const guestToken = await registerAndLogin("import-commit-guest@controlfinance.dev");
+    await makeProUser("import-commit-guest@controlfinance.dev");
 
     const dryRunCsv = csvFile(
       ["date,type,value,description,notes,category", "2026-03-01,Entrada,100,Freela,,"].join(
@@ -739,6 +755,7 @@ describe("transaction imports", () => {
 
   it("POST /transactions/import/commit retorna 409 quando sessao ja foi confirmada", async () => {
     const token = await registerAndLogin("import-commit-duplicado@controlfinance.dev");
+    await makeProUser("import-commit-duplicado@controlfinance.dev");
     const dryRunCsv = csvFile(
       ["date,type,value,description,notes,category", "2026-03-02,Saida,50,Mercado,,"].join(
         "\n",
@@ -773,6 +790,7 @@ describe("transaction imports", () => {
 
   it("POST /transactions/import/commit retorna 410 quando sessao expirou", async () => {
     const token = await registerAndLogin("import-commit-expirado@controlfinance.dev");
+    await makeProUser("import-commit-expirado@controlfinance.dev");
     const dryRunCsv = csvFile(
       ["date,type,value,description,notes,category", "2026-03-03,Saida,30,Lanche,,"].join("\n"),
     );

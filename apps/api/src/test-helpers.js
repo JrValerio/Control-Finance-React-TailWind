@@ -42,6 +42,18 @@ export const csvFile = (content, fileName = "import.csv") => ({
   fileName,
 });
 
+export const makeProUser = async (email) => {
+  const userId = await getUserIdByEmail(email);
+  const planResult = await dbQuery(
+    `SELECT id FROM plans WHERE name = 'pro' AND is_active = true LIMIT 1`,
+  );
+  const planId = planResult.rows[0].id;
+  await dbQuery(
+    `INSERT INTO subscriptions (user_id, plan_id, status) VALUES ($1, $2, 'active')`,
+    [userId, planId],
+  );
+};
+
 export const createTransactionsForUser = async (token, count) => {
   await Promise.all(
     Array.from({ length: count }, (_, index) =>
