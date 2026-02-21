@@ -515,6 +515,7 @@ const App = ({
   );
   const initialPaginationState = useMemo(() => getInitialPaginationState(), []);
   const listSectionRef = useRef<HTMLElement | null>(null);
+  const summarySectionRef = useRef<HTMLElement | null>(null);
   const filtersPanelRef = useRef<HTMLElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const mobileActionsButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -853,6 +854,12 @@ const App = ({
   const handleTrendMonthClick = useCallback((month: string) => {
     if (MONTH_VALUE_REGEX.test(String(month || "").trim())) {
       setSelectedSummaryMonth(month.trim());
+      if (
+        summarySectionRef.current &&
+        typeof summarySectionRef.current.scrollIntoView === "function"
+      ) {
+        summarySectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
     }
   }, []);
 
@@ -2184,7 +2191,7 @@ const App = ({
         </section>
 
         <div className="space-y-6">
-          <section>
+          <section ref={summarySectionRef}>
             <div className="mb-2 flex items-center justify-between gap-2">
           <h3 className="text-sm font-medium text-gray-100">Resumo mensal</h3>
           <input

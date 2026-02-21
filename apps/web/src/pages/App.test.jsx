@@ -2780,5 +2780,22 @@ describe("App", () => {
         expect(screen.getByTestId("trend-selected-month")).toHaveTextContent("2025-10");
       });
     });
+
+    it("chama scrollIntoView na secao de resumo ao clicar num mes no grafico", async () => {
+      const scrollMock = vi.fn();
+      window.HTMLElement.prototype.scrollIntoView = scrollMock;
+
+      render(<App />);
+
+      await screen.findByTestId("trend-chart");
+
+      await userEvent.click(screen.getByTestId("trend-month-2025-10"));
+
+      await waitFor(() => {
+        expect(scrollMock).toHaveBeenCalledWith({ behavior: "smooth", block: "start" });
+      });
+
+      delete window.HTMLElement.prototype.scrollIntoView;
+    });
   });
 });
