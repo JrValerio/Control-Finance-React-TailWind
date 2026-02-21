@@ -1,10 +1,14 @@
 import { randomUUID } from "node:crypto";
 import { parse as parseCsv } from "csv-parse/sync";
 import { dbQuery, withDbTransaction } from "../db/index.js";
+import {
+  TRANSACTION_TYPE_ENTRY,
+  TRANSACTION_TYPE_EXIT,
+} from "../constants/transaction-types.js";
 import { normalizeCategoryNameKey } from "./categories-normalization.js";
 
-const CATEGORY_ENTRY = "Entrada";
-const CATEGORY_EXIT = "Saida";
+const CATEGORY_ENTRY = TRANSACTION_TYPE_ENTRY;
+const CATEGORY_EXIT = TRANSACTION_TYPE_EXIT;
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const IMPORT_TTL_MINUTES = 30;

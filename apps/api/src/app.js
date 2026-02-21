@@ -6,6 +6,7 @@ import metricsRoutes from "./routes/metrics.routes.js";
 import authRoutes from "./routes/auth.routes.js";
 import categoriesRoutes from "./routes/categories.routes.js";
 import budgetsRoutes from "./routes/budgets.routes.js";
+import analyticsRoutes from "./routes/analytics.routes.js";
 import transactionsRoutes from "./routes/transactions.routes.js";
 import { notFoundHandler, errorHandler } from "./middlewares/error.middleware.js";
 import { requestIdMiddleware } from "./middlewares/request-id.middleware.js";
@@ -75,6 +76,7 @@ app.use("/metrics", metricsRoutes);
 app.use("/auth", authRoutes);
 app.use("/categories", categoriesRoutes);
 app.use("/budgets", budgetsRoutes);
+app.use("/analytics", analyticsRoutes);
 app.use("/transactions", transactionsRoutes);
 
 app.use(notFoundHandler);
