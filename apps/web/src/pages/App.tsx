@@ -226,6 +226,11 @@ const isSelectedPeriod = (value: string | null): value is SelectedPeriod =>
   value === PERIOD_CUSTOM;
 
 const getCurrentMonth = () => getTodayISODate().slice(0, 7);
+const getInitialSummaryMonth = (): string => {
+  if (typeof window === "undefined") return getCurrentMonth();
+  const param = new URLSearchParams(window.location.search).get("summaryMonth");
+  return param && MONTH_VALUE_REGEX.test(param) ? param : getCurrentMonth();
+};
 const getCurrentMonthRange = (referenceDate = new Date()) => {
   const year = referenceDate.getFullYear();
   const month = referenceDate.getMonth();
@@ -525,7 +530,7 @@ const App = ({
   const [selectedTransactionCategoryId, setSelectedTransactionCategoryId] = useState(
     initialFilterState.selectedTransactionCategoryId,
   );
-  const [selectedSummaryMonth, setSelectedSummaryMonth] = useState(() => getCurrentMonth());
+  const [selectedSummaryMonth, setSelectedSummaryMonth] = useState(() => getInitialSummaryMonth());
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [hasLoadedCategories, setHasLoadedCategories] = useState(false);
   const [customStartDate, setCustomStartDate] = useState(initialFilterState.customStartDate);
@@ -718,6 +723,20 @@ const App = ({
 
     focusFirstMenuItem();
   }, [isMobileActionsMenuOpen]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    const onPopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const value = params.get("summaryMonth");
+      const nextMonth = value && MONTH_VALUE_REGEX.test(value) ? value : getCurrentMonth();
+      setSelectedSummaryMonth((current) => (current === nextMonth ? current : nextMonth));
+    };
+
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
 
   const clearBudgetSuccessMessage = useCallback(() => {
     if (budgetSuccessTimeoutRef.current) {
@@ -999,6 +1018,7 @@ const App = ({
     params.set("limit", String(pageSize));
     params.set("offset", String(currentOffset));
     params.set("sort", selectedSort);
+    params.set("summaryMonth", selectedSummaryMonth);
 
     if (selectedQuery) {
       params.set("q", selectedQuery);
@@ -1054,6 +1074,7 @@ const App = ({
     selectedPeriod,
     selectedQuery,
     selectedSort,
+    selectedSummaryMonth,
     selectedTransactionCategoryId,
   ]);
 

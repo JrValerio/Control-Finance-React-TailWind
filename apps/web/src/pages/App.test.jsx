@@ -2620,6 +2620,60 @@ describe("App", () => {
     }
   });
 
+  describe("persistencia de summaryMonth na URL", () => {
+    it("inicializa selectedSummaryMonth a partir de summaryMonth valido na URL", async () => {
+      window.history.replaceState(null, "", "/app?summaryMonth=2025-10");
+
+      render(<App />);
+
+      await waitFor(() => {
+        expect(transactionsService.getMonthlySummary).toHaveBeenCalledWith("2025-10");
+        expect(transactionsService.getMonthlySummaryCompare).toHaveBeenCalledWith("2025-10");
+        expect(transactionsService.getMonthlyBudgets).toHaveBeenCalledWith("2025-10");
+      });
+    });
+
+    it("ignora summaryMonth invalido na URL e usa mes corrente", async () => {
+      window.history.replaceState(null, "", "/app?summaryMonth=nao-e-um-mes");
+
+      render(<App />);
+
+      await waitFor(() => {
+        const month = transactionsService.getMonthlySummary.mock.calls[0]?.[0];
+        expect(month).toMatch(/^\d{4}-(0[1-9]|1[0-2])$/);
+        expect(month).not.toBe("nao-e-um-mes");
+      });
+    });
+
+    it("atualiza summaryMonth na URL quando o usuario seleciona um mes via grafico", async () => {
+      render(<App />);
+
+      await screen.findByTestId("trend-chart");
+
+      await userEvent.click(screen.getByTestId("trend-month-2025-11"));
+
+      await waitFor(() => {
+        expect(new URLSearchParams(window.location.search).get("summaryMonth")).toBe("2025-11");
+      });
+    });
+
+    it("preserva outros query params ao atualizar summaryMonth na URL", async () => {
+      window.history.replaceState(null, "", "/app?sort=amount%3Adesc");
+
+      render(<App />);
+
+      await screen.findByTestId("trend-chart");
+
+      await userEvent.click(screen.getByTestId("trend-month-2025-12"));
+
+      await waitFor(() => {
+        const params = new URLSearchParams(window.location.search);
+        expect(params.get("summaryMonth")).toBe("2025-12");
+        expect(params.get("sort")).toBe("amount:desc");
+      });
+    });
+  });
+
   describe("grafico de evolucao historica (TrendChart)", () => {
     it("renderiza o grafico de evolucao quando a API retorna dados", async () => {
       analyticsService.getMonthlyTrend.mockResolvedValueOnce(buildTrendResponse());
