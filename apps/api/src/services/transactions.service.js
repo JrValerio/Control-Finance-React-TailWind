@@ -16,6 +16,7 @@ const MAX_LIMIT = 100;
 const UNCATEGORIZED_CATEGORY_NAME = "Sem categoria";
 const MISSING_CATEGORY_NAME = "Categoria nao encontrada";
 const PAGINATION_ERROR_MESSAGE = "Paginacao invalida.";
+const SUMMARY_COMPARE_PREVIOUS = "prev";
 const DEFAULT_TRANSACTIONS_ORDER_BY = "date ASC, id ASC";
 const TRANSACTIONS_SORT_FIELD_TO_COLUMN = {
   date: "date",
@@ -171,6 +172,104 @@ const normalizeSummaryMonth = (month) => {
     from,
     to,
   };
+};
+
+const normalizeSummaryCompare = (compare) => {
+  if (typeof compare === "undefined" || compare === null) {
+    return null;
+  }
+
+  const normalizedCompare = String(compare).trim().toLowerCase();
+
+  if (!normalizedCompare) {
+    return null;
+  }
+
+  if (normalizedCompare !== SUMMARY_COMPARE_PREVIOUS) {
+    throw createError(400, "Compare invalido. Use compare=prev.");
+  }
+
+  return normalizedCompare;
+};
+
+const resolvePreviousSummaryMonth = (month) => {
+  const [yearPart, monthPart] = month.split("-");
+  const year = Number(yearPart);
+  const monthNumber = Number(monthPart);
+  const previousYear = monthNumber === 1 ? year - 1 : year;
+  const previousMonth = monthNumber === 1 ? 12 : monthNumber - 1;
+
+  return `${String(previousYear).padStart(4, "0")}-${String(previousMonth).padStart(2, "0")}`;
+};
+
+const calculateDeltaPercentage = (current, previous) => {
+  if (previous === 0) {
+    return current === 0 ? 0 : null;
+  }
+
+  return Number((((current - previous) / previous) * 100).toFixed(2));
+};
+
+const buildByCategoryDelta = (currentByCategory = [], previousByCategory = []) => {
+  const categoryDeltaMap = new Map();
+
+  previousByCategory.forEach((item) => {
+    const key = item.categoryId === null ? "uncategorized" : String(item.categoryId);
+    categoryDeltaMap.set(key, {
+      categoryId: item.categoryId,
+      category: item.categoryName || UNCATEGORIZED_CATEGORY_NAME,
+      current: 0,
+      previous: Number(item.expense || 0),
+    });
+  });
+
+  currentByCategory.forEach((item) => {
+    const key = item.categoryId === null ? "uncategorized" : String(item.categoryId);
+    const existingItem = categoryDeltaMap.get(key);
+    const currentValue = Number(item.expense || 0);
+
+    if (existingItem) {
+      existingItem.current = currentValue;
+      existingItem.category = item.categoryName || existingItem.category;
+      return;
+    }
+
+    categoryDeltaMap.set(key, {
+      categoryId: item.categoryId,
+      category: item.categoryName || UNCATEGORIZED_CATEGORY_NAME,
+      current: currentValue,
+      previous: 0,
+    });
+  });
+
+  return Array.from(categoryDeltaMap.values())
+    .map((item) => {
+      const delta = Number((item.current - item.previous).toFixed(2));
+
+      return {
+        categoryId: item.categoryId,
+        category: item.category,
+        current: item.current,
+        previous: item.previous,
+        delta,
+        deltaPct: calculateDeltaPercentage(item.current, item.previous),
+      };
+    })
+    .sort((left, right) => {
+      const deltaDistance = Math.abs(right.delta) - Math.abs(left.delta);
+
+      if (deltaDistance !== 0) {
+        return deltaDistance;
+      }
+
+      const deltaOrder = right.delta - left.delta;
+
+      if (deltaOrder !== 0) {
+        return deltaOrder;
+      }
+
+      return left.category.localeCompare(right.category, "pt-BR");
+    });
 };
 
 const parsePaginationInteger = (value, { fallbackValue, minValue, maxValue }) => {
@@ -642,9 +741,7 @@ export const exportTransactionsCsvByUser = async (userId, options = {}) => {
   };
 };
 
-export const getMonthlySummaryForUser = async (userId, month) => {
-  const { month: normalizedMonth, from, to } = normalizeSummaryMonth(month);
-
+const getMonthlySummaryForRange = async (userId, monthRange) => {
   const totalsResult = await dbQuery(
     `
       SELECT
@@ -656,7 +753,7 @@ export const getMonthlySummaryForUser = async (userId, month) => {
         AND date >= $2
         AND date < $3
     `,
-    [userId, from, to],
+    [userId, monthRange.from, monthRange.to],
   );
   const income = Number(totalsResult.rows[0]?.income || 0);
   const expense = Number(totalsResult.rows[0]?.expense || 0);
@@ -683,11 +780,11 @@ export const getMonthlySummaryForUser = async (userId, month) => {
         LOWER(COALESCE(c.name, '')) ASC,
         t.category_id ASC
     `,
-    [userId, from, to, CATEGORY_EXIT],
+    [userId, monthRange.from, monthRange.to, CATEGORY_EXIT],
   );
 
   return {
-    month: normalizedMonth,
+    month: monthRange.month,
     income,
     expense,
     balance: income - expense,
@@ -696,6 +793,42 @@ export const getMonthlySummaryForUser = async (userId, month) => {
       categoryName: row.category_name || UNCATEGORIZED_CATEGORY_NAME,
       expense: Number(row.expense),
     })),
+  };
+};
+
+export const getMonthlySummaryForUser = async (userId, month, compare) => {
+  const normalizedMonth = normalizeSummaryMonth(month);
+  const normalizedCompare = normalizeSummaryCompare(compare);
+  const currentSummary = await getMonthlySummaryForRange(userId, normalizedMonth);
+
+  if (normalizedCompare !== SUMMARY_COMPARE_PREVIOUS) {
+    return currentSummary;
+  }
+
+  const previousMonth = resolvePreviousSummaryMonth(normalizedMonth.month);
+  const previousMonthRange = normalizeSummaryMonth(previousMonth);
+  const previousSummary = await getMonthlySummaryForRange(userId, previousMonthRange);
+
+  return {
+    current: {
+      income: currentSummary.income,
+      expense: currentSummary.expense,
+      balance: currentSummary.balance,
+    },
+    previous: {
+      income: previousSummary.income,
+      expense: previousSummary.expense,
+      balance: previousSummary.balance,
+    },
+    delta: {
+      income: Number((currentSummary.income - previousSummary.income).toFixed(2)),
+      expense: Number((currentSummary.expense - previousSummary.expense).toFixed(2)),
+      balance: Number((currentSummary.balance - previousSummary.balance).toFixed(2)),
+      incomePct: calculateDeltaPercentage(currentSummary.income, previousSummary.income),
+      expensePct: calculateDeltaPercentage(currentSummary.expense, previousSummary.expense),
+      balancePct: calculateDeltaPercentage(currentSummary.balance, previousSummary.balance),
+    },
+    byCategoryDelta: buildByCategoryDelta(currentSummary.byCategory, previousSummary.byCategory),
   };
 };
 

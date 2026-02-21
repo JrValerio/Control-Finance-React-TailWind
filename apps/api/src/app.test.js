@@ -1982,6 +1982,20 @@ describe("API auth and transactions", () => {
     expectErrorResponseWithRequestId(response, 400, "Mes invalido. Use YYYY-MM.");
   });
 
+  it("GET /transactions/summary retorna 400 quando compare e invalido", async () => {
+    const token = await registerAndLogin("summary-compare-invalido@controlfinance.dev");
+
+    const response = await request(app)
+      .get("/transactions/summary")
+      .query({
+        month: "2026-02",
+        compare: "next",
+      })
+      .set("Authorization", `Bearer ${token}`);
+
+    expectErrorResponseWithRequestId(response, 400, "Compare invalido. Use compare=prev.");
+  });
+
   it("GET /transactions/summary retorna totais zerados quando nao ha transacoes no mes", async () => {
     const token = await registerAndLogin("summary-vazio@controlfinance.dev");
 
@@ -2169,6 +2183,165 @@ describe("API auth and transactions", () => {
         categoryId: null,
         categoryName: "Sem categoria",
         expense: 500,
+      },
+    ]);
+  });
+
+  it("GET /transactions/summary com compare=prev retorna comparativo mensal e delta por categoria", async () => {
+    const token = await registerAndLogin("summary-compare-prev@controlfinance.dev");
+
+    const foodCategoryResponse = await request(app)
+      .post("/categories")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: "Alimentacao",
+      });
+    const transportCategoryResponse = await request(app)
+      .post("/categories")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: "Transporte",
+      });
+
+    await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "Entrada",
+        value: 2000,
+        date: "2026-01-05",
+        description: "Salario Jan",
+      });
+
+    await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "Saida",
+        value: 500,
+        date: "2026-01-08",
+        description: "Mercado Jan",
+        category_id: foodCategoryResponse.body.id,
+      });
+
+    await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "Saida",
+        value: 100,
+        date: "2026-01-10",
+        description: "Transporte Jan",
+        category_id: transportCategoryResponse.body.id,
+      });
+
+    await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "Saida",
+        value: 50,
+        date: "2026-01-15",
+        description: "Sem categoria Jan",
+      });
+
+    await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "Entrada",
+        value: 2500,
+        date: "2026-02-05",
+        description: "Salario Fev",
+      });
+
+    await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "Saida",
+        value: 700,
+        date: "2026-02-08",
+        description: "Mercado Fev",
+        category_id: foodCategoryResponse.body.id,
+      });
+
+    await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "Saida",
+        value: 30,
+        date: "2026-02-10",
+        description: "Sem categoria Fev",
+      });
+
+    const deletedExpenseResponse = await request(app)
+      .post("/transactions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "Saida",
+        value: 1000,
+        date: "2026-02-11",
+        description: "Despesa removida",
+        category_id: foodCategoryResponse.body.id,
+      });
+
+    await request(app)
+      .delete(`/transactions/${deletedExpenseResponse.body.id}`)
+      .set("Authorization", `Bearer ${token}`);
+
+    const response = await request(app)
+      .get("/transactions/summary")
+      .query({
+        month: "2026-02",
+        compare: "prev",
+      })
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.current).toEqual({
+      income: 2500,
+      expense: 730,
+      balance: 1770,
+    });
+    expect(response.body.previous).toEqual({
+      income: 2000,
+      expense: 650,
+      balance: 1350,
+    });
+    expect(response.body.delta).toEqual({
+      income: 500,
+      expense: 80,
+      balance: 420,
+      incomePct: 25,
+      expensePct: 12.31,
+      balancePct: 31.11,
+    });
+    expect(response.body.byCategoryDelta).toEqual([
+      {
+        categoryId: foodCategoryResponse.body.id,
+        category: "Alimentacao",
+        current: 700,
+        previous: 500,
+        delta: 200,
+        deltaPct: 40,
+      },
+      {
+        categoryId: transportCategoryResponse.body.id,
+        category: "Transporte",
+        current: 0,
+        previous: 100,
+        delta: -100,
+        deltaPct: -100,
+      },
+      {
+        categoryId: null,
+        category: "Sem categoria",
+        current: 30,
+        previous: 50,
+        delta: -20,
+        deltaPct: -40,
       },
     ]);
   });
