@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { loginUser, registerUser } from "../services/auth.service.js";
+import { authMiddleware } from "../middlewares/auth.middleware.js";
 import {
   bruteForceLoginGuard,
   clearLoginFailures,
@@ -32,6 +33,10 @@ router.post("/login", loginRateLimiter, bruteForceLoginGuard, async (req, res, n
 
     next(error);
   }
+});
+
+router.get("/me", authMiddleware, (req, res) => {
+  res.status(200).json({ id: req.user.id, email: req.user.email });
 });
 
 export default router;
