@@ -14,6 +14,7 @@ vi.mock("../services/transactions.service", () => ({
     listPage: vi.fn(),
     listCategories: vi.fn(),
     getMonthlySummary: vi.fn(),
+    getMonthlySummaryCompare: vi.fn(),
     getMonthlyBudgets: vi.fn(),
     createOrUpdateMonthlyBudget: vi.fn(),
     deleteMonthlyBudget: vi.fn(),
@@ -54,6 +55,29 @@ const buildSummaryResponse = (summary = {}) => ({
   expense: 350,
   balance: 650,
   byCategory: [],
+  ...summary,
+});
+
+const buildSummaryCompareResponse = (summary = {}) => ({
+  current: {
+    income: 1000,
+    expense: 350,
+    balance: 650,
+  },
+  previous: {
+    income: 900,
+    expense: 300,
+    balance: 600,
+  },
+  delta: {
+    income: 100,
+    expense: 50,
+    balance: 50,
+    incomePct: 11.11,
+    expensePct: 16.67,
+    balancePct: 8.33,
+  },
+  byCategoryDelta: [],
   ...summary,
 });
 
@@ -154,6 +178,9 @@ describe("App", () => {
     transactionsService.listPage.mockResolvedValue(buildPageResponse());
     transactionsService.listCategories.mockResolvedValue([]);
     transactionsService.getMonthlySummary.mockResolvedValue(buildSummaryResponse());
+    transactionsService.getMonthlySummaryCompare.mockResolvedValue(
+      buildSummaryCompareResponse(),
+    );
     transactionsService.getMonthlyBudgets.mockResolvedValue(buildMonthlyBudgetsResponse());
     transactionsService.createOrUpdateMonthlyBudget.mockResolvedValue({});
     transactionsService.deleteMonthlyBudget.mockResolvedValue(undefined);
@@ -218,23 +245,36 @@ describe("App", () => {
   });
 
   it("exibe comparativo mensal (MoM) com direcao, percentual e delta absoluto", async () => {
-    transactionsService.getMonthlySummary
-      .mockResolvedValueOnce(
-        buildSummaryResponse({
-          month: "2026-02",
+    transactionsService.getMonthlySummary.mockResolvedValueOnce(
+      buildSummaryResponse({
+        month: "2026-02",
+        income: 1300,
+        expense: 280,
+        balance: 1020,
+      }),
+    );
+    transactionsService.getMonthlySummaryCompare.mockResolvedValueOnce(
+      buildSummaryCompareResponse({
+        current: {
           income: 1300,
           expense: 280,
           balance: 1020,
-        }),
-      )
-      .mockResolvedValueOnce(
-        buildSummaryResponse({
-          month: "2026-01",
+        },
+        previous: {
           income: 1200,
           expense: 300,
           balance: 900,
-        }),
-      );
+        },
+        delta: {
+          income: 100,
+          expense: -20,
+          balance: 120,
+          incomePct: 8.33,
+          expensePct: -6.67,
+          balancePct: 13.33,
+        },
+      }),
+    );
 
     render(<App />);
 
@@ -246,23 +286,36 @@ describe("App", () => {
   });
 
   it("mostra percentual MoM como indisponivel quando mes anterior e zero", async () => {
-    transactionsService.getMonthlySummary
-      .mockResolvedValueOnce(
-        buildSummaryResponse({
-          month: "2026-02",
+    transactionsService.getMonthlySummary.mockResolvedValueOnce(
+      buildSummaryResponse({
+        month: "2026-02",
+        income: 100,
+        expense: 0,
+        balance: 100,
+      }),
+    );
+    transactionsService.getMonthlySummaryCompare.mockResolvedValueOnce(
+      buildSummaryCompareResponse({
+        current: {
           income: 100,
           expense: 0,
           balance: 100,
-        }),
-      )
-      .mockResolvedValueOnce(
-        buildSummaryResponse({
-          month: "2026-01",
+        },
+        previous: {
           income: 0,
           expense: 0,
           balance: 0,
-        }),
-      );
+        },
+        delta: {
+          income: 100,
+          expense: 0,
+          balance: 100,
+          incomePct: null,
+          expensePct: 0,
+          balancePct: null,
+        },
+      }),
+    );
 
     render(<App />);
 
@@ -272,11 +325,10 @@ describe("App", () => {
 
   it("exibe loading de comparacao mensal enquanto os resumos sao carregados", async () => {
     const currentMonthDeferred = createDeferred();
-    const previousMonthDeferred = createDeferred();
+    const compareDeferred = createDeferred();
 
-    transactionsService.getMonthlySummary
-      .mockReturnValueOnce(currentMonthDeferred.promise)
-      .mockReturnValueOnce(previousMonthDeferred.promise);
+    transactionsService.getMonthlySummary.mockReturnValueOnce(currentMonthDeferred.promise);
+    transactionsService.getMonthlySummaryCompare.mockReturnValueOnce(compareDeferred.promise);
 
     render(<App />);
 
@@ -293,12 +345,26 @@ describe("App", () => {
           balance: 150,
         }),
       );
-      previousMonthDeferred.resolve(
-        buildSummaryResponse({
-          month: "2026-01",
-          income: 100,
-          expense: 70,
-          balance: 30,
+      compareDeferred.resolve(
+        buildSummaryCompareResponse({
+          current: {
+            income: 200,
+            expense: 50,
+            balance: 150,
+          },
+          previous: {
+            income: 100,
+            expense: 70,
+            balance: 30,
+          },
+          delta: {
+            income: 100,
+            expense: -20,
+            balance: 120,
+            incomePct: 100,
+            expensePct: -28.57,
+            balancePct: 400,
+          },
         }),
       );
     });
@@ -306,19 +372,18 @@ describe("App", () => {
     expect(screen.getByTestId("mom-balance")).not.toHaveTextContent("MoM: Calculando...");
   });
 
-  it("mostra fallback de MoM quando resumo do mes anterior falha", async () => {
-    transactionsService.getMonthlySummary
-      .mockResolvedValueOnce(
-        buildSummaryResponse({
-          month: "2026-02",
-          income: 1100,
-          expense: 400,
-          balance: 700,
-        }),
-      )
-      .mockRejectedValueOnce({
-        response: { data: { message: "Comparacao mensal indisponivel." } },
-      });
+  it("mostra fallback de MoM quando comparacao mensal falha", async () => {
+    transactionsService.getMonthlySummary.mockResolvedValueOnce(
+      buildSummaryResponse({
+        month: "2026-02",
+        income: 1100,
+        expense: 400,
+        balance: 700,
+      }),
+    );
+    transactionsService.getMonthlySummaryCompare.mockRejectedValueOnce({
+      response: { data: { message: "Comparacao mensal indisponivel." } },
+    });
 
     render(<App />);
 
@@ -1344,23 +1409,33 @@ describe("App", () => {
       .mockRejectedValueOnce({})
       .mockResolvedValueOnce(
         buildSummaryResponse({
-          income: 850,
-          expense: 260,
-          balance: 590,
-        }),
-      )
-      .mockResolvedValueOnce(
-        buildSummaryResponse({
           income: 900,
           expense: 200,
           balance: 700,
         }),
-      )
+      );
+    transactionsService.getMonthlySummaryCompare
+      .mockResolvedValueOnce(buildSummaryCompareResponse())
       .mockResolvedValueOnce(
-        buildSummaryResponse({
-          income: 880,
-          expense: 220,
-          balance: 660,
+        buildSummaryCompareResponse({
+          current: {
+            income: 900,
+            expense: 200,
+            balance: 700,
+          },
+          previous: {
+            income: 880,
+            expense: 220,
+            balance: 660,
+          },
+          delta: {
+            income: 20,
+            expense: -20,
+            balance: 40,
+            incomePct: 2.27,
+            expensePct: -9.09,
+            balancePct: 6.06,
+          },
         }),
       );
 
@@ -1762,7 +1837,8 @@ describe("App", () => {
         "11111111-1111-4111-8111-111111111111",
       );
       expect(transactionsService.listPage).toHaveBeenCalledTimes(2);
-      expect(transactionsService.getMonthlySummary).toHaveBeenCalledTimes(4);
+      expect(transactionsService.getMonthlySummary).toHaveBeenCalledTimes(2);
+      expect(transactionsService.getMonthlySummaryCompare).toHaveBeenCalledTimes(2);
     });
 
     expect(screen.queryByLabelText("Arquivo CSV")).not.toBeInTheDocument();

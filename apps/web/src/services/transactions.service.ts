@@ -78,6 +78,34 @@ export interface MonthlySummary {
   byCategory: MonthlySummaryByCategory[];
 }
 
+export interface MonthlySummaryCompareValues {
+  income: number;
+  expense: number;
+  balance: number;
+}
+
+export interface MonthlySummaryCompareDelta extends MonthlySummaryCompareValues {
+  incomePct: number | null;
+  expensePct: number | null;
+  balancePct: number | null;
+}
+
+export interface MonthlySummaryByCategoryDelta {
+  categoryId: number | null;
+  categoryName: string;
+  current: number;
+  previous: number;
+  delta: number;
+  deltaPct: number | null;
+}
+
+export interface MonthlySummaryCompare {
+  current: MonthlySummaryCompareValues;
+  previous: MonthlySummaryCompareValues;
+  delta: MonthlySummaryCompareDelta;
+  byCategoryDelta: MonthlySummaryByCategoryDelta[];
+}
+
 export type MonthlyBudgetStatus = "ok" | "near_limit" | "exceeded";
 
 export interface MonthlyBudget {
@@ -210,6 +238,35 @@ interface MonthlySummaryApiResponse {
     categoryId?: unknown;
     categoryName?: unknown;
     expense?: unknown;
+  }>;
+}
+
+interface MonthlySummaryCompareApiResponse {
+  current?: {
+    income?: unknown;
+    expense?: unknown;
+    balance?: unknown;
+  };
+  previous?: {
+    income?: unknown;
+    expense?: unknown;
+    balance?: unknown;
+  };
+  delta?: {
+    income?: unknown;
+    expense?: unknown;
+    balance?: unknown;
+    incomePct?: unknown;
+    expensePct?: unknown;
+    balancePct?: unknown;
+  };
+  byCategoryDelta?: Array<{
+    categoryId?: unknown;
+    categoryName?: unknown;
+    current?: unknown;
+    previous?: unknown;
+    delta?: unknown;
+    deltaPct?: unknown;
   }>;
 }
 
@@ -368,6 +425,15 @@ const resolveCsvFilename = (contentDispositionHeader: unknown): string => {
   }
 };
 
+const normalizeNullableNumber = (value: unknown): number | null => {
+  if (value === null) {
+    return null;
+  }
+
+  const normalizedValue = Number(value);
+  return Number.isFinite(normalizedValue) ? normalizedValue : null;
+};
+
 export const transactionsService = {
   listPage: async (options: TransactionListOptions = {}): Promise<TransactionsPageResult> => {
     const params = buildTransactionParams(options);
@@ -442,6 +508,54 @@ export const transactionsService = {
       expense: Number(responseBody.expense) || 0,
       balance: Number(responseBody.balance) || 0,
       byCategory,
+    };
+  },
+  getMonthlySummaryCompare: async (month: string): Promise<MonthlySummaryCompare> => {
+    const { data } = await api.get("/transactions/summary", {
+      params: { month, compare: "prev" },
+    });
+    const responseBody = data as MonthlySummaryCompareApiResponse;
+    const byCategoryDelta = Array.isArray(responseBody.byCategoryDelta)
+      ? responseBody.byCategoryDelta.map((item) => {
+          const numericCategoryId = Number(item?.categoryId);
+
+          return {
+            categoryId:
+              Number.isInteger(numericCategoryId) && numericCategoryId > 0
+                ? numericCategoryId
+                : null,
+            categoryName:
+              typeof item?.categoryName === "string" && item.categoryName.trim()
+                ? item.categoryName.trim()
+                : "Sem categoria",
+            current: Number(item?.current) || 0,
+            previous: Number(item?.previous) || 0,
+            delta: Number(item?.delta) || 0,
+            deltaPct: normalizeNullableNumber(item?.deltaPct),
+          };
+        })
+      : [];
+
+    return {
+      current: {
+        income: Number(responseBody.current?.income) || 0,
+        expense: Number(responseBody.current?.expense) || 0,
+        balance: Number(responseBody.current?.balance) || 0,
+      },
+      previous: {
+        income: Number(responseBody.previous?.income) || 0,
+        expense: Number(responseBody.previous?.expense) || 0,
+        balance: Number(responseBody.previous?.balance) || 0,
+      },
+      delta: {
+        income: Number(responseBody.delta?.income) || 0,
+        expense: Number(responseBody.delta?.expense) || 0,
+        balance: Number(responseBody.delta?.balance) || 0,
+        incomePct: normalizeNullableNumber(responseBody.delta?.incomePct),
+        expensePct: normalizeNullableNumber(responseBody.delta?.expensePct),
+        balancePct: normalizeNullableNumber(responseBody.delta?.balancePct),
+      },
+      byCategoryDelta,
     };
   },
   getMonthlyBudgets: async (month: string): Promise<MonthlyBudget[]> => {

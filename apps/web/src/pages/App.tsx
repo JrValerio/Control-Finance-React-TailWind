@@ -11,6 +11,7 @@ import {
   transactionsService,
   type CategoryOption,
   type MonthlyBudget,
+  type MonthlySummaryCompare,
   type MonthlyBudgetStatus,
   type MonthlySummary,
   type Transaction,
@@ -162,6 +163,27 @@ const DEFAULT_MONTHLY_SUMMARY: MonthlySummary = {
   balance: 0,
   byCategory: [],
 };
+const DEFAULT_MONTHLY_SUMMARY_COMPARE: MonthlySummaryCompare = {
+  current: {
+    income: 0,
+    expense: 0,
+    balance: 0,
+  },
+  previous: {
+    income: 0,
+    expense: 0,
+    balance: 0,
+  },
+  delta: {
+    income: 0,
+    expense: 0,
+    balance: 0,
+    incomePct: 0,
+    expensePct: 0,
+    balancePct: 0,
+  },
+  byCategoryDelta: [],
+};
 const MONTH_VALUE_REGEX = /^\d{4}-(0[1-9]|1[0-2])$/;
 const MOM_TONE_CLASSNAMES: Record<MonthOverMonthTone, string> = {
   good: "text-green-200",
@@ -200,19 +222,6 @@ const isSelectedPeriod = (value: string | null): value is SelectedPeriod =>
   value === PERIOD_CUSTOM;
 
 const getCurrentMonth = () => getTodayISODate().slice(0, 7);
-const getPreviousMonth = (monthValue: string): string => {
-  if (!MONTH_VALUE_REGEX.test(String(monthValue || "").trim())) {
-    return getCurrentMonth();
-  }
-
-  const [yearPart, monthPart] = monthValue.split("-");
-  const year = Number(yearPart);
-  const month = Number(monthPart);
-  const previousMonthDate = new Date(year, month - 2, 1);
-  const normalizedMonth = String(previousMonthDate.getMonth() + 1).padStart(2, "0");
-
-  return `${previousMonthDate.getFullYear()}-${normalizedMonth}`;
-};
 const getCurrentMonthRange = (referenceDate = new Date()) => {
   const year = referenceDate.getFullYear();
   const month = referenceDate.getMonth();
@@ -444,19 +453,13 @@ const normalizeMonthlySummary = (summary: MonthlySummary, fallbackMonth: string)
 });
 const calculateMonthOverMonthMetric = (
   metricKey: SummaryMetricKey,
-  currentValue: number,
-  previousValue: number,
+  deltaValue: number,
+  deltaPercentValue: number | null,
 ): MonthOverMonthMetric => {
-  const normalizedCurrent = Number(currentValue) || 0;
-  const normalizedPrevious = Number(previousValue) || 0;
-  const delta = normalizedCurrent - normalizedPrevious;
+  const delta = Number(deltaValue) || 0;
   const direction: MonthOverMonthDirection = delta > 0 ? "up" : delta < 0 ? "down" : "flat";
   const deltaPercent =
-    normalizedPrevious === 0
-      ? normalizedCurrent === 0
-        ? 0
-        : null
-      : (delta / normalizedPrevious) * 100;
+    deltaPercentValue === null ? null : Number.isFinite(Number(deltaPercentValue)) ? Number(deltaPercentValue) : 0;
 
   let tone: MonthOverMonthTone = "neutral";
 
@@ -545,10 +548,9 @@ const App = ({
   const [isLoadingSummary, setLoadingSummary] = useState(false);
   const [isExportingCsv, setExportingCsv] = useState(false);
   const [monthlySummary, setMonthlySummary] = useState<MonthlySummary>(DEFAULT_MONTHLY_SUMMARY);
-  const [previousMonthlySummary, setPreviousMonthlySummary] = useState<MonthlySummary>(() => ({
-    ...DEFAULT_MONTHLY_SUMMARY,
-    month: getPreviousMonth(getCurrentMonth()),
-  }));
+  const [monthlySummaryCompare, setMonthlySummaryCompare] = useState<MonthlySummaryCompare>(
+    DEFAULT_MONTHLY_SUMMARY_COMPARE,
+  );
   const [monthlyBudgets, setMonthlyBudgets] = useState<MonthlyBudget[]>(DEFAULT_MONTHLY_BUDGETS);
   const [summaryError, setSummaryError] = useState("");
   const [momError, setMomError] = useState("");
@@ -739,11 +741,10 @@ const App = ({
     setLoadingSummary(true);
     setSummaryError("");
     setMomError("");
-    const previousSummaryMonth = getPreviousMonth(selectedSummaryMonth);
 
-    const [currentSummaryResult, previousSummaryResult] = await Promise.allSettled([
+    const [currentSummaryResult, compareSummaryResult] = await Promise.allSettled([
       transactionsService.getMonthlySummary(selectedSummaryMonth),
-      transactionsService.getMonthlySummary(previousSummaryMonth),
+      transactionsService.getMonthlySummaryCompare(selectedSummaryMonth),
     ]);
 
     if (currentSummaryResult.status === "fulfilled") {
@@ -758,17 +759,12 @@ const App = ({
       );
     }
 
-    if (previousSummaryResult.status === "fulfilled") {
-      setPreviousMonthlySummary(
-        normalizeMonthlySummary(previousSummaryResult.value, previousSummaryMonth),
-      );
+    if (compareSummaryResult.status === "fulfilled") {
+      setMonthlySummaryCompare(compareSummaryResult.value);
     } else {
-      setPreviousMonthlySummary({
-        ...DEFAULT_MONTHLY_SUMMARY,
-        month: previousSummaryMonth,
-      });
+      setMonthlySummaryCompare(DEFAULT_MONTHLY_SUMMARY_COMPARE);
       setMomError(
-        getApiErrorMessage(previousSummaryResult.reason, "Comparacao mensal indisponivel."),
+        getApiErrorMessage(compareSummaryResult.reason, "Comparacao mensal indisponivel."),
       );
     }
 
@@ -1078,27 +1074,27 @@ const App = ({
     () => ({
       balance: calculateMonthOverMonthMetric(
         "balance",
-        monthlySummary.balance,
-        previousMonthlySummary.balance,
+        monthlySummaryCompare.delta.balance,
+        monthlySummaryCompare.delta.balancePct,
       ),
       income: calculateMonthOverMonthMetric(
         "income",
-        monthlySummary.income,
-        previousMonthlySummary.income,
+        monthlySummaryCompare.delta.income,
+        monthlySummaryCompare.delta.incomePct,
       ),
       expense: calculateMonthOverMonthMetric(
         "expense",
-        monthlySummary.expense,
-        previousMonthlySummary.expense,
+        monthlySummaryCompare.delta.expense,
+        monthlySummaryCompare.delta.expensePct,
       ),
     }),
     [
-      monthlySummary.balance,
-      monthlySummary.expense,
-      monthlySummary.income,
-      previousMonthlySummary.balance,
-      previousMonthlySummary.expense,
-      previousMonthlySummary.income,
+      monthlySummaryCompare.delta.balance,
+      monthlySummaryCompare.delta.balancePct,
+      monthlySummaryCompare.delta.expense,
+      monthlySummaryCompare.delta.expensePct,
+      monthlySummaryCompare.delta.income,
+      monthlySummaryCompare.delta.incomePct,
     ],
   );
   const budgetAlerts = useMemo(
