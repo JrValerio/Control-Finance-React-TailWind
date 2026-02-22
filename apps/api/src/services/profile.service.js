@@ -1,0 +1,152 @@
+import { dbQuery } from "../db/index.js";
+
+const createError = (status, message) => {
+  const error = new Error(message);
+  error.status = status;
+  return error;
+};
+
+const normalizeUserId = (value) => {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw createError(401, "Usuario nao autenticado.");
+  }
+  return parsed;
+};
+
+// Returns undefined → field was not sent (skip update)
+// Returns null     → field was explicitly set to null (clear)
+// Returns value    → set to that value
+
+const normalizeDisplayName = (value) => {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (typeof value !== "string") throw createError(400, "display_name deve ser texto.");
+  const trimmed = value.trim();
+  if (trimmed.length > 100) throw createError(400, "display_name deve ter no maximo 100 caracteres.");
+  return trimmed || null;
+};
+
+const normalizeSalaryMonthly = (value) => {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  const n = Number(value);
+  if (!Number.isFinite(n)) throw createError(400, "salary_monthly deve ser um numero.");
+  if (n < 0) throw createError(400, "salary_monthly nao pode ser negativo.");
+  return n;
+};
+
+const normalizePayday = (value) => {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < 1 || n > 31) {
+    throw createError(400, "payday deve ser um inteiro entre 1 e 31.");
+  }
+  return n;
+};
+
+const normalizeAvatarUrl = (value) => {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (typeof value !== "string") throw createError(400, "avatar_url deve ser texto.");
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (!trimmed.startsWith("https://")) {
+    throw createError(400, "avatar_url deve comecar com https://.");
+  }
+  if (trimmed.length > 2048) {
+    throw createError(400, "avatar_url deve ter no maximo 2048 caracteres.");
+  }
+  return trimmed;
+};
+
+const rowToProfile = (row) => ({
+  displayName: row.display_name ?? null,
+  salaryMonthly:
+    row.salary_monthly !== null && row.salary_monthly !== undefined
+      ? Number(row.salary_monthly)
+      : null,
+  payday: row.payday !== null && row.payday !== undefined ? Number(row.payday) : null,
+  avatarUrl: row.avatar_url ?? null,
+});
+
+export const getMyProfile = async (userId) => {
+  const normalizedUserId = normalizeUserId(userId);
+
+  const userResult = await dbQuery(
+    `SELECT id, name, email FROM users WHERE id = $1 LIMIT 1`,
+    [normalizedUserId],
+  );
+
+  if (userResult.rows.length === 0) {
+    throw createError(404, "Usuario nao encontrado.");
+  }
+
+  const user = userResult.rows[0];
+
+  const profileResult = await dbQuery(
+    `SELECT display_name, salary_monthly, payday, avatar_url
+     FROM user_profiles WHERE user_id = $1 LIMIT 1`,
+    [normalizedUserId],
+  );
+
+  return {
+    id: Number(user.id),
+    name: user.name,
+    email: user.email,
+    profile: profileResult.rows.length > 0 ? rowToProfile(profileResult.rows[0]) : null,
+  };
+};
+
+export const updateMyProfile = async (userId, payload = {}) => {
+  const normalizedUserId = normalizeUserId(userId);
+
+  // Normalize only fields that were explicitly sent (undefined = not sent)
+  const updates = {};
+
+  const displayName = normalizeDisplayName(payload.display_name);
+  if (displayName !== undefined) updates.display_name = displayName;
+
+  const salaryMonthly = normalizeSalaryMonthly(payload.salary_monthly);
+  if (salaryMonthly !== undefined) updates.salary_monthly = salaryMonthly;
+
+  const normalizedPayday = normalizePayday(payload.payday);
+  if (normalizedPayday !== undefined) updates.payday = normalizedPayday;
+
+  const avatarUrl = normalizeAvatarUrl(payload.avatar_url);
+  if (avatarUrl !== undefined) updates.avatar_url = avatarUrl;
+
+  if (Object.keys(updates).length === 0) {
+    throw createError(400, "Nenhum campo valido enviado para atualizacao.");
+  }
+
+  const cols = Object.keys(updates);
+  const vals = Object.values(updates);
+  const now = new Date().toISOString();
+
+  // $1 = userId, $2..$N = field values, $N+1 = now
+  const nowIdx = vals.length + 2;
+  const insertColsSql = ["user_id", ...cols, "updated_at"].join(", ");
+  const insertPlaceholders = ["$1", ...cols.map((_, i) => `$${i + 2}`), `$${nowIdx}`].join(", ");
+  const setClauses = [
+    ...cols.map((col, i) => `${col} = $${i + 2}`),
+    `updated_at = $${nowIdx}`,
+  ].join(", ");
+
+  await dbQuery(
+    `INSERT INTO user_profiles (${insertColsSql})
+     VALUES (${insertPlaceholders})
+     ON CONFLICT (user_id)
+     DO UPDATE SET ${setClauses}`,
+    [normalizedUserId, ...vals, now],
+  );
+
+  const result = await dbQuery(
+    `SELECT display_name, salary_monthly, payday, avatar_url
+     FROM user_profiles WHERE user_id = $1 LIMIT 1`,
+    [normalizedUserId],
+  );
+
+  return rowToProfile(result.rows[0]);
+};
