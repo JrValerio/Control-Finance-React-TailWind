@@ -103,6 +103,7 @@ interface AppProps {
   onOpenCategoriesSettings?: () => void;
   onOpenBillingSettings?: () => void;
   onOpenProfileSettings?: () => void;
+  onOpenSecuritySettings?: () => void;
 }
 
 const PERIOD_OPTIONS = [
@@ -445,6 +446,7 @@ const App = ({
   onOpenCategoriesSettings = undefined,
   onOpenBillingSettings = undefined,
   onOpenProfileSettings = undefined,
+  onOpenSecuritySettings = undefined,
 }: AppProps): JSX.Element => {
   const initialFilterState = useMemo(() => getInitialFilterState(), []);
   const initialPaginationState = useMemo(() => getInitialPaginationState(), []);
@@ -1363,6 +1365,11 @@ const App = ({
     onOpenProfileSettings?.();
   };
 
+  const handleOpenSecuritySettings = () => {
+    closeMobileActionsMenu();
+    onOpenSecuritySettings?.();
+  };
+
   const handleLogoutFromActionsMenu = () => {
     closeMobileActionsMenu();
     onLogout?.();
@@ -1568,6 +1575,16 @@ const App = ({
                         Perfil
                       </button>
                     ) : null}
+                    {onOpenSecuritySettings ? (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={handleOpenSecuritySettings}
+                        className="rounded px-2 py-2 text-left text-xs font-semibold text-cf-text-primary hover:bg-cf-bg-subtle"
+                      >
+                        Seguranca
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       role="menuitem"
@@ -1657,6 +1674,15 @@ const App = ({
                     className="whitespace-nowrap rounded border border-cf-border bg-cf-surface px-2.5 py-1.5 text-xs font-semibold text-cf-text-primary hover:bg-cf-bg-subtle"
                   >
                     Perfil
+                  </button>
+                ) : null}
+                {onOpenSecuritySettings ? (
+                  <button
+                    type="button"
+                    onClick={handleOpenSecuritySettings}
+                    className="whitespace-nowrap rounded border border-cf-border bg-cf-surface px-2.5 py-1.5 text-xs font-semibold text-cf-text-primary hover:bg-cf-bg-subtle"
+                  >
+                    Seguranca
                   </button>
                 ) : null}
               </div>

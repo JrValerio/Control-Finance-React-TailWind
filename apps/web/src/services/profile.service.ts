@@ -11,6 +11,8 @@ export interface MeResponse {
   id: number;
   name: string;
   email: string;
+  hasPassword?: boolean;
+  linkedProviders?: string[];
   profile: UserProfile | null;
 }
 
