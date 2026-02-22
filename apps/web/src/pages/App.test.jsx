@@ -6,6 +6,10 @@ import { CATEGORY_ENTRY, CATEGORY_EXIT } from "../components/DatabaseUtils";
 import { transactionsService } from "../services/transactions.service";
 import { analyticsService } from "../services/analytics.service";
 
+vi.mock("../hooks/useTheme", () => ({
+  useTheme: () => ({ theme: "light", toggleTheme: vi.fn() }),
+}));
+
 vi.mock("../components/TransactionChart", () => ({
   default: () => <div data-testid="transaction-chart" />,
 }));
