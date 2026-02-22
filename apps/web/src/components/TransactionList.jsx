@@ -18,21 +18,21 @@ const TransactionList = ({ transactions, onDelete, onEdit }) => {
       {transactions.map((transaction) => (
         <div
           key={transaction.id}
-          className="my-2 flex w-full min-w-0 flex-col items-start gap-2 rounded border border-brand-1 bg-gray-mode p-3.5 sm:flex-row sm:items-center sm:justify-between"
+          className="my-2 flex w-full min-w-0 flex-col items-start gap-2 rounded border border-brand-1 bg-cf-surface p-3.5 sm:flex-row sm:items-center sm:justify-between"
         >
           <div className="flex min-w-0 flex-1 flex-col">
-            <span className="break-words text-sm font-medium text-gray-100">
+            <span className="break-words text-sm font-medium text-cf-text-primary">
               {transaction.description || "Sem descricao"}
             </span>
-            <span className="text-base font-medium text-gray-100">
+            <span className="text-base font-medium text-cf-text-primary">
               {formatValue(transaction.value)}
             </span>
-            <span className="text-xs text-gray-200">{formatDate(transaction.date)}</span>
-            <span className="break-words text-xs text-gray-200">
+            <span className="text-xs text-cf-text-secondary">{formatDate(transaction.date)}</span>
+            <span className="break-words text-xs text-cf-text-secondary">
               Categoria: {transaction.categoryName || "Sem categoria"}
             </span>
             {transaction.notes ? (
-              <span className="break-words text-xs text-gray-200">{transaction.notes}</span>
+              <span className="break-words text-xs text-cf-text-secondary">{transaction.notes}</span>
             ) : null}
           </div>
 
@@ -41,7 +41,7 @@ const TransactionList = ({ transactions, onDelete, onEdit }) => {
               className={`whitespace-nowrap rounded px-3 py-1 text-sm font-medium ${
                 transaction.type === CATEGORY_ENTRY
                   ? "bg-brand-3 text-brand-1"
-                  : "bg-gray-400 text-gray-100"
+                  : "bg-cf-bg-subtle text-cf-text-primary"
               }`}
             >
               {transaction.type}
@@ -49,7 +49,7 @@ const TransactionList = ({ transactions, onDelete, onEdit }) => {
             <button
               type="button"
               onClick={() => onEdit(transaction)}
-              className="whitespace-nowrap rounded border border-gray-300 px-2 py-1 text-xs font-semibold text-gray-200 transition-colors hover:border-gray-200 hover:text-gray-100"
+              className="whitespace-nowrap rounded border border-cf-border px-2 py-1 text-xs font-semibold text-cf-text-secondary transition-colors hover:border-cf-border-input hover:text-cf-text-primary"
               aria-label={`Editar transacao ${transaction.id}`}
             >
               Editar
@@ -57,7 +57,7 @@ const TransactionList = ({ transactions, onDelete, onEdit }) => {
             <button
               type="button"
               onClick={() => onDelete(transaction.id)}
-              className="whitespace-nowrap rounded border border-gray-300 px-2 py-1 text-xs font-semibold text-gray-200 transition-colors hover:border-gray-200 hover:text-gray-100"
+              className="whitespace-nowrap rounded border border-cf-border px-2 py-1 text-xs font-semibold text-cf-text-secondary transition-colors hover:border-cf-border-input hover:text-cf-text-primary"
               aria-label={`Excluir transacao ${transaction.id}`}
             >
               Excluir

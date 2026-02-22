@@ -201,13 +201,13 @@ const CategoriesSettings = ({
   };
 
   return (
-    <div className="min-h-screen bg-gray-500 py-6">
+    <div className="min-h-screen bg-cf-bg-page py-6">
       <main className="mx-auto w-full max-w-4xl space-y-4 px-4 sm:px-6">
-        <section className="rounded border border-gray-300 bg-white p-4">
+        <section className="rounded border border-cf-border bg-cf-surface p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h1 className="text-xl font-semibold text-gray-100">Settings - Categorias</h1>
-              <p className="mt-1 text-sm text-gray-200">
+              <h1 className="text-xl font-semibold text-cf-text-primary">Settings - Categorias</h1>
+              <p className="mt-1 text-sm text-cf-text-secondary">
                 Gerencie categorias ativas e removidas para os lancamentos.
               </p>
             </div>
@@ -215,7 +215,7 @@ const CategoriesSettings = ({
               <button
                 type="button"
                 onClick={onBack}
-                className="rounded border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-100 hover:bg-gray-400"
+                className="rounded border border-cf-border bg-cf-surface px-3 py-1.5 text-xs font-semibold text-cf-text-primary hover:bg-cf-bg-subtle"
               >
                 Voltar ao dashboard
               </button>
@@ -223,7 +223,7 @@ const CategoriesSettings = ({
                 <button
                   type="button"
                   onClick={onLogout}
-                  className="rounded border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-100 hover:bg-gray-400"
+                  className="rounded border border-cf-border bg-cf-surface px-3 py-1.5 text-xs font-semibold text-cf-text-primary hover:bg-cf-bg-subtle"
                 >
                   Sair
                 </button>
@@ -231,8 +231,8 @@ const CategoriesSettings = ({
             </div>
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded border border-gray-200 bg-gray-50 px-3 py-2">
-            <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-gray-700">
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded border border-cf-border bg-cf-bg-subtle px-3 py-2">
+            <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-cf-text-primary">
               <input
                 type="checkbox"
                 checked={includeDeleted}
@@ -280,7 +280,7 @@ const CategoriesSettings = ({
               {Array.from({ length: 4 }).map((_, index) => (
                 <div
                   key={`categories-skeleton-${index + 1}`}
-                  className="h-12 animate-pulse rounded border border-gray-300 bg-gray-100"
+                  className="h-12 animate-pulse rounded border border-cf-border bg-cf-bg-subtle"
                 />
               ))}
               <span className="sr-only">Carregando categorias...</span>
@@ -288,7 +288,7 @@ const CategoriesSettings = ({
           ) : null}
 
           {!isLoadingCategories && categories.length === 0 ? (
-            <div className="mt-3 rounded border border-gray-300 bg-gray-50 px-3 py-3 text-sm text-gray-700">
+            <div className="mt-3 rounded border border-cf-border bg-cf-bg-subtle px-3 py-3 text-sm text-cf-text-secondary">
               Nenhuma categoria encontrada para o filtro atual.
             </div>
           ) : null}
@@ -301,11 +301,11 @@ const CategoriesSettings = ({
                 return (
                   <li
                     key={category.id}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded border border-gray-300 bg-white px-3 py-2"
+                    className="flex flex-wrap items-center justify-between gap-3 rounded border border-cf-border bg-cf-surface px-3 py-2"
                   >
                     <div className="min-w-0">
-                      <p className="break-words text-sm font-semibold text-gray-900">{category.name}</p>
-                      <p className="text-xs text-gray-200">
+                      <p className="break-words text-sm font-semibold text-cf-text-primary">{category.name}</p>
+                      <p className="text-xs text-cf-text-secondary">
                         {isDeleted ? "Removida" : "Ativa"}
                       </p>
                     </div>
@@ -324,7 +324,7 @@ const CategoriesSettings = ({
                           <button
                             type="button"
                             onClick={() => openRenameCategoryModal(category)}
-                            className="rounded border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100"
+                            className="rounded border border-cf-border bg-cf-surface px-2 py-1 text-xs font-semibold text-cf-text-primary hover:bg-cf-bg-subtle"
                           >
                             Renomear
                           </button>
@@ -352,9 +352,9 @@ const CategoriesSettings = ({
             role="dialog"
             aria-modal="true"
             aria-labelledby="category-modal-title"
-            className="w-full max-w-sm rounded bg-white p-4 shadow-lg"
+            className="w-full max-w-sm rounded bg-cf-surface p-4 shadow-lg"
           >
-            <h2 id="category-modal-title" className="text-base font-semibold text-gray-900">
+            <h2 id="category-modal-title" className="text-base font-semibold text-cf-text-primary">
               {editingCategory ? "Renomear categoria" : "Nova categoria"}
             </h2>
 
@@ -369,7 +369,7 @@ const CategoriesSettings = ({
 
             <form onSubmit={handleSubmitCategory} className="mt-3 space-y-3">
               <div>
-                <label htmlFor="category-name" className="mb-1 block text-xs font-medium text-gray-900">
+                <label htmlFor="category-name" className="mb-1 block text-xs font-medium text-cf-text-primary">
                   Nome
                 </label>
                 <input
@@ -381,7 +381,7 @@ const CategoriesSettings = ({
                     setCategoryModalErrorMessage("");
                   }}
                   placeholder="Ex.: Alimentacao"
-                  className="w-full rounded border border-gray-400 px-3 py-2 text-sm text-gray-900"
+                  className="w-full rounded border border-cf-border-input bg-cf-surface px-3 py-2 text-sm text-cf-text-primary"
                 />
               </div>
 
@@ -390,7 +390,7 @@ const CategoriesSettings = ({
                   type="button"
                   onClick={closeCategoryModal}
                   disabled={isSavingCategory}
-                  className="rounded border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="rounded border border-cf-border px-3 py-1.5 text-sm font-semibold text-cf-text-secondary disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   Cancelar
                 </button>

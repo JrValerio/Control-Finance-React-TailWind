@@ -1621,15 +1621,15 @@ const App = ({
 
       <main className="mx-auto mt-8 w-full max-w-6xl space-y-6 px-4 sm:mt-10 sm:px-6">
         <section ref={filtersPanelRef}>
-          <div className="space-y-4 rounded border border-gray-300 bg-white p-4">
-            <div className="flex items-start justify-between gap-3 rounded border border-gray-200 bg-gray-50 px-3 py-2">
-              <h2 className="text-base font-semibold text-gray-100">Resumo financeiro</h2>
+          <div className="space-y-4 rounded border border-cf-border bg-cf-surface p-4">
+            <div className="flex items-start justify-between gap-3 rounded border border-cf-border bg-cf-bg-subtle px-3 py-2">
+              <h2 className="text-base font-semibold text-cf-text-primary">Resumo financeiro</h2>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setIsFiltersPanelOpen(!isFiltersPanelOpen)}
                   aria-expanded={isFiltersPanelOpen}
-                  className="whitespace-nowrap rounded border border-gray-300 bg-white px-2.5 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100"
+                  className="whitespace-nowrap rounded border border-cf-border bg-cf-surface px-2.5 py-1 text-xs font-semibold text-cf-text-primary hover:bg-cf-bg-subtle"
                 >
                   {isFiltersPanelOpen ? "Ocultar" : "Filtros"}
                 </button>
@@ -1637,22 +1637,22 @@ const App = ({
             </div>
 
             {hasActiveFilters && appliedChips.length > 0 ? (
-              <div className="w-full max-w-full space-y-2 overflow-hidden rounded border border-gray-200 bg-gray-50 p-2">
+              <div className="w-full max-w-full space-y-2 overflow-hidden rounded border border-cf-border bg-cf-bg-subtle p-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-xs font-semibold text-gray-700">
+                  <span className="text-xs font-semibold text-cf-text-primary">
                     Filtros ativos ({activeFiltersCount})
                   </span>
                   <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
                       onClick={handleEditFilters}
-                      className="rounded border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100"
+                      className="rounded border border-cf-border bg-cf-surface px-2 py-1 text-xs font-semibold text-cf-text-primary hover:bg-cf-bg-subtle"
                     >
                       Editar filtros
                     </button>
                     <button
                       type="button"
-                      className="rounded border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100"
+                      className="rounded border border-cf-border bg-cf-surface px-2 py-1 text-xs font-semibold text-cf-text-primary hover:bg-cf-bg-subtle"
                       onClick={() => applyFilterPreset("clear")}
                     >
                       Limpar tudo
@@ -1697,7 +1697,7 @@ const App = ({
 
             {isFiltersContentVisible ? (
               <div className="space-y-4">
-                <div className="space-y-3 rounded border border-gray-200 bg-gray-50 p-3">
+                <div className="space-y-3 rounded border border-cf-border bg-cf-bg-subtle p-3">
                   {shouldShowPresets ? (
                     <div className="flex flex-wrap items-center gap-1.5">
                       {visibleFilterPresets.map((preset) => (
@@ -1709,7 +1709,7 @@ const App = ({
                           className={`min-w-[88px] rounded border px-3 py-1.5 text-xs font-semibold transition-colors ${
                             isPresetActive(preset.id)
                               ? "border-brand-1 bg-brand-3 text-brand-1"
-                              : "border-gray-300 bg-white text-gray-900 hover:bg-gray-100"
+                              : "border-cf-border bg-cf-surface text-cf-text-primary hover:bg-cf-bg-subtle"
                           }`}
                         >
                           {preset.label}
@@ -1718,7 +1718,7 @@ const App = ({
                     </div>
                   ) : null}
                   <div className="flex flex-col gap-1.5">
-                    <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-200">
+                    <span className="text-[11px] font-semibold uppercase tracking-wide text-cf-text-secondary">
                       Tipo
                     </span>
                     <div className="flex flex-wrap items-center gap-1.5">
@@ -1736,7 +1736,7 @@ const App = ({
                             className={`min-w-[84px] rounded border px-3 py-1.5 text-xs font-semibold transition-colors ${
                               active
                                 ? "border-brand-1 bg-brand-3 text-brand-1"
-                                : "border-gray-300 bg-white text-gray-200"
+                                : "border-cf-border bg-cf-surface text-cf-text-secondary"
                             }`}
                           >
                             {FILTER_BUTTON_LABELS[category]}
@@ -1747,10 +1747,10 @@ const App = ({
                   </div>
                 </div>
 
-                <div className="rounded border border-gray-200 bg-white p-3">
+                <div className="rounded border border-cf-border bg-cf-surface p-3">
             <label
               htmlFor="periodo"
-              className="mb-2 block text-sm font-medium text-gray-100"
+              className="mb-2 block text-sm font-medium text-cf-text-primary"
             >
               Periodo
             </label>
@@ -1767,7 +1767,7 @@ const App = ({
                   setCustomEndDate("");
                 }
               }}
-              className="w-full rounded border border-gray-400 px-3 py-2 text-sm text-gray-200"
+              className="w-full rounded border border-cf-border-input bg-cf-surface px-3 py-2 text-sm text-cf-text-secondary"
             >
               {PERIOD_OPTIONS.map((period) => (
                 <option key={period} value={period}>
@@ -1779,7 +1779,7 @@ const App = ({
             <div className="mt-3">
               <label
                 htmlFor="categoria-filtro"
-                className="mb-1 block text-xs font-medium text-gray-100"
+                className="mb-1 block text-xs font-medium text-cf-text-primary"
               >
                 Categoria
               </label>
@@ -1790,7 +1790,7 @@ const App = ({
                   setSelectedTransactionCategoryId(event.target.value);
                   setCurrentOffset(DEFAULT_OFFSET);
                 }}
-                className="w-full rounded border border-gray-400 px-3 py-2 text-sm text-gray-200"
+                className="w-full rounded border border-cf-border-input bg-cf-surface px-3 py-2 text-sm text-cf-text-secondary"
               >
                 <option value="">Todas</option>
                 {categories.map((categoryOption) => (
@@ -1804,7 +1804,7 @@ const App = ({
             <div className="mt-3">
               <label
                 htmlFor="ordenacao-transacoes"
-                className="mb-1 block text-xs font-medium text-gray-100"
+                className="mb-1 block text-xs font-medium text-cf-text-primary"
               >
                 Ordenar por
               </label>
@@ -1815,7 +1815,7 @@ const App = ({
                   setSelectedSort(normalizeSortOption(event.target.value));
                   setCurrentOffset(DEFAULT_OFFSET);
                 }}
-                className="w-full rounded border border-gray-400 px-3 py-2 text-sm text-gray-200"
+                className="w-full rounded border border-cf-border-input bg-cf-surface px-3 py-2 text-sm text-cf-text-secondary"
               >
                 {SORT_OPTIONS.map((sortOption) => (
                   <option key={sortOption.value} value={sortOption.value}>
@@ -1826,7 +1826,7 @@ const App = ({
             </div>
 
             <div className="mt-3">
-              <label htmlFor="busca-transacoes" className="mb-1 block text-xs font-medium text-gray-100">
+              <label htmlFor="busca-transacoes" className="mb-1 block text-xs font-medium text-cf-text-primary">
                 Buscar
               </label>
               <form onSubmit={handleApplyQueryFilter} className="flex gap-2">
@@ -1838,11 +1838,11 @@ const App = ({
                   onChange={(event) => setQueryInput(event.target.value)}
                   onKeyDown={handleQueryInputKeyDown}
                   placeholder="Descricao ou observacoes"
-                  className="w-full rounded border border-gray-400 px-3 py-2 text-sm text-gray-200"
+                  className="w-full rounded border border-cf-border-input bg-cf-surface px-3 py-2 text-sm text-cf-text-secondary"
                 />
                 <button
                   type="submit"
-                  className="rounded border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-100 hover:bg-gray-400"
+                  className="rounded border border-cf-border bg-cf-surface px-3 py-2 text-sm font-semibold text-cf-text-primary hover:bg-cf-bg-subtle"
                 >
                   Aplicar
                 </button>
@@ -1854,7 +1854,7 @@ const App = ({
                       <div>
                         <label
                           htmlFor="data-inicial"
-                          className="mb-1 block text-xs font-medium text-gray-100"
+                          className="mb-1 block text-xs font-medium text-cf-text-primary"
                         >
                           Data inicial
                         </label>
@@ -1866,13 +1866,13 @@ const App = ({
                             setCustomStartDate(event.target.value);
                             setCurrentOffset(DEFAULT_OFFSET);
                           }}
-                          className="w-full rounded border border-gray-400 px-3 py-2 text-sm text-gray-200"
+                          className="w-full rounded border border-cf-border-input bg-cf-surface px-3 py-2 text-sm text-cf-text-secondary"
                         />
                       </div>
                       <div>
                         <label
                           htmlFor="data-final"
-                          className="mb-1 block text-xs font-medium text-gray-100"
+                          className="mb-1 block text-xs font-medium text-cf-text-primary"
                         >
                           Data final
                         </label>
@@ -1884,7 +1884,7 @@ const App = ({
                             setCustomEndDate(event.target.value);
                             setCurrentOffset(DEFAULT_OFFSET);
                           }}
-                          className="w-full rounded border border-gray-400 px-3 py-2 text-sm text-gray-200"
+                          className="w-full rounded border border-cf-border-input bg-cf-surface px-3 py-2 text-sm text-cf-text-secondary"
                         />
                       </div>
                     </div>
@@ -1898,13 +1898,13 @@ const App = ({
         <div className="space-y-6">
           <section ref={summarySectionRef}>
             <div className="mb-2 flex items-center justify-between gap-2">
-          <h3 className="text-sm font-medium text-gray-100">Resumo mensal</h3>
+          <h3 className="text-sm font-medium text-cf-text-primary">Resumo mensal</h3>
           <input
             type="month"
             aria-label="Mes do resumo"
             value={selectedSummaryMonth}
             onChange={(event) => setSelectedSummaryMonth(event.target.value)}
-            className="rounded border border-gray-300 bg-white px-2 py-1 text-sm text-gray-100"
+            className="rounded border border-cf-border bg-cf-surface px-2 py-1 text-sm text-cf-text-primary"
           />
             </div>
             {summaryError ? (
@@ -1924,9 +1924,9 @@ const App = ({
               </div>
             ) : null}
             <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded border border-brand-1 bg-gray-400 px-4 py-3.5">
-            <p className="text-xs font-medium uppercase text-gray-200">Saldo</p>
-            <p className="text-base font-medium text-gray-100">
+          <div className="rounded border border-brand-1 bg-cf-bg-subtle px-4 py-3.5">
+            <p className="text-xs font-medium uppercase text-cf-text-secondary">Saldo</p>
+            <p className="text-base font-medium text-cf-text-primary">
               {isLoadingSummary ? "Carregando..." : formatCurrency(monthlySummary.balance)}
             </p>
             <p
@@ -1950,9 +1950,9 @@ const App = ({
                     } ${formatSignedPercentage(monthOverMonthMetrics.balance.deltaPercent)} (${formatSignedCurrency(monthOverMonthMetrics.balance.delta)})`}
             </p>
           </div>
-          <div className="rounded border border-brand-1 bg-gray-400 px-4 py-3.5">
-            <p className="text-xs font-medium uppercase text-gray-200">Entradas</p>
-            <p className="text-base font-medium text-gray-100">
+          <div className="rounded border border-brand-1 bg-cf-bg-subtle px-4 py-3.5">
+            <p className="text-xs font-medium uppercase text-cf-text-secondary">Entradas</p>
+            <p className="text-base font-medium text-cf-text-primary">
               {isLoadingSummary ? "Carregando..." : formatCurrency(monthlySummary.income)}
             </p>
             <p
@@ -1976,9 +1976,9 @@ const App = ({
                     } ${formatSignedPercentage(monthOverMonthMetrics.income.deltaPercent)} (${formatSignedCurrency(monthOverMonthMetrics.income.delta)})`}
             </p>
           </div>
-          <div className="rounded border border-brand-1 bg-gray-400 px-4 py-3.5">
-            <p className="text-xs font-medium uppercase text-gray-200">Saidas</p>
-            <p className="text-base font-medium text-gray-100">
+          <div className="rounded border border-brand-1 bg-cf-bg-subtle px-4 py-3.5">
+            <p className="text-xs font-medium uppercase text-cf-text-secondary">Saidas</p>
+            <p className="text-base font-medium text-cf-text-primary">
               {isLoadingSummary ? "Carregando..." : formatCurrency(monthlySummary.expense)}
             </p>
             <p
@@ -2004,27 +2004,27 @@ const App = ({
           </div>
             </div>
             {!isLoadingSummary && !summaryError && momError ? (
-              <div className="mt-2 rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-600">
+              <div className="mt-2 rounded border border-cf-border bg-cf-surface px-3 py-2 text-sm text-cf-text-secondary">
                 {momError}
               </div>
             ) : null}
             {!isLoadingSummary && !summaryError && !hasMonthlySummaryData ? (
-              <div className="mt-2 rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-600">
+              <div className="mt-2 rounded border border-cf-border bg-cf-surface px-3 py-2 text-sm text-cf-text-secondary">
                 Sem dados para o mes selecionado.
               </div>
             ) : null}
             {!isLoadingSummary &&
             !summaryError &&
             summaryByCategoryExpenses.length > 0 ? (
-              <div className="mt-3 rounded border border-gray-300 bg-white p-3">
-                <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-600">
+              <div className="mt-3 rounded border border-cf-border bg-cf-surface p-3">
+                <h4 className="text-xs font-semibold uppercase tracking-wide text-cf-text-secondary">
                   Despesas por categoria
                 </h4>
                 <ul className="mt-2 space-y-1.5">
                   {summaryByCategoryExpenses.map((categoryItem) => (
                     <li
                       key={`${categoryItem.categoryId ?? "uncategorized"}-${categoryItem.categoryName}`}
-                      className="flex items-center justify-between gap-3 text-sm text-gray-700"
+                      className="flex items-center justify-between gap-3 text-sm text-cf-text-primary"
                     >
                       <span className="break-words">{categoryItem.categoryName}</span>
                       <span className="whitespace-nowrap font-semibold">
@@ -2037,11 +2037,11 @@ const App = ({
             ) : null}
             {!isLoadingSummary && !summaryError && !momError ? (
               <div
-                className="mt-3 rounded border border-gray-300 bg-white p-3"
+                className="mt-3 rounded border border-cf-border bg-cf-surface p-3"
                 role="region"
                 aria-label="Top variacoes por categoria"
               >
-                <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-600">
+                <h4 className="text-xs font-semibold uppercase tracking-wide text-cf-text-secondary">
                   Top variacoes por categoria
                 </h4>
                 {topCategoryMovers.length > 0 ? (
@@ -2050,10 +2050,10 @@ const App = ({
                       <li
                         key={`category-mover-${item.categoryId ?? item.categoryName}`}
                         data-testid="category-mover-item"
-                        className="rounded border border-gray-200 bg-gray-50 px-2.5 py-2 text-sm"
+                        className="rounded border border-cf-border bg-cf-bg-subtle px-2.5 py-2 text-sm"
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <p className="font-semibold text-gray-900">{item.categoryName}</p>
+                          <p className="font-semibold text-cf-text-primary">{item.categoryName}</p>
                           <span
                             className={`text-xs font-semibold ${MOM_TONE_CLASSNAMES[item.tone]}`}
                           >
@@ -2065,7 +2065,7 @@ const App = ({
                             type="button"
                             aria-label={`Ver transacoes categoria: ${item.categoryName}`}
                             onClick={() => handleViewCategoryMoverTransactions(item.categoryId)}
-                            className="rounded border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-800 hover:bg-gray-100"
+                            className="rounded border border-cf-border bg-cf-surface px-2 py-1 text-xs font-semibold text-cf-text-primary hover:bg-cf-bg-subtle"
                           >
                             Ver transacoes
                           </button>
@@ -2074,7 +2074,7 @@ const App = ({
                     ))}
                   </ul>
                 ) : (
-                  <p className="mt-2 text-sm text-gray-600">
+                  <p className="mt-2 text-sm text-cf-text-secondary">
                     Sem variacoes por categoria para o comparativo do mes.
                   </p>
                 )}
@@ -2083,17 +2083,17 @@ const App = ({
           </section>
 
       <section>
-        <div className="rounded border border-gray-300 bg-white p-3">
+        <div className="rounded border border-cf-border bg-cf-surface p-3">
           <div className="mb-2 flex items-center justify-between gap-2">
             <div>
-              <h3 className="text-sm font-medium text-gray-100">Metas do mes</h3>
-              <span className="text-xs text-gray-200">{selectedSummaryMonth}</span>
+              <h3 className="text-sm font-medium text-cf-text-primary">Metas do mes</h3>
+              <span className="text-xs text-cf-text-secondary">{selectedSummaryMonth}</span>
             </div>
             <button
               type="button"
               onClick={openCreateBudgetModal}
               disabled={!canCreateBudget}
-              className="rounded border border-gray-300 bg-white px-3 py-1 text-xs font-semibold text-gray-900 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded border border-cf-border bg-cf-surface px-3 py-1 text-xs font-semibold text-cf-text-primary hover:bg-cf-bg-subtle disabled:cursor-not-allowed disabled:opacity-60"
             >
               + Nova meta
             </button>
@@ -2152,17 +2152,17 @@ const App = ({
                   <li
                     key={`budget-alert-${budget.id}`}
                     data-testid="budget-alert-item"
-                    className="rounded border border-amber-200 bg-white px-3 py-2 text-sm text-gray-800"
+                    className="rounded border border-amber-200 bg-cf-surface px-3 py-2 text-sm text-cf-text-primary"
                   >
                     <div className="mb-1 flex items-center justify-between gap-2">
-                      <p className="font-semibold text-gray-900">{budget.categoryName}</p>
+                      <p className="font-semibold text-cf-text-primary">{budget.categoryName}</p>
                       <span
                         className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${BUDGET_STATUS_BADGE_CLASSNAMES[budget.status]}`}
                       >
                         {BUDGET_STATUS_LABELS[budget.status]}
                       </span>
                     </div>
-                    <p className="text-xs text-gray-700">
+                    <p className="text-xs text-cf-text-secondary">
                       Uso: {formatPercentage(budget.percentage)} ({formatCurrency(budget.actual)} de{" "}
                       {formatCurrency(budget.budget)})
                     </p>
@@ -2171,7 +2171,7 @@ const App = ({
                         type="button"
                         aria-label={`Ver transacoes: ${budget.categoryName}`}
                         onClick={() => handleViewBudgetTransactions(budget)}
-                        className="rounded border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-800 hover:bg-gray-100"
+                        className="rounded border border-cf-border bg-cf-surface px-2 py-1 text-xs font-semibold text-cf-text-primary hover:bg-cf-bg-subtle"
                       >
                         Ver transacoes
                       </button>
@@ -2194,20 +2194,20 @@ const App = ({
               {Array.from({ length: 3 }).map((_unusedValue, index) => (
                 <div
                   key={`budgets-skeleton-${index + 1}`}
-                  className="h-16 animate-pulse rounded border border-gray-300 bg-gray-100"
+                  className="h-16 animate-pulse rounded border border-cf-border bg-cf-bg-subtle"
                 />
               ))}
               <span className="sr-only">Carregando metas do mes...</span>
             </div>
           ) : null}
           {!isLoadingBudgets && !budgetsError && !hasMonthlyBudgetsData ? (
-            <div className="rounded border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-600">
+            <div className="rounded border border-cf-border bg-cf-bg-subtle px-3 py-2 text-sm text-cf-text-secondary">
               <p>Nenhuma meta cadastrada para o mes selecionado.</p>
               <button
                 type="button"
                 onClick={openCreateBudgetModal}
                 disabled={!canCreateBudget}
-                className="mt-2 rounded border border-gray-300 bg-white px-3 py-1 text-xs font-semibold text-gray-900 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
+                className="mt-2 rounded border border-cf-border bg-cf-surface px-3 py-1 text-xs font-semibold text-cf-text-primary hover:bg-cf-bg-subtle disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Criar meta
               </button>
@@ -2225,24 +2225,24 @@ const App = ({
                 return (
                   <li
                     key={budget.id}
-                    className="rounded border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-800"
+                    className="rounded border border-cf-border bg-cf-bg-subtle px-3 py-2 text-sm text-cf-text-primary"
                   >
                     <div className="mb-2 flex items-center justify-between gap-2">
-                      <p className="font-semibold text-gray-900">{budget.categoryName}</p>
+                      <p className="font-semibold text-cf-text-primary">{budget.categoryName}</p>
                       <span
                         className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${BUDGET_STATUS_BADGE_CLASSNAMES[safeStatus]}`}
                       >
                         {BUDGET_STATUS_LABELS[safeStatus]}
                       </span>
                     </div>
-                    <div className="mb-2 h-2 w-full rounded-full bg-gray-200">
+                    <div className="mb-2 h-2 w-full rounded-full bg-cf-border">
                       <div
                         className={`h-2 rounded-full ${BUDGET_STATUS_BAR_CLASSNAMES[safeStatus]}`}
                         style={{ width: progressWidth }}
                         title={safeStatus === "exceeded" ? "Acima de 100%" : undefined}
                       />
                     </div>
-                    <div className="grid gap-1 text-xs text-gray-700 sm:grid-cols-2">
+                    <div className="grid gap-1 text-xs text-cf-text-secondary sm:grid-cols-2">
                       <span>Orcado: {formatCurrency(budget.budget)}</span>
                       <span>Realizado: {formatCurrency(budget.actual)}</span>
                       <span>Restante: {formatCurrency(budget.remaining)}</span>
@@ -2253,7 +2253,7 @@ const App = ({
                         type="button"
                         aria-label={`Editar meta: ${budget.categoryName}`}
                         onClick={() => openEditBudgetModal(budget)}
-                        className="rounded border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-800 hover:bg-gray-100"
+                        className="rounded border border-cf-border bg-cf-surface px-2 py-1 text-xs font-semibold text-cf-text-primary hover:bg-cf-bg-subtle"
                       >
                         Editar
                       </button>
@@ -2277,7 +2277,7 @@ const App = ({
       <section>
         <Suspense
           fallback={
-            <div className="rounded border border-brand-1 bg-gray-500 p-4 text-sm text-gray-100">
+            <div className="rounded border border-cf-border bg-cf-surface p-4 text-sm text-cf-text-primary">
               Carregando grafico...
             </div>
           }
@@ -2288,22 +2288,22 @@ const App = ({
 
       <section>
         {trendError ? (
-          <div className="rounded border border-brand-1 bg-gray-500 p-4 text-center text-sm text-gray-100">
+          <div className="rounded border border-cf-border bg-cf-surface p-4 text-center text-sm text-cf-text-primary">
             {trendError}
           </div>
         ) : isLoadingTrend ? (
           <div
-            className="rounded border border-brand-1 bg-gray-500 p-4"
+            className="rounded border border-cf-border bg-cf-surface p-4"
             role="status"
             aria-live="polite"
           >
-            <div className="h-64 animate-pulse rounded bg-gray-400" />
+            <div className="h-64 animate-pulse rounded bg-cf-bg-subtle" />
             <span className="sr-only">Carregando evolucao...</span>
           </div>
         ) : (
           <Suspense
             fallback={
-              <div className="rounded border border-brand-1 bg-gray-500 p-4 text-sm text-gray-100">
+              <div className="rounded border border-cf-border bg-cf-surface p-4 text-sm text-cf-text-primary">
                 Carregando evolucao...
               </div>
             }
@@ -2317,10 +2317,10 @@ const App = ({
         )}
       </section>
 
-      <section ref={listSectionRef} className="rounded border border-brand-1 bg-gray-500 px-4 py-3.5">
+      <section ref={listSectionRef} className="rounded border border-cf-border bg-cf-surface px-4 py-3.5">
         {requestError ? (
           <div className="p-4 text-center">
-            <p className="text-sm font-medium text-red-300">{requestError}</p>
+            <p className="text-sm font-medium text-red-600">{requestError}</p>
             <button
               onClick={loadTransactions}
               className="mt-2 font-medium text-brand-1 hover:text-brand-2"
@@ -2333,19 +2333,19 @@ const App = ({
             {Array.from({ length: 4 }).map((_, index) => (
               <div
                 key={`transactions-skeleton-${index + 1}`}
-                className="h-20 animate-pulse rounded border border-gray-300 bg-gray-400"
+                className="h-20 animate-pulse rounded border border-cf-border bg-cf-bg-subtle"
               />
             ))}
             <span className="sr-only">Carregando transacoes...</span>
           </div>
         ) : filteredTransactions.length === 0 ? (
           hasActiveFilters ? (
-            <div className="p-4 text-center text-gray-100">
+            <div className="p-4 text-center text-cf-text-primary">
               Nenhum valor encontrado para os filtros selecionados.
             </div>
           ) : (
             <div className="p-4 text-center">
-              <p className="text-gray-100">Nenhum valor cadastrado.</p>
+              <p className="text-cf-text-primary">Nenhum valor cadastrado.</p>
               <button
                 onClick={openCreateModal}
                 className="font-medium text-brand-1 hover:text-brand-2"
@@ -2363,7 +2363,7 @@ const App = ({
         )}
 
         {!requestError && !isLoadingTransactions ? (
-          <div className="mt-2 border-t border-gray-300 px-2 pt-3 text-sm text-gray-100">
+          <div className="mt-2 border-t border-cf-border px-2 pt-3 text-sm text-cf-text-primary">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <span>
                 Mostrando {rangeStart}-{rangeEnd} de {paginationMeta.total}
@@ -2374,7 +2374,7 @@ const App = ({
                   aria-label="Itens por pagina"
                   value={pageSize}
                   onChange={(event) => handlePageSizeChange(event.target.value)}
-                  className="rounded border border-gray-300 bg-white px-2 py-1 text-sm text-gray-100"
+                  className="rounded border border-cf-border bg-cf-surface px-2 py-1 text-sm text-cf-text-primary"
                 >
                   {PAGE_SIZE_OPTIONS.map((option) => (
                     <option key={option} value={option}>
@@ -2390,7 +2390,7 @@ const App = ({
                   type="button"
                   onClick={handleFirstPage}
                   disabled={currentPage <= 1}
-                  className="rounded border border-gray-300 px-3 py-1 font-semibold text-gray-100 hover:bg-gray-400 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="rounded border border-cf-border px-3 py-1 font-semibold text-cf-text-primary hover:bg-cf-bg-subtle disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   Primeira
                 </button>
@@ -2402,7 +2402,7 @@ const App = ({
                 type="button"
                 onClick={handlePreviousPage}
                 disabled={currentPage <= 1}
-                className="rounded border border-gray-300 px-3 py-1 font-semibold text-gray-100 hover:bg-gray-400 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded border border-cf-border px-3 py-1 font-semibold text-cf-text-primary hover:bg-cf-bg-subtle disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Anterior
               </button>
@@ -2413,7 +2413,7 @@ const App = ({
                 type="button"
                 onClick={handleNextPage}
                 disabled={currentPage >= paginationMeta.totalPages}
-                className="rounded border border-gray-300 px-3 py-1 font-semibold text-gray-100 hover:bg-gray-400 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded border border-cf-border px-3 py-1 font-semibold text-cf-text-primary hover:bg-cf-bg-subtle disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Proxima
               </button>
@@ -2423,7 +2423,7 @@ const App = ({
                   type="button"
                   onClick={handleLastPage}
                   disabled={currentPage >= paginationMeta.totalPages}
-                  className="rounded border border-gray-300 px-3 py-1 font-semibold text-gray-100 hover:bg-gray-400 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="rounded border border-cf-border px-3 py-1 font-semibold text-cf-text-primary hover:bg-cf-bg-subtle disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   Ultima
                 </button>
@@ -2438,9 +2438,9 @@ const App = ({
       </main>
 
       {undoState ? (
-        <div className="fixed bottom-4 left-1/2 z-40 w-[calc(100%-2rem)] max-w-500 -translate-x-1/2 rounded border border-brand-1 bg-white px-4 py-3 shadow-lg">
+        <div className="fixed bottom-4 left-1/2 z-40 w-[calc(100%-2rem)] max-w-500 -translate-x-1/2 rounded border border-brand-1 bg-cf-surface px-4 py-3 shadow-lg">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-sm text-gray-100">Transacao removida.</p>
+            <p className="text-sm text-cf-text-primary">Transacao removida.</p>
             <button
               type="button"
               onClick={restoreDeletedTransaction}
@@ -2458,14 +2458,14 @@ const App = ({
             role="dialog"
             aria-modal="true"
             aria-labelledby="budget-modal-title"
-            className="w-full max-w-sm rounded bg-white p-4 shadow-lg"
+            className="w-full max-w-sm rounded bg-cf-surface p-4 shadow-lg"
           >
-            <h3 id="budget-modal-title" className="text-base font-semibold text-gray-900">
+            <h3 id="budget-modal-title" className="text-base font-semibold text-cf-text-primary">
               Meta do mes
             </h3>
-            <p className="mt-1 text-xs text-gray-600">Mes selecionado: {selectedSummaryMonth}</p>
+            <p className="mt-1 text-xs text-cf-text-secondary">Mes selecionado: {selectedSummaryMonth}</p>
             {editingBudget ? (
-              <div className="mt-2 rounded border border-gray-200 bg-gray-50 px-2 py-1 text-xs text-gray-700">
+              <div className="mt-2 rounded border border-cf-border bg-cf-bg-subtle px-2 py-1 text-xs text-cf-text-secondary">
                 <p>
                   Editando: <strong>{editingBudget.categoryName}</strong>
                 </p>
@@ -2481,7 +2481,7 @@ const App = ({
 
             <div className="mt-3 space-y-3">
               <div>
-                <label htmlFor="budget-category" className="mb-1 block text-xs font-medium text-gray-900">
+                <label htmlFor="budget-category" className="mb-1 block text-xs font-medium text-cf-text-primary">
                   Categoria da meta
                 </label>
                 <select
@@ -2494,7 +2494,7 @@ const App = ({
                     }))
                   }
                   disabled={isSavingBudget || Boolean(editingBudget)}
-                  className="w-full rounded border border-gray-400 px-3 py-2 text-sm text-gray-900 disabled:bg-gray-100 disabled:text-gray-500"
+                  className="w-full rounded border border-cf-border-input bg-cf-surface px-3 py-2 text-sm text-cf-text-primary disabled:bg-cf-bg-subtle disabled:text-cf-text-secondary"
                 >
                   <option value="">Selecione...</option>
                   {categories.map((categoryOption) => (
@@ -2506,7 +2506,7 @@ const App = ({
               </div>
 
               <div>
-                <label htmlFor="budget-amount" className="mb-1 block text-xs font-medium text-gray-900">
+                <label htmlFor="budget-amount" className="mb-1 block text-xs font-medium text-cf-text-primary">
                   Valor da meta
                 </label>
                 <input
@@ -2522,7 +2522,7 @@ const App = ({
                     }))
                   }
                   disabled={isSavingBudget}
-                  className="w-full rounded border border-gray-400 px-3 py-2 text-sm text-gray-900 disabled:bg-gray-100 disabled:text-gray-500"
+                  className="w-full rounded border border-cf-border-input bg-cf-surface px-3 py-2 text-sm text-cf-text-primary disabled:bg-cf-bg-subtle disabled:text-cf-text-secondary"
                 />
               </div>
             </div>
@@ -2532,7 +2532,7 @@ const App = ({
                 type="button"
                 onClick={closeBudgetModal}
                 disabled={isSavingBudget}
-                className="rounded border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded border border-cf-border px-3 py-1.5 text-sm font-semibold text-cf-text-secondary disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Cancelar
               </button>
@@ -2551,16 +2551,16 @@ const App = ({
 
       {pendingDeleteTransactionId ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-100 bg-opacity-50 p-4">
-          <div className="w-full max-w-sm rounded bg-white p-4 shadow-lg">
-            <h3 className="text-base font-semibold text-gray-100">Confirmar exclusao</h3>
-            <p className="mt-2 text-sm text-gray-200">
+          <div className="w-full max-w-sm rounded bg-cf-surface p-4 shadow-lg">
+            <h3 className="text-base font-semibold text-cf-text-primary">Confirmar exclusao</h3>
+            <p className="mt-2 text-sm text-cf-text-secondary">
               Deseja realmente excluir esta transacao?
             </p>
             <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"
                 onClick={closeDeleteDialog}
-                className="rounded border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-200"
+                className="rounded border border-cf-border px-3 py-1.5 text-sm font-semibold text-cf-text-secondary"
               >
                 Cancelar
               </button>
