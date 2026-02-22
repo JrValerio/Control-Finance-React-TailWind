@@ -23,6 +23,14 @@ export default {
         '5xl': '20px',
       },
       colors: {
+        'cf-bg-page':        'var(--cf-bg-page)',
+        'cf-header-bg':      'var(--cf-header-bg)',
+        'cf-surface':        'var(--cf-surface)',
+        'cf-bg-subtle':      'var(--cf-bg-subtle)',
+        'cf-text-primary':   'var(--cf-text-primary)',
+        'cf-text-secondary': 'var(--cf-text-secondary)',
+        'cf-border':         'var(--cf-border)',
+        'cf-border-input':   'var(--cf-border-input)',
         brand: {
           1: '#6741D9',
           2: '#4C3299',
