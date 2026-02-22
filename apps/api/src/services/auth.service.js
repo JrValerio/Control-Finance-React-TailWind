@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { OAuth2Client } from "google-auth-library";
 import { dbQuery } from "../db/index.js";
 
 const DEFAULT_JWT_SECRET = "control-finance-dev-secret";
@@ -115,6 +116,11 @@ export const loginUser = async ({ email, password }) => {
   }
 
   const user = result.rows[0];
+
+  if (!user.password_hash) {
+    throw createError(401, "Credenciais invalidas.");
+  }
+
   const passwordMatches = await bcrypt.compare(
     normalizedPassword,
     user.password_hash,
@@ -128,3 +134,79 @@ export const loginUser = async ({ email, password }) => {
 };
 
 export const verifyAuthToken = (token) => jwt.verify(token, getJwtSecret());
+
+const verifyGoogleIdToken = async (idToken) => {
+  const clientId = process.env.GOOGLE_CLIENT_ID || "";
+  const client = new OAuth2Client(clientId);
+  const ticket = await client.verifyIdToken({ idToken, audience: clientId });
+  const payload = ticket.getPayload();
+
+  if (!payload) {
+    throw createError(401, "Token Google invalido.");
+  }
+
+  return payload;
+};
+
+export const loginOrRegisterWithGoogle = async ({ idToken } = {}) => {
+  if (!idToken || typeof idToken !== "string" || !idToken.trim()) {
+    throw createError(400, "Token Google ausente ou invalido.");
+  }
+
+  let payload;
+  try {
+    payload = await verifyGoogleIdToken(idToken.trim());
+  } catch (error) {
+    if (error.status) throw error;
+    throw createError(401, "Falha ao verificar token Google.");
+  }
+
+  const { sub: googleId, email: rawEmail, name: rawName = "" } = payload;
+
+  if (!googleId || !rawEmail) {
+    throw createError(401, "Token Google invalido: dados ausentes.");
+  }
+
+  const email = getNormalizedEmail(rawEmail);
+  const name = typeof rawName === "string" ? rawName.trim() : "";
+
+  // 1. Identity already linked → return existing user
+  const identityResult = await dbQuery(
+    `SELECT u.id, u.name, u.email
+     FROM user_identities ui
+     JOIN users u ON u.id = ui.user_id
+     WHERE ui.provider = 'google' AND ui.provider_id = $1
+     LIMIT 1`,
+    [googleId],
+  );
+
+  if (identityResult.rows.length > 0) {
+    return createAuthResult(identityResult.rows[0]);
+  }
+
+  // 2. Email already in users → link identity to existing account
+  const userResult = await dbQuery(
+    `SELECT id, name, email FROM users WHERE email = $1 LIMIT 1`,
+    [email],
+  );
+
+  let user;
+  if (userResult.rows.length > 0) {
+    user = userResult.rows[0];
+  } else {
+    // 3. New user — create without password
+    const newUserResult = await dbQuery(
+      `INSERT INTO users (name, email) VALUES ($1, $2) RETURNING id, name, email`,
+      [name, email],
+    );
+    user = newUserResult.rows[0];
+  }
+
+  await dbQuery(
+    `INSERT INTO user_identities (user_id, provider, provider_id, email)
+     VALUES ($1, 'google', $2, $3)`,
+    [user.id, googleId, email],
+  );
+
+  return createAuthResult(user);
+};

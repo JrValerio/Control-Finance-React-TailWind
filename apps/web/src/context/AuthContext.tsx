@@ -4,6 +4,7 @@ import { authService } from "../services/auth.service";
 import type {
   AuthResponse,
   AuthUser,
+  GoogleLoginPayload,
   LoginPayload,
   RegisterPayload,
 } from "../services/auth.service";
@@ -85,6 +86,28 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     [],
   );
 
+  const loginWithGoogle = useCallback(
+    async ({ idToken }: GoogleLoginPayload): Promise<AuthResponse> => {
+      setIsLoading(true);
+      setErrorMessage("");
+
+      try {
+        const response = await authService.loginWithGoogle({ idToken });
+        setStoredToken(response.token);
+        setToken(response.token);
+        setUser(response.user);
+        return response;
+      } catch (error) {
+        const message = getApiErrorMessage(error, "Nao foi possivel autenticar com Google.");
+        setErrorMessage(message);
+        throw error;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [],
+  );
+
   const logout = useCallback((): void => {
     clearStoredToken();
     setToken("");
@@ -117,10 +140,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       isAuthenticated: Boolean(token),
       login,
       register,
+      loginWithGoogle,
       logout,
       clearError,
     }),
-    [token, user, isLoading, errorMessage, login, register, logout, clearError],
+    [token, user, isLoading, errorMessage, login, register, loginWithGoogle, logout, clearError],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
