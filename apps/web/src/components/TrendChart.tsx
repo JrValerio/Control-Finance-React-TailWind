@@ -121,7 +121,7 @@ const TrendChart = ({ data, onMonthClick, selectedMonth }: TrendChartProps) => {
       <h3 className="mb-3 text-sm font-semibold text-gray-100">
         Evolucao (ultimos 6 meses)
         {onMonthClick && (
-          <span className="ml-2 text-xs font-normal text-gray-300">
+          <span className="ml-2 text-xs font-normal text-gray-200">
             — clique em um mes para navegar
           </span>
         )}

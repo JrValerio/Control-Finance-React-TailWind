@@ -305,7 +305,7 @@ const CategoriesSettings = ({
                   >
                     <div className="min-w-0">
                       <p className="break-words text-sm font-semibold text-gray-900">{category.name}</p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-200">
                         {isDeleted ? "Removida" : "Ativa"}
                       </p>
                     </div>

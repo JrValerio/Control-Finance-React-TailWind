@@ -1652,7 +1652,7 @@ const App = ({
                           <button
                             type="button"
                             aria-label={`Remover filtro: ${chip.removeLabel}`}
-                            className="inline-flex h-5 w-5 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-1 focus:ring-offset-1"
+                            className="inline-flex h-5 w-5 items-center justify-center rounded-full text-gray-200 transition-colors hover:bg-gray-400 hover:text-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-1 focus:ring-offset-1"
                             onClick={() => handleRemoveAppliedChip(chip.id)}
                           >
                             <svg
