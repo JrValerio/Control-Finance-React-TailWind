@@ -39,6 +39,7 @@ import {
   isSelectedPeriod,
 } from "../features/filters/useFilters";
 import { useTheme } from "../hooks/useTheme";
+import { formatCurrency } from "../utils/formatCurrency";
 
 const TransactionChart = lazy(() => import("../components/TransactionChart"));
 const TrendChart = lazy(() => import("../components/TrendChart"));
@@ -369,7 +370,6 @@ const getInitialPaginationState = (): PaginationState => {
   };
 };
 
-const formatCurrency = (value: number) => `R$ ${Number(value || 0).toFixed(2)}`;
 const formatPercentage = (value: number) => `${Number(value || 0).toFixed(2)}%`;
 const formatSignedCurrency = (value: number) => {
   if (value > 0) {

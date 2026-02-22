@@ -284,9 +284,9 @@ describe("App", () => {
 
     render(<App />);
 
-    expect(await screen.findByText("R$ 1079.50")).toBeInTheDocument();
-    expect(screen.getByText("R$ 1500.00")).toBeInTheDocument();
-    expect(screen.getByText("R$ 420.50")).toBeInTheDocument();
+    expect(await screen.findByText("R$ 1.079,50")).toBeInTheDocument();
+    expect(screen.getByText("R$ 1.500,00")).toBeInTheDocument();
+    expect(screen.getByText("R$ 420,50")).toBeInTheDocument();
     expect(transactionsService.getMonthlySummary).toHaveBeenCalledWith(expect.any(String));
   });
 
@@ -324,10 +324,10 @@ describe("App", () => {
 
     render(<App />);
 
-    expect(await screen.findByText("R$ 1020.00")).toBeInTheDocument();
-    expect(screen.getByTestId("mom-income")).toHaveTextContent("MoM: ↑ +8.3% (+R$ 100.00)");
-    expect(screen.getByTestId("mom-balance")).toHaveTextContent("MoM: ↑ +13.3% (+R$ 120.00)");
-    expect(screen.getByTestId("mom-expense")).toHaveTextContent("MoM: ↓ -6.7% (-R$ 20.00)");
+    expect(await screen.findByText("R$ 1.020,00")).toBeInTheDocument();
+    expect(screen.getByTestId("mom-income")).toHaveTextContent("MoM: ↑ +8.3% (+R$ 100,00)");
+    expect(screen.getByTestId("mom-balance")).toHaveTextContent("MoM: ↑ +13.3% (+R$ 120,00)");
+    expect(screen.getByTestId("mom-expense")).toHaveTextContent("MoM: ↓ -6.7% (-R$ 20,00)");
     expect(screen.getByTestId("mom-expense")).toHaveClass("text-green-200");
   });
 
@@ -366,7 +366,7 @@ describe("App", () => {
     render(<App />);
 
     expect(await screen.findByTestId("mom-income")).toBeInTheDocument();
-    expect(screen.getByTestId("mom-income")).toHaveTextContent("MoM: ↑ — (+R$ 100.00)");
+    expect(screen.getByTestId("mom-income")).toHaveTextContent("MoM: ↑ — (+R$ 100,00)");
   });
 
   it("exibe loading de comparacao mensal enquanto os resumos sao carregados", async () => {
@@ -433,7 +433,7 @@ describe("App", () => {
 
     render(<App />);
 
-    expect(await screen.findByText("R$ 700.00")).toBeInTheDocument();
+    expect(await screen.findByText("R$ 700,00")).toBeInTheDocument();
     expect(await screen.findByText("Comparacao mensal indisponivel.")).toBeInTheDocument();
     expect(screen.getByTestId("mom-income")).toHaveTextContent("MoM: —");
     expect(screen.getByTestId("mom-balance")).toHaveTextContent("MoM: —");
@@ -563,9 +563,9 @@ describe("App", () => {
 
     expect((await screen.findAllByText("Alimentacao")).length).toBeGreaterThan(0);
     expect(screen.getAllByText("Proximo do limite").length).toBeGreaterThan(0);
-    expect(screen.getByText("Orcado: R$ 1000.00")).toBeInTheDocument();
-    expect(screen.getByText("Realizado: R$ 855.50")).toBeInTheDocument();
-    expect(screen.getByText("Restante: R$ 144.50")).toBeInTheDocument();
+    expect(screen.getByText("Orcado: R$ 1.000,00")).toBeInTheDocument();
+    expect(screen.getByText("Realizado: R$ 855,50")).toBeInTheDocument();
+    expect(screen.getByText("Restante: R$ 144,50")).toBeInTheDocument();
     expect(screen.getByText("Uso: 85.55%")).toBeInTheDocument();
     expect(transactionsService.getMonthlyBudgets).toHaveBeenCalledWith(expect.any(String));
   });
@@ -865,7 +865,7 @@ describe("App", () => {
       month: expect.any(String),
       amount: 900,
     });
-    expect(await screen.findByText("Orcado: R$ 900.00")).toBeInTheDocument();
+    expect(await screen.findByText("Orcado: R$ 900,00")).toBeInTheDocument();
   });
 
   it("exclui meta mensal e recarrega estado vazio", async () => {
@@ -1651,7 +1651,7 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: "Tentar novamente" }));
 
     expect(await screen.findByTestId("mom-balance")).toBeInTheDocument();
-    expect(screen.getByText("R$ 700.00")).toBeInTheDocument();
+    expect(screen.getByText("R$ 700,00")).toBeInTheDocument();
     expect(screen.queryByText("Nao foi possivel carregar o resumo mensal.")).not.toBeInTheDocument();
   });
 

@@ -12,8 +12,7 @@ import {
 } from "recharts";
 import type { TrendPoint } from "../services/analytics.service";
 import { ThemeContext } from "../context/theme-context";
-
-const formatCurrency = (value: number) => `R$ ${Number(value || 0).toFixed(2)}`;
+import { formatCurrency } from "../utils/formatCurrency";
 
 const MONTH_NAMES_PT = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 

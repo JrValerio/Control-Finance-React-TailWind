@@ -99,9 +99,9 @@ describe("TrendChart", () => {
   it("shows absolute values and month-over-month deltas in tooltip", () => {
     render(<TrendChart data={trendData} />);
 
-    expect(screen.getByText("Entradas: R$ 2000.00")).toBeInTheDocument();
-    expect(screen.getByText("+R$ 200.00", { exact: false })).toBeInTheDocument();
-    expect(screen.getByText("Saidas: R$ 700.00")).toBeInTheDocument();
-    expect(screen.getByText("+R$ 100.00", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("Entradas: R$ 2.000,00")).toBeInTheDocument();
+    expect(screen.getByText("+R$ 200,00", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("Saidas: R$ 700,00")).toBeInTheDocument();
+    expect(screen.getByText("+R$ 100,00", { exact: false })).toBeInTheDocument();
   });
 });

@@ -10,8 +10,7 @@ import {
   YAxis,
 } from "recharts";
 import { ThemeContext } from "../context/theme-context";
-
-const formatCurrency = (value) => `R$ ${value.toFixed(2)}`;
+import { formatCurrency } from "../utils/formatCurrency";
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload || payload.length === 0) {
