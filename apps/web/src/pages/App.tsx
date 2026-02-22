@@ -38,6 +38,7 @@ import {
   normalizeSortOption,
   isSelectedPeriod,
 } from "../features/filters/useFilters";
+import { useTheme } from "../hooks/useTheme";
 
 const TransactionChart = lazy(() => import("../components/TransactionChart"));
 const TrendChart = lazy(() => import("../components/TrendChart"));
@@ -514,6 +515,8 @@ const App = ({
   }, []);
 
   const onPaginationReset = useCallback(() => setCurrentOffset(DEFAULT_OFFSET), []);
+
+  const { theme, toggleTheme } = useTheme();
 
   const {
     selectedCategory,
@@ -1466,8 +1469,8 @@ const App = ({
   );
 
   return (
-    <div className="App min-h-screen bg-white pb-10">
-      <header className="w-full bg-gray-500 py-3 shadow-md sm:py-4">
+    <div className="App min-h-screen bg-white pb-10 dark:bg-gray-900">
+      <header className="w-full bg-gray-500 py-3 shadow-md sm:py-4 dark:bg-gray-800">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
           <h1 className="text-4xl font-semibold">
             <span className="text-brand-1">Control</span>
@@ -1531,6 +1534,14 @@ const App = ({
                         Categorias
                       </button>
                     ) : null}
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={toggleTheme}
+                      className="rounded px-2 py-2 text-left text-xs font-semibold text-gray-900 hover:bg-gray-100"
+                    >
+                      {theme === "dark" ? "☀ Claro" : "☾ Escuro"}
+                    </button>
                     {onLogout ? (
                       <>
                         <div className="my-1 h-px bg-gray-200" role="separator" />
@@ -1549,6 +1560,14 @@ const App = ({
               </div>
             ) : (
               <div className="flex min-w-0 items-center gap-1 rounded border border-gray-300 bg-white/70 p-1 sm:gap-2">
+                <button
+                  type="button"
+                  onClick={toggleTheme}
+                  aria-label={theme === "dark" ? "Mudar para tema claro" : "Mudar para tema escuro"}
+                  className="whitespace-nowrap rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-100 hover:bg-gray-400"
+                >
+                  {theme === "dark" ? "☀ Claro" : "☾ Escuro"}
+                </button>
                 {onLogout ? (
                   <button
                     onClick={onLogout}

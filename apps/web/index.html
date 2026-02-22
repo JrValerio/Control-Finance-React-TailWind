@@ -13,6 +13,15 @@
       content="financas, controle financeiro, dinheiro, economia"
     />
     <title>Control Finance</title>
+    <script>
+      (function () {
+        var stored = localStorage.getItem('cf-theme');
+        var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (stored === 'dark' || (!stored && prefersDark)) {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
