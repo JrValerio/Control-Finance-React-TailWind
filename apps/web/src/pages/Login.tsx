@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { GoogleLogin } from "@react-oauth/google";
 import { useAuth } from "../hooks/useAuth";
 
 const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
@@ -22,6 +23,7 @@ const Login = (): JSX.Element => {
     errorMessage,
     login,
     register,
+    loginWithGoogle,
     clearError,
   } = useAuth();
   const [mode, setMode] = useState<AuthMode>("login");
@@ -252,6 +254,31 @@ const Login = (): JSX.Element => {
                 ? "Criar conta e entrar"
                 : "Entrar"}
           </button>
+
+          <div className="flex items-center gap-2">
+            <hr className="flex-1 border-cf-border" />
+            <span className="text-xs text-cf-text-secondary">ou</span>
+            <hr className="flex-1 border-cf-border" />
+          </div>
+
+          <div className="flex justify-center">
+            <GoogleLogin
+              onSuccess={async (credentialResponse) => {
+                const idToken = credentialResponse.credential;
+                if (!idToken) return;
+                try {
+                  await loginWithGoogle({ idToken });
+                } catch {
+                  // Error is set in AuthContext and displayed via errorMessage
+                }
+              }}
+              onError={() => {
+                // Google's own UI surfaces errors; no additional handling needed
+              }}
+              text="continue_with"
+              size="large"
+            />
+          </div>
         </form>
       </section>
     </main>

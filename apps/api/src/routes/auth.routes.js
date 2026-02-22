@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { loginUser, registerUser } from "../services/auth.service.js";
+import { loginUser, registerUser, loginOrRegisterWithGoogle } from "../services/auth.service.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
 import {
   bruteForceLoginGuard,
@@ -31,6 +31,15 @@ router.post("/login", loginRateLimiter, bruteForceLoginGuard, async (req, res, n
       registerLoginFailure(req);
     }
 
+    next(error);
+  }
+});
+
+router.post("/google", async (req, res, next) => {
+  try {
+    const authResult = await loginOrRegisterWithGoogle(req.body || {});
+    res.status(200).json(authResult);
+  } catch (error) {
     next(error);
   }
 });

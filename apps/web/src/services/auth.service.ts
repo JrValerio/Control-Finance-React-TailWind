@@ -59,6 +59,10 @@ const parseAuthResponse = (responseData: unknown): AuthResponse => {
   };
 };
 
+export interface GoogleLoginPayload {
+  idToken: string;
+}
+
 export const authService = {
   register: async ({
     name = "",
@@ -79,6 +83,10 @@ export const authService = {
       password,
     });
 
+    return parseAuthResponse(data);
+  },
+  loginWithGoogle: async ({ idToken }: GoogleLoginPayload): Promise<AuthResponse> => {
+    const { data } = await api.post("/auth/google", { idToken });
     return parseAuthResponse(data);
   },
 };

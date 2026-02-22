@@ -10,12 +10,26 @@ vi.mock("../hooks/useAuth", () => ({
   useAuth: () => mockUseAuth(),
 }));
 
+vi.mock("@react-oauth/google", () => ({
+  // eslint-disable-next-line react/prop-types
+  GoogleLogin: ({ onSuccess }) => (
+    <button
+      type="button"
+      data-testid="google-login-btn"
+      onClick={() => onSuccess({ credential: "fake-google-id-token" })}
+    >
+      Continuar com Google
+    </button>
+  ),
+}));
+
 const createAuthMockState = (overrides = {}) => ({
   isAuthenticated: false,
   isLoading: false,
   errorMessage: "",
   login: vi.fn().mockResolvedValue({}),
   register: vi.fn().mockResolvedValue({}),
+  loginWithGoogle: vi.fn().mockResolvedValue({}),
   clearError: vi.fn(),
   ...overrides,
 });
@@ -140,6 +154,22 @@ describe("Login", () => {
       expect(authState.login).toHaveBeenCalledWith({
         email: "jr@controlfinance.dev",
         password: "Senha123",
+      });
+    });
+  });
+
+  it("chama loginWithGoogle com id_token ao clicar no botao Google", async () => {
+    const authState = createAuthMockState();
+    const user = userEvent.setup();
+
+    mockUseAuth.mockReturnValue(authState);
+    renderLoginPage();
+
+    await user.click(screen.getByTestId("google-login-btn"));
+
+    await waitFor(() => {
+      expect(authState.loginWithGoogle).toHaveBeenCalledWith({
+        idToken: "fake-google-id-token",
       });
     });
   });
