@@ -1,3 +1,4 @@
+import { useContext } from "react";
 import {
   CartesianGrid,
   Legend,
@@ -10,6 +11,7 @@ import {
   YAxis,
 } from "recharts";
 import type { TrendPoint } from "../services/analytics.service";
+import { ThemeContext } from "../context/theme-context";
 
 const formatCurrency = (value: number) => `R$ ${Number(value || 0).toFixed(2)}`;
 
@@ -99,6 +101,12 @@ interface TrendChartProps {
 }
 
 const TrendChart = ({ data, onMonthClick, selectedMonth }: TrendChartProps) => {
+  const themeCtx = useContext(ThemeContext);
+  const isDark = themeCtx?.theme === "dark";
+  const axisStroke = isDark ? "#94A3B8" : "#495057";
+  const gridStroke = isDark ? "#334155" : "#ADB5BD";
+  const legendColor = isDark ? "#F1F5F9" : "#212529";
+
   const hasAnyValue = data.some(
     (point) => point.income > 0 || point.expense > 0 || point.balance !== 0,
   );
@@ -139,11 +147,11 @@ const TrendChart = ({ data, onMonthClick, selectedMonth }: TrendChartProps) => {
           }}
           className={onMonthClick ? "cursor-pointer" : undefined}
         >
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="month" stroke="#495057" tickFormatter={formatMonthLabel} />
-            <YAxis stroke="#495057" width={90} tickFormatter={formatCurrency} />
+            <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+            <XAxis dataKey="month" stroke={axisStroke} tickFormatter={formatMonthLabel} />
+            <YAxis stroke={axisStroke} width={90} tickFormatter={formatCurrency} />
             <Tooltip content={<CustomTooltip deltaMap={deltaMap} />} />
-            <Legend />
+            <Legend wrapperStyle={{ color: legendColor }} />
             {isSelectedInRange && (
               <ReferenceLine
                 x={selectedMonth}
