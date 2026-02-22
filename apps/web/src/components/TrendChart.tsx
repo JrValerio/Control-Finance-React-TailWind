@@ -68,8 +68,8 @@ const CustomTooltip = ({ active, payload, label, deltaMap }: CustomTooltipProps)
   const deltas = label && deltaMap ? deltaMap.get(label) : undefined;
 
   return (
-    <div className="rounded border border-gray-300 bg-white px-3 py-2 text-xs shadow-sm">
-      <p className="mb-1 font-semibold text-gray-900">{formatMonthLabel(String(label || ""))}</p>
+    <div className="rounded border border-cf-border bg-cf-surface px-3 py-2 text-xs shadow-sm">
+      <p className="mb-1 font-semibold text-cf-text-primary">{formatMonthLabel(String(label || ""))}</p>
       {payload.map((entry) => {
         const delta =
           deltas && entry.dataKey && entry.dataKey in deltas
@@ -105,7 +105,7 @@ const TrendChart = ({ data, onMonthClick, selectedMonth }: TrendChartProps) => {
 
   if (!hasAnyValue) {
     return (
-      <div className="rounded border border-brand-1 bg-gray-500 p-4 text-center text-sm text-gray-100">
+      <div className="rounded border border-cf-border bg-cf-surface p-4 text-center text-sm text-cf-text-primary">
         Sem dados suficientes para exibir a evolucao historica.
       </div>
     );
@@ -117,11 +117,11 @@ const TrendChart = ({ data, onMonthClick, selectedMonth }: TrendChartProps) => {
     : false;
 
   return (
-    <div className="rounded border border-brand-1 bg-white p-4">
-      <h3 className="mb-3 text-sm font-semibold text-gray-100">
+    <div className="rounded border border-cf-border bg-cf-surface p-4">
+      <h3 className="mb-3 text-sm font-semibold text-cf-text-primary">
         Evolucao (ultimos 6 meses)
         {onMonthClick && (
-          <span className="ml-2 text-xs font-normal text-gray-200">
+          <span className="ml-2 text-xs font-normal text-cf-text-secondary">
             — clique em um mes para navegar
           </span>
         )}

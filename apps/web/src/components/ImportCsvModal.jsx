@@ -134,13 +134,13 @@ const ImportCsvModal = ({ isOpen, onClose, onImported = undefined }) => {
       role="presentation"
     >
       <div
-        className="w-full max-w-4xl rounded-lg bg-white p-4 sm:p-6"
+        className="w-full max-w-4xl rounded-lg bg-cf-surface p-4 sm:p-6"
         role="dialog"
         aria-modal="true"
         aria-labelledby="import-csv-modal-title"
       >
         <div className="mb-4 flex items-center justify-between">
-          <h2 id="import-csv-modal-title" className="text-lg font-semibold text-gray-800">
+          <h2 id="import-csv-modal-title" className="text-lg font-semibold text-cf-text-primary">
             Importar CSV
           </h2>
           <button
@@ -153,12 +153,12 @@ const ImportCsvModal = ({ isOpen, onClose, onImported = undefined }) => {
           </button>
         </div>
 
-        <p className="mb-4 text-sm text-gray-600">
+        <p className="mb-4 text-sm text-cf-text-secondary">
           Envie um CSV para pre-visualizar as linhas validas e confirmar a importacao.
         </p>
 
-        <div className="rounded border border-gray-300 bg-white p-3">
-          <label htmlFor="csv-file-input" className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="rounded border border-cf-border bg-cf-surface p-3">
+          <label htmlFor="csv-file-input" className="mb-1 block text-sm font-medium text-cf-text-primary">
             Arquivo CSV
           </label>
           <input
@@ -173,7 +173,7 @@ const ImportCsvModal = ({ isOpen, onClose, onImported = undefined }) => {
               setErrorMessage("");
               setSuccessMessage("");
             }}
-            className="block w-full text-sm text-gray-700 file:mr-3 file:rounded file:border file:border-gray-300 file:bg-gray-100 file:px-3 file:py-1 file:text-sm file:font-semibold file:text-gray-700 hover:file:bg-gray-200"
+            className="block w-full text-sm text-cf-text-primary file:mr-3 file:rounded file:border file:border-cf-border file:bg-cf-bg-subtle file:px-3 file:py-1 file:text-sm file:font-semibold file:text-cf-text-primary hover:file:bg-cf-border"
           />
         </div>
 
@@ -190,14 +190,14 @@ const ImportCsvModal = ({ isOpen, onClose, onImported = undefined }) => {
             type="button"
             onClick={handleCommit}
             disabled={!hasValidRows || isDryRunning || isCommitting}
-            className="rounded border border-gray-300 bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded border border-cf-border bg-cf-surface px-3 py-1.5 text-sm font-semibold text-cf-text-primary hover:bg-cf-bg-subtle disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isCommitting ? "Importando..." : "Importar"}
           </button>
           <button
             type="button"
             onClick={onClose}
-            className="rounded border border-gray-300 bg-gray-100 px-3 py-1.5 text-sm font-semibold text-gray-700"
+            className="rounded border border-cf-border bg-cf-bg-subtle px-3 py-1.5 text-sm font-semibold text-cf-text-secondary"
           >
             Fechar
           </button>
@@ -218,59 +218,59 @@ const ImportCsvModal = ({ isOpen, onClose, onImported = undefined }) => {
         {dryRunResult ? (
           <div className="mt-4 space-y-3">
             <div className="grid gap-2 sm:grid-cols-5">
-              <div className="rounded border border-gray-300 bg-gray-400 px-3 py-2">
-                <p className="text-xs font-medium uppercase text-gray-600">Total</p>
-                <p className="text-sm font-semibold text-gray-800">{dryRunResult.summary.totalRows}</p>
+              <div className="rounded border border-cf-border bg-cf-bg-subtle px-3 py-2">
+                <p className="text-xs font-medium uppercase text-cf-text-secondary">Total</p>
+                <p className="text-sm font-semibold text-cf-text-primary">{dryRunResult.summary.totalRows}</p>
               </div>
-              <div className="rounded border border-gray-300 bg-gray-400 px-3 py-2">
-                <p className="text-xs font-medium uppercase text-gray-600">Validas</p>
-                <p className="text-sm font-semibold text-gray-800">{dryRunResult.summary.validRows}</p>
+              <div className="rounded border border-cf-border bg-cf-bg-subtle px-3 py-2">
+                <p className="text-xs font-medium uppercase text-cf-text-secondary">Validas</p>
+                <p className="text-sm font-semibold text-cf-text-primary">{dryRunResult.summary.validRows}</p>
               </div>
-              <div className="rounded border border-gray-300 bg-gray-400 px-3 py-2">
-                <p className="text-xs font-medium uppercase text-gray-600">Invalidas</p>
-                <p className="text-sm font-semibold text-gray-800">{dryRunResult.summary.invalidRows}</p>
+              <div className="rounded border border-cf-border bg-cf-bg-subtle px-3 py-2">
+                <p className="text-xs font-medium uppercase text-cf-text-secondary">Invalidas</p>
+                <p className="text-sm font-semibold text-cf-text-primary">{dryRunResult.summary.invalidRows}</p>
               </div>
-              <div className="rounded border border-gray-300 bg-gray-400 px-3 py-2">
-                <p className="text-xs font-medium uppercase text-gray-600">Entradas</p>
-                <p className="text-sm font-semibold text-gray-800">
+              <div className="rounded border border-cf-border bg-cf-bg-subtle px-3 py-2">
+                <p className="text-xs font-medium uppercase text-cf-text-secondary">Entradas</p>
+                <p className="text-sm font-semibold text-cf-text-primary">
                   {formatCurrency(dryRunResult.summary.income)}
                 </p>
               </div>
-              <div className="rounded border border-gray-300 bg-gray-400 px-3 py-2">
-                <p className="text-xs font-medium uppercase text-gray-600">Saidas</p>
-                <p className="text-sm font-semibold text-gray-800">
+              <div className="rounded border border-cf-border bg-cf-bg-subtle px-3 py-2">
+                <p className="text-xs font-medium uppercase text-cf-text-secondary">Saidas</p>
+                <p className="text-sm font-semibold text-cf-text-primary">
                   {formatCurrency(dryRunResult.summary.expense)}
                 </p>
               </div>
             </div>
 
-            <p className="text-xs text-gray-600">
+            <p className="text-xs text-cf-text-secondary">
               Sessao expira em: {dryRunResult.expiresAt || "nao informado"}
             </p>
 
             {dryRunResult.rows.length === 0 ? (
-              <div className="rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-600">
+              <div className="rounded border border-cf-border bg-cf-surface px-3 py-2 text-sm text-cf-text-secondary">
                 Sem linhas para pre-visualizar.
               </div>
             ) : (
-              <div className="max-h-80 overflow-auto rounded border border-gray-300">
+              <div className="max-h-80 overflow-auto rounded border border-cf-border">
                 <table className="min-w-full border-collapse text-left text-xs">
-                  <thead className="bg-gray-400">
+                  <thead className="bg-cf-bg-subtle">
                     <tr>
-                      <th className="border-b border-gray-300 px-2 py-2 text-gray-700">Linha</th>
-                      <th className="border-b border-gray-300 px-2 py-2 text-gray-700">Status</th>
-                      <th className="border-b border-gray-300 px-2 py-2 text-gray-700">Descricao</th>
-                      <th className="border-b border-gray-300 px-2 py-2 text-gray-700">Valor</th>
-                      <th className="border-b border-gray-300 px-2 py-2 text-gray-700">Data</th>
-                      <th className="border-b border-gray-300 px-2 py-2 text-gray-700">Categoria</th>
-                      <th className="border-b border-gray-300 px-2 py-2 text-gray-700">Erros</th>
+                      <th className="border-b border-cf-border px-2 py-2 text-cf-text-primary">Linha</th>
+                      <th className="border-b border-cf-border px-2 py-2 text-cf-text-primary">Status</th>
+                      <th className="border-b border-cf-border px-2 py-2 text-cf-text-primary">Descricao</th>
+                      <th className="border-b border-cf-border px-2 py-2 text-cf-text-primary">Valor</th>
+                      <th className="border-b border-cf-border px-2 py-2 text-cf-text-primary">Data</th>
+                      <th className="border-b border-cf-border px-2 py-2 text-cf-text-primary">Categoria</th>
+                      <th className="border-b border-cf-border px-2 py-2 text-cf-text-primary">Erros</th>
                     </tr>
                   </thead>
                   <tbody>
                     {dryRunResult.rows.map((row) => (
                       <tr key={`import-row-${row.line}`} className="align-top">
-                        <td className="border-b border-gray-300 px-2 py-2 text-gray-700">{row.line}</td>
-                        <td className="border-b border-gray-300 px-2 py-2">
+                        <td className="border-b border-cf-border px-2 py-2 text-cf-text-primary">{row.line}</td>
+                        <td className="border-b border-cf-border px-2 py-2">
                           <span
                             className={`rounded px-2 py-0.5 font-semibold ${
                               row.status === "valid"
@@ -281,17 +281,17 @@ const ImportCsvModal = ({ isOpen, onClose, onImported = undefined }) => {
                             {row.status === "valid" ? "Valida" : "Invalida"}
                           </span>
                         </td>
-                        <td className="border-b border-gray-300 px-2 py-2 text-gray-700">
+                        <td className="border-b border-cf-border px-2 py-2 text-cf-text-primary">
                           {row.raw.description || "-"}
                         </td>
-                        <td className="border-b border-gray-300 px-2 py-2 text-gray-700">
+                        <td className="border-b border-cf-border px-2 py-2 text-cf-text-primary">
                           {row.raw.value || "-"}
                         </td>
-                        <td className="border-b border-gray-300 px-2 py-2 text-gray-700">{row.raw.date || "-"}</td>
-                        <td className="border-b border-gray-300 px-2 py-2 text-gray-700">
+                        <td className="border-b border-cf-border px-2 py-2 text-cf-text-primary">{row.raw.date || "-"}</td>
+                        <td className="border-b border-cf-border px-2 py-2 text-cf-text-primary">
                           {row.raw.category || "Sem categoria"}
                         </td>
-                        <td className="border-b border-gray-300 px-2 py-2 text-gray-700">
+                        <td className="border-b border-cf-border px-2 py-2 text-cf-text-primary">
                           {row.errors.length > 0
                             ? row.errors.map((error) => error.message).join(" | ")
                             : "-"}

@@ -19,9 +19,9 @@ const CustomTooltip = ({ active, payload, label }) => {
   const value = Number(payload[0].value || 0);
 
   return (
-    <div className="rounded border border-gray-300 bg-white px-3 py-2 text-xs shadow-sm">
-      <p className="font-semibold text-gray-900">{label}</p>
-      <p className="text-gray-700">{formatCurrency(value)}</p>
+    <div className="rounded border border-cf-border bg-cf-surface px-3 py-2 text-xs shadow-sm">
+      <p className="font-semibold text-cf-text-primary">{label}</p>
+      <p className="text-cf-text-secondary">{formatCurrency(value)}</p>
     </div>
   );
 };
@@ -47,15 +47,15 @@ const TransactionChart = ({ data }) => {
 
   if (!hasAnyValue) {
     return (
-      <div className="rounded border border-brand-1 bg-gray-500 p-4 text-center text-sm text-gray-100">
+      <div className="rounded border border-cf-border bg-cf-surface p-4 text-center text-sm text-cf-text-primary">
         Sem dados suficientes para exibir o grafico no periodo selecionado.
       </div>
     );
   }
 
   return (
-    <div className="rounded border border-brand-1 bg-white p-4">
-      <h3 className="mb-3 text-sm font-semibold text-gray-100">
+    <div className="rounded border border-cf-border bg-cf-surface p-4">
+      <h3 className="mb-3 text-sm font-semibold text-cf-text-primary">
         Receita x Despesa no periodo
       </h3>
       <div className="h-64 w-full">

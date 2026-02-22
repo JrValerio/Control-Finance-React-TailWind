@@ -159,13 +159,13 @@ const ImportHistoryModal = ({ isOpen, onClose }) => {
       role="presentation"
     >
       <div
-        className="w-full max-w-5xl rounded-lg bg-white p-4 sm:p-6"
+        className="w-full max-w-5xl rounded-lg bg-cf-surface p-4 sm:p-6"
         role="dialog"
         aria-modal="true"
         aria-labelledby="import-history-modal-title"
       >
         <div className="mb-4 flex items-center justify-between">
-          <h2 id="import-history-modal-title" className="text-lg font-semibold text-gray-800">
+          <h2 id="import-history-modal-title" className="text-lg font-semibold text-cf-text-primary">
             Historico de imports
           </h2>
           <button
@@ -193,57 +193,57 @@ const ImportHistoryModal = ({ isOpen, onClose }) => {
         ) : null}
 
         {isLoading ? (
-          <div className="rounded border border-gray-300 bg-white px-3 py-3 text-sm text-gray-600">
+          <div className="rounded border border-cf-border bg-cf-surface px-3 py-3 text-sm text-cf-text-secondary">
             Carregando historico...
           </div>
         ) : null}
 
         {!isLoading && !errorMessage && rowsWithStatus.length === 0 ? (
-          <div className="rounded border border-gray-300 bg-white px-3 py-3 text-sm text-gray-600">
+          <div className="rounded border border-cf-border bg-cf-surface px-3 py-3 text-sm text-cf-text-secondary">
             Sem imports para exibir.
           </div>
         ) : null}
 
         {!isLoading && !errorMessage && rowsWithStatus.length > 0 ? (
           <div className="space-y-3">
-            <div className="text-xs text-gray-600">
+            <div className="text-xs text-cf-text-secondary">
               Mostrando {rangeStart}-{rangeEnd}
             </div>
-            <div className="max-h-96 overflow-auto rounded border border-gray-300">
+            <div className="max-h-96 overflow-auto rounded border border-cf-border">
               <table className="min-w-full border-collapse text-left text-xs">
-                <thead className="bg-gray-400">
+                <thead className="bg-cf-bg-subtle">
                   <tr>
-                    <th className="border-b border-gray-300 px-2 py-2 text-gray-700">Data</th>
-                    <th className="border-b border-gray-300 px-2 py-2 text-gray-700">Status</th>
-                    <th className="border-b border-gray-300 px-2 py-2 text-gray-700">
+                    <th className="border-b border-cf-border px-2 py-2 text-cf-text-primary">Data</th>
+                    <th className="border-b border-cf-border px-2 py-2 text-cf-text-primary">Status</th>
+                    <th className="border-b border-cf-border px-2 py-2 text-cf-text-primary">
                       Validas / Invalidas
                     </th>
-                    <th className="border-b border-gray-300 px-2 py-2 text-gray-700">Importadas</th>
-                    <th className="border-b border-gray-300 px-2 py-2 text-gray-700">Entradas</th>
-                    <th className="border-b border-gray-300 px-2 py-2 text-gray-700">Saidas</th>
+                    <th className="border-b border-cf-border px-2 py-2 text-cf-text-primary">Importadas</th>
+                    <th className="border-b border-cf-border px-2 py-2 text-cf-text-primary">Entradas</th>
+                    <th className="border-b border-cf-border px-2 py-2 text-cf-text-primary">Saidas</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rowsWithStatus.map((item) => (
                     <tr key={item.id} className="align-top">
-                      <td className="border-b border-gray-300 px-2 py-2 text-gray-700">
+                      <td className="border-b border-cf-border px-2 py-2 text-cf-text-primary">
                         {formatDateTime(item.createdAt)}
                       </td>
-                      <td className="border-b border-gray-300 px-2 py-2">
+                      <td className="border-b border-cf-border px-2 py-2">
                         <span className={`rounded px-2 py-0.5 font-semibold ${item.status.className}`}>
                           {item.status.label}
                         </span>
                       </td>
-                      <td className="border-b border-gray-300 px-2 py-2 text-gray-700">
+                      <td className="border-b border-cf-border px-2 py-2 text-cf-text-primary">
                         {item.summary.validRows} / {item.summary.invalidRows}
                       </td>
-                      <td className="border-b border-gray-300 px-2 py-2 text-gray-700">
+                      <td className="border-b border-cf-border px-2 py-2 text-cf-text-primary">
                         {item.summary.imported}
                       </td>
-                      <td className="border-b border-gray-300 px-2 py-2 text-gray-700">
+                      <td className="border-b border-cf-border px-2 py-2 text-cf-text-primary">
                         {formatCurrency(item.summary.income)}
                       </td>
-                      <td className="border-b border-gray-300 px-2 py-2 text-gray-700">
+                      <td className="border-b border-cf-border px-2 py-2 text-cf-text-primary">
                         {formatCurrency(item.summary.expense)}
                       </td>
                     </tr>
@@ -256,7 +256,7 @@ const ImportHistoryModal = ({ isOpen, onClose }) => {
                 type="button"
                 onClick={handlePreviousPage}
                 disabled={!hasPreviousPage || isLoading}
-                className="rounded border border-gray-300 bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded border border-cf-border bg-cf-surface px-3 py-1.5 text-sm font-semibold text-cf-text-primary hover:bg-cf-bg-subtle disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Anterior
               </button>
@@ -264,7 +264,7 @@ const ImportHistoryModal = ({ isOpen, onClose }) => {
                 type="button"
                 onClick={handleNextPage}
                 disabled={!hasNextPage || isLoading}
-                className="rounded border border-gray-300 bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded border border-cf-border bg-cf-surface px-3 py-1.5 text-sm font-semibold text-cf-text-primary hover:bg-cf-bg-subtle disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Proxima
               </button>
@@ -276,7 +276,7 @@ const ImportHistoryModal = ({ isOpen, onClose }) => {
           <button
             type="button"
             onClick={onClose}
-            className="rounded border border-gray-300 bg-gray-100 px-3 py-1.5 text-sm font-semibold text-gray-700"
+            className="rounded border border-cf-border bg-cf-bg-subtle px-3 py-1.5 text-sm font-semibold text-cf-text-secondary"
           >
             Fechar
           </button>
