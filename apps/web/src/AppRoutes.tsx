@@ -4,6 +4,7 @@ import BillingSettings from "./pages/BillingSettings";
 import CategoriesSettings from "./pages/CategoriesSettings";
 import Login from "./pages/Login";
 import ProfileSettings from "./pages/ProfileSettings";
+import SecuritySettings from "./pages/SecuritySettings";
 import ProtectedRoute from "./routers/ProtectedRoute";
 import { useAuth } from "./hooks/useAuth";
 
@@ -28,12 +29,17 @@ const Dashboard = () => {
     navigate("/app/settings/profile");
   };
 
+  const handleOpenSecuritySettings = () => {
+    navigate("/app/settings/security");
+  };
+
   return (
     <App
       onLogout={handleLogout}
       onOpenCategoriesSettings={handleOpenCategoriesSettings}
       onOpenBillingSettings={handleOpenBillingSettings}
       onOpenProfileSettings={handleOpenProfileSettings}
+      onOpenSecuritySettings={handleOpenSecuritySettings}
     />
   );
 };
@@ -86,6 +92,22 @@ const ProfileSettingsRoute = () => {
   return <ProfileSettings onBack={handleBack} onLogout={handleLogout} />;
 };
 
+const SecuritySettingsRoute = () => {
+  const navigate = useNavigate();
+  const { logout } = useAuth();
+
+  const handleBack = () => {
+    navigate("/app");
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate("/", { replace: true });
+  };
+
+  return <SecuritySettings onBack={handleBack} onLogout={handleLogout} />;
+};
+
 const RootRedirect = () => {
   const { isAuthenticated } = useAuth();
 
@@ -125,6 +147,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <ProfileSettingsRoute />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/app/settings/security"
+        element={
+          <ProtectedRoute>
+            <SecuritySettingsRoute />
           </ProtectedRoute>
         }
       />
