@@ -101,6 +101,7 @@ interface ApiLikeError {
 interface AppProps {
   onLogout?: () => void;
   onOpenCategoriesSettings?: () => void;
+  onOpenBillingSettings?: () => void;
 }
 
 const PERIOD_OPTIONS = [
@@ -441,6 +442,7 @@ const calculateMonthOverMonthMetric = (
 const App = ({
   onLogout = undefined,
   onOpenCategoriesSettings = undefined,
+  onOpenBillingSettings = undefined,
 }: AppProps): JSX.Element => {
   const initialFilterState = useMemo(() => getInitialFilterState(), []);
   const initialPaginationState = useMemo(() => getInitialPaginationState(), []);
@@ -1349,6 +1351,11 @@ const App = ({
     onOpenCategoriesSettings?.();
   };
 
+  const handleOpenBillingSettings = () => {
+    closeMobileActionsMenu();
+    onOpenBillingSettings?.();
+  };
+
   const handleLogoutFromActionsMenu = () => {
     closeMobileActionsMenu();
     onLogout?.();
@@ -1534,6 +1541,16 @@ const App = ({
                         Categorias
                       </button>
                     ) : null}
+                    {onOpenBillingSettings ? (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={handleOpenBillingSettings}
+                        className="rounded px-2 py-2 text-left text-xs font-semibold text-cf-text-primary hover:bg-cf-bg-subtle"
+                      >
+                        Assinatura
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       role="menuitem"
@@ -1605,6 +1622,15 @@ const App = ({
                     className="whitespace-nowrap rounded border border-cf-border bg-cf-surface px-2.5 py-1.5 text-xs font-semibold text-cf-text-primary hover:bg-cf-bg-subtle"
                   >
                     Categorias
+                  </button>
+                ) : null}
+                {onOpenBillingSettings ? (
+                  <button
+                    type="button"
+                    onClick={handleOpenBillingSettings}
+                    className="whitespace-nowrap rounded border border-cf-border bg-cf-surface px-2.5 py-1.5 text-xs font-semibold text-cf-text-primary hover:bg-cf-bg-subtle"
+                  >
+                    Assinatura
                   </button>
                 ) : null}
               </div>

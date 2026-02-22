@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import App from "./pages/App";
+import BillingSettings from "./pages/BillingSettings";
 import CategoriesSettings from "./pages/CategoriesSettings";
 import Login from "./pages/Login";
 import ProtectedRoute from "./routers/ProtectedRoute";
@@ -18,10 +19,15 @@ const Dashboard = () => {
     navigate("/app/settings/categories");
   };
 
+  const handleOpenBillingSettings = () => {
+    navigate("/app/settings/billing");
+  };
+
   return (
     <App
       onLogout={handleLogout}
       onOpenCategoriesSettings={handleOpenCategoriesSettings}
+      onOpenBillingSettings={handleOpenBillingSettings}
     />
   );
 };
@@ -40,6 +46,22 @@ const CategoriesSettingsRoute = () => {
   };
 
   return <CategoriesSettings onBack={handleBack} onLogout={handleLogout} />;
+};
+
+const BillingSettingsRoute = () => {
+  const navigate = useNavigate();
+  const { logout } = useAuth();
+
+  const handleBack = () => {
+    navigate("/app");
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate("/", { replace: true });
+  };
+
+  return <BillingSettings onBack={handleBack} onLogout={handleLogout} />;
 };
 
 const RootRedirect = () => {
@@ -65,6 +87,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <CategoriesSettingsRoute />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/app/settings/billing"
+        element={
+          <ProtectedRoute>
+            <BillingSettingsRoute />
           </ProtectedRoute>
         }
       />
