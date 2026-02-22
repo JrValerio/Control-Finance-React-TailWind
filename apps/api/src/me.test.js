@@ -39,7 +39,7 @@ describe("GET /me", () => {
     expect(response.status).toBe(401);
   });
 
-  it("retorna id, name, email e profile null para usuario sem perfil", async () => {
+  it("retorna id, name, email, hasPassword, linkedProviders e profile null para usuario sem perfil", async () => {
     const token = await registerAndLogin("me-no-profile@test.dev");
 
     const response = await request(app)
@@ -49,7 +49,39 @@ describe("GET /me", () => {
     expect(response.status).toBe(200);
     expect(typeof response.body.id).toBe("number");
     expect(response.body.email).toBe("me-no-profile@test.dev");
+    expect(response.body.hasPassword).toBe(true);
+    expect(response.body.linkedProviders).toEqual([]);
     expect(response.body.profile).toBeNull();
+  });
+
+  it("retorna hasPassword false para usuario Google-only (sem password_hash)", async () => {
+    const email = "me-google-only@test.dev";
+    const userResult = await dbQuery(
+      `INSERT INTO users (name, email) VALUES ('Google User', $1) RETURNING id`,
+      [email],
+    );
+    const userId = userResult.rows[0].id;
+    await dbQuery(
+      `INSERT INTO user_identities (user_id, provider, provider_id, email)
+       VALUES ($1, 'google', 'google-sub-me-test', $2)`,
+      [userId, email],
+    );
+    // Get token by logging via the profile directly (no password, use the google-only route manually)
+    // We test by directly checking the service behavior via GET /me using a valid JWT
+    const jwt = await import("jsonwebtoken");
+    const token = jwt.default.sign(
+      { sub: String(userId), email },
+      process.env.JWT_SECRET || "control-finance-dev-secret",
+      { expiresIn: "1h" },
+    );
+
+    const response = await request(app)
+      .get("/me")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.hasPassword).toBe(false);
+    expect(response.body.linkedProviders).toEqual(["google"]);
   });
 
   it("retorna profile preenchido quando usuario tem perfil", async () => {

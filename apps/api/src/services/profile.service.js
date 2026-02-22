@@ -75,7 +75,8 @@ export const getMyProfile = async (userId) => {
   const normalizedUserId = normalizeUserId(userId);
 
   const userResult = await dbQuery(
-    `SELECT id, name, email FROM users WHERE id = $1 LIMIT 1`,
+    `SELECT id, name, email, (password_hash IS NOT NULL) AS has_password
+     FROM users WHERE id = $1 LIMIT 1`,
     [normalizedUserId],
   );
 
@@ -85,16 +86,24 @@ export const getMyProfile = async (userId) => {
 
   const user = userResult.rows[0];
 
-  const profileResult = await dbQuery(
-    `SELECT display_name, salary_monthly, payday, avatar_url
-     FROM user_profiles WHERE user_id = $1 LIMIT 1`,
-    [normalizedUserId],
-  );
+  const [profileResult, identitiesResult] = await Promise.all([
+    dbQuery(
+      `SELECT display_name, salary_monthly, payday, avatar_url
+       FROM user_profiles WHERE user_id = $1 LIMIT 1`,
+      [normalizedUserId],
+    ),
+    dbQuery(
+      `SELECT provider FROM user_identities WHERE user_id = $1`,
+      [normalizedUserId],
+    ),
+  ]);
 
   return {
     id: Number(user.id),
     name: user.name,
     email: user.email,
+    hasPassword: Boolean(user.has_password),
+    linkedProviders: identitiesResult.rows.map((r) => r.provider),
     profile: profileResult.rows.length > 0 ? rowToProfile(profileResult.rows[0]) : null,
   };
 };
