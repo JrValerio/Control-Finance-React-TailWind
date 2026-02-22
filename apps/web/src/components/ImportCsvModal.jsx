@@ -146,7 +146,7 @@ const ImportCsvModal = ({ isOpen, onClose, onImported = undefined }) => {
           <button
             type="button"
             onClick={onClose}
-            className="text-gray-500 transition-colors hover:text-gray-700"
+            className="text-gray-200 transition-colors hover:text-gray-100"
             aria-label="Fechar modal de importacao CSV"
           >
             X
