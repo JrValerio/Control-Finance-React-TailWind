@@ -1,3 +1,4 @@
+import { useContext } from "react";
 import PropTypes from "prop-types";
 import {
   Bar,
@@ -8,6 +9,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { ThemeContext } from "../context/theme-context";
 
 const formatCurrency = (value) => `R$ ${value.toFixed(2)}`;
 
@@ -43,6 +45,11 @@ CustomTooltip.defaultProps = {
 };
 
 const TransactionChart = ({ data }) => {
+  const themeCtx = useContext(ThemeContext);
+  const isDark = themeCtx?.theme === "dark";
+  const axisStroke = isDark ? "#94A3B8" : "#495057";
+  const gridStroke = isDark ? "#334155" : "#ADB5BD";
+
   const hasAnyValue = data.some((item) => item.total > 0);
 
   if (!hasAnyValue) {
@@ -61,9 +68,9 @@ const TransactionChart = ({ data }) => {
       <div className="h-64 w-full">
         <ResponsiveContainer>
           <BarChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="name" stroke="#495057" />
-            <YAxis stroke="#495057" width={90} tickFormatter={formatCurrency} />
+            <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+            <XAxis dataKey="name" stroke={axisStroke} />
+            <YAxis stroke={axisStroke} width={90} tickFormatter={formatCurrency} />
             <Tooltip content={<CustomTooltip />} />
             <Bar dataKey="total" fill="#6741D9" radius={[6, 6, 0, 0]} />
           </BarChart>
