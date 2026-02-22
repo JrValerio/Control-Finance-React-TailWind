@@ -135,6 +135,90 @@ export const loginUser = async ({ email, password }) => {
 
 export const verifyAuthToken = (token) => jwt.verify(token, getJwtSecret());
 
+export const setUserPassword = async ({
+  userId,
+  currentPassword,
+  newPassword,
+} = {}) => {
+  const normalizedNew =
+    typeof newPassword === "string" ? newPassword.trim() : "";
+  if (!normalizedNew) {
+    throw createError(400, "Nova senha e obrigatoria.");
+  }
+  validatePasswordStrength(normalizedNew);
+
+  const result = await dbQuery(
+    `SELECT id, email, password_hash FROM users WHERE id = $1 LIMIT 1`,
+    [userId],
+  );
+
+  if (result.rows.length === 0) {
+    throw createError(404, "Usuario nao encontrado.");
+  }
+
+  const user = result.rows[0];
+
+  if (user.password_hash) {
+    const normalizedCurrent =
+      typeof currentPassword === "string" ? currentPassword.trim() : "";
+    if (!normalizedCurrent) {
+      throw createError(400, "Senha atual e obrigatoria.");
+    }
+    const matches = await bcrypt.compare(normalizedCurrent, user.password_hash);
+    if (!matches) {
+      throw createError(401, "Senha atual incorreta.");
+    }
+  }
+
+  const newHash = await bcrypt.hash(normalizedNew, 10);
+  await dbQuery(`UPDATE users SET password_hash = $1 WHERE id = $2`, [
+    newHash,
+    userId,
+  ]);
+};
+
+export const linkGoogleIdentity = async ({ userId, idToken } = {}) => {
+  if (!idToken || typeof idToken !== "string" || !idToken.trim()) {
+    throw createError(400, "Token Google ausente ou invalido.");
+  }
+
+  let payload;
+  try {
+    payload = await verifyGoogleIdToken(idToken.trim());
+  } catch (error) {
+    if (error.status) throw error;
+    throw createError(401, "Falha ao verificar token Google.");
+  }
+
+  const { sub: googleId, email: rawEmail } = payload;
+  if (!googleId || !rawEmail) {
+    throw createError(401, "Token Google invalido: dados ausentes.");
+  }
+
+  const existingResult = await dbQuery(
+    `SELECT user_id FROM user_identities
+     WHERE provider = 'google' AND provider_id = $1 LIMIT 1`,
+    [googleId],
+  );
+
+  if (existingResult.rows.length > 0) {
+    if (Number(existingResult.rows[0].user_id) === Number(userId)) {
+      return; // Already linked to this user — idempotent
+    }
+    throw createError(
+      409,
+      "Esta conta Google ja esta vinculada a outro usuario.",
+    );
+  }
+
+  const email = getNormalizedEmail(rawEmail);
+  await dbQuery(
+    `INSERT INTO user_identities (user_id, provider, provider_id, email)
+     VALUES ($1, 'google', $2, $3)`,
+    [userId, googleId, email],
+  );
+};
+
 const verifyGoogleIdToken = async (idToken) => {
   const clientId = process.env.GOOGLE_CLIENT_ID || "";
   const client = new OAuth2Client(clientId);

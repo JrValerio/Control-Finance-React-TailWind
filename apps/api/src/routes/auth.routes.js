@@ -1,5 +1,11 @@
 import { Router } from "express";
-import { loginUser, registerUser, loginOrRegisterWithGoogle } from "../services/auth.service.js";
+import {
+  loginUser,
+  registerUser,
+  loginOrRegisterWithGoogle,
+  setUserPassword,
+  linkGoogleIdentity,
+} from "../services/auth.service.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
 import {
   bruteForceLoginGuard,
@@ -39,6 +45,31 @@ router.post("/google", async (req, res, next) => {
   try {
     const authResult = await loginOrRegisterWithGoogle(req.body || {});
     res.status(200).json(authResult);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.patch("/password", authMiddleware, async (req, res, next) => {
+  try {
+    await setUserPassword({
+      userId: req.user.id,
+      currentPassword: req.body?.currentPassword,
+      newPassword: req.body?.newPassword,
+    });
+    res.status(200).json({ message: "Senha atualizada com sucesso." });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/google/link", authMiddleware, async (req, res, next) => {
+  try {
+    await linkGoogleIdentity({
+      userId: req.user.id,
+      idToken: req.body?.idToken,
+    });
+    res.status(200).json({ message: "Conta Google vinculada com sucesso." });
   } catch (error) {
     next(error);
   }
