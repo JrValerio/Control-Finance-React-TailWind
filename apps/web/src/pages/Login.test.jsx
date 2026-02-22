@@ -76,6 +76,47 @@ describe("Login", () => {
     expect(authState.login).not.toHaveBeenCalled();
   });
 
+  it("alterna visibilidade da senha no modo login", async () => {
+    mockUseAuth.mockReturnValue(createAuthMockState());
+    const user = userEvent.setup();
+    renderLoginPage();
+
+    const input = screen.getByLabelText("Senha");
+    const toggle = screen.getByRole("button", { name: "Mostrar senha" });
+
+    expect(input).toHaveAttribute("type", "password");
+
+    await user.click(toggle);
+    expect(input).toHaveAttribute("type", "text");
+    expect(screen.getByRole("button", { name: "Ocultar senha" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Ocultar senha" }));
+    expect(input).toHaveAttribute("type", "password");
+  });
+
+  it("alterna visibilidade da senha no modo registro e reseta ao trocar de modo", async () => {
+    mockUseAuth.mockReturnValue(createAuthMockState());
+    const user = userEvent.setup();
+    renderLoginPage();
+
+    await user.click(screen.getByRole("button", { name: "Criar conta" }));
+
+    const senhaInput = screen.getByLabelText("Senha");
+    const confirmarInput = screen.getByLabelText("Confirmar senha");
+    const toggle = screen.getAllByRole("button", { name: "Mostrar senha" })[0];
+
+    expect(senhaInput).toHaveAttribute("type", "password");
+    expect(confirmarInput).toHaveAttribute("type", "password");
+
+    await user.click(toggle);
+    expect(senhaInput).toHaveAttribute("type", "text");
+    expect(confirmarInput).toHaveAttribute("type", "text");
+
+    // Trocar para login deve resetar showPassword
+    await user.click(screen.getByRole("button", { name: "Login" }));
+    expect(screen.getByLabelText("Senha")).toHaveAttribute("type", "password");
+  });
+
   it("realiza cadastro e login com senha valida", async () => {
     const authState = createAuthMockState();
     const user = userEvent.setup();
