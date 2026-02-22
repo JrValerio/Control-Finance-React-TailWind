@@ -5,6 +5,28 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap');
 
+:root {
+  --cf-bg-page:        #FFFFFF;
+  --cf-header-bg:      #F1F3F5;
+  --cf-surface:        #FFFFFF;
+  --cf-bg-subtle:      #E9ECEF;
+  --cf-text-primary:   #212529;
+  --cf-text-secondary: #495057;
+  --cf-border:         #ADB5BD;
+  --cf-border-input:   #E9ECEF;
+}
+
+.dark {
+  --cf-bg-page:        #0f172a;
+  --cf-header-bg:      #1e293b;
+  --cf-surface:        #1e293b;
+  --cf-bg-subtle:      #243044;
+  --cf-text-primary:   #F1F5F9;
+  --cf-text-secondary: #94A3B8;
+  --cf-border:         #334155;
+  --cf-border-input:   #475569;
+}
+
 
 .btn-primary {
   @apply bg-brand-1 text-white font-medium py-2 px-4 rounded;

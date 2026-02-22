@@ -87,12 +87,12 @@ const Login = (): JSX.Element => {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gray-500 p-4">
-      <section className="w-full max-w-md rounded bg-white p-6 shadow-lg">
-        <h1 className="text-3xl font-semibold text-gray-100">
+    <main className="flex min-h-screen items-center justify-center bg-cf-bg-page p-4">
+      <section className="w-full max-w-md rounded bg-cf-surface p-6 shadow-lg">
+        <h1 className="text-3xl font-semibold text-cf-text-primary">
           <span className="text-brand-1">Control</span>Finance
         </h1>
-        <p className="mt-2 text-sm text-gray-200">
+        <p className="mt-2 text-sm text-cf-text-secondary">
           Entre para acessar o dashboard financeiro.
         </p>
 
@@ -103,7 +103,7 @@ const Login = (): JSX.Element => {
             className={`rounded px-3 py-2 text-sm font-medium ${
               mode === "login"
                 ? "bg-brand-1 text-white"
-                : "bg-gray-400 text-gray-100"
+                : "bg-cf-bg-subtle text-cf-text-primary"
             }`}
           >
             Login
@@ -114,7 +114,7 @@ const Login = (): JSX.Element => {
             className={`rounded px-3 py-2 text-sm font-medium ${
               mode === "register"
                 ? "bg-brand-1 text-white"
-                : "bg-gray-400 text-gray-100"
+                : "bg-cf-bg-subtle text-cf-text-primary"
             }`}
           >
             Criar conta
@@ -126,7 +126,7 @@ const Login = (): JSX.Element => {
             <div>
               <label
                 htmlFor="nome"
-                className="mb-1 block text-sm font-medium text-gray-100"
+                className="mb-1 block text-sm font-medium text-cf-text-primary"
               >
                 Nome
               </label>
@@ -135,7 +135,7 @@ const Login = (): JSX.Element => {
                 type="text"
                 value={name}
                 onChange={(event) => setName(event.target.value)}
-                className="w-full rounded border border-gray-400 px-3 py-2 text-sm text-gray-200"
+                className="w-full rounded border border-cf-border-input px-3 py-2 text-sm text-cf-text-secondary"
               />
             </div>
           ) : null}
@@ -143,7 +143,7 @@ const Login = (): JSX.Element => {
           <div>
             <label
               htmlFor="email"
-              className="mb-1 block text-sm font-medium text-gray-100"
+              className="mb-1 block text-sm font-medium text-cf-text-primary"
             >
               Email
             </label>
@@ -152,7 +152,7 @@ const Login = (): JSX.Element => {
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              className="w-full rounded border border-gray-400 px-3 py-2 text-sm text-gray-200"
+              className="w-full rounded border border-cf-border-input px-3 py-2 text-sm text-cf-text-secondary"
               autoComplete="email"
             />
           </div>
@@ -160,7 +160,7 @@ const Login = (): JSX.Element => {
           <div>
             <label
               htmlFor="senha"
-              className="mb-1 block text-sm font-medium text-gray-100"
+              className="mb-1 block text-sm font-medium text-cf-text-primary"
             >
               Senha
             </label>
@@ -169,7 +169,7 @@ const Login = (): JSX.Element => {
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className="w-full rounded border border-gray-400 px-3 py-2 text-sm text-gray-200"
+              className="w-full rounded border border-cf-border-input px-3 py-2 text-sm text-cf-text-secondary"
               autoComplete={mode === "register" ? "new-password" : "current-password"}
             />
           </div>
@@ -178,7 +178,7 @@ const Login = (): JSX.Element => {
             <div>
               <label
                 htmlFor="confirmar-senha"
-                className="mb-1 block text-sm font-medium text-gray-100"
+                className="mb-1 block text-sm font-medium text-cf-text-primary"
               >
                 Confirmar senha
               </label>
@@ -187,7 +187,7 @@ const Login = (): JSX.Element => {
                 type="password"
                 value={confirmPassword}
                 onChange={(event) => setConfirmPassword(event.target.value)}
-                className="w-full rounded border border-gray-400 px-3 py-2 text-sm text-gray-200"
+                className="w-full rounded border border-cf-border-input px-3 py-2 text-sm text-cf-text-secondary"
                 autoComplete="new-password"
               />
             </div>

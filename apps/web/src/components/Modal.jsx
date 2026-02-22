@@ -147,22 +147,22 @@ const Modal = ({
       onClick={handleBackdropClick}
       role="presentation"
     >
-      <div className="w-full max-w-md rounded-lg bg-white p-4 sm:p-6">
+      <div className="w-full max-w-md rounded-lg bg-cf-surface p-4 sm:p-6">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-100">
+          <h2 className="text-lg font-semibold text-cf-text-primary">
             {isEditing ? "Editar transacao" : "Registro de valor"}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="text-gray-200 transition-colors hover:text-gray-100"
+            className="text-cf-text-secondary transition-colors hover:text-cf-text-primary"
             aria-label="Fechar modal"
           >
             X
           </button>
         </div>
 
-        <p className="mb-4 text-sm text-gray-200">
+        <p className="mb-4 text-sm text-cf-text-secondary">
           {isEditing
             ? "Atualize os campos da transacao."
             : "Digite o valor, selecione o tipo e a data da transacao."}
@@ -170,14 +170,14 @@ const Modal = ({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="flex flex-col gap-2">
-            <label htmlFor="valor" className="text-sm font-medium text-gray-100">
+            <label htmlFor="valor" className="text-sm font-medium text-cf-text-primary">
               Valor
             </label>
-            <div className="flex items-center rounded border border-gray-400 px-4 py-2">
-              <span className="text-sm font-medium text-gray-200">R$</span>
+            <div className="flex items-center rounded border border-cf-border-input px-4 py-2">
+              <span className="text-sm font-medium text-cf-text-secondary">R$</span>
               <input
                 id="valor"
-                className="w-full pl-2 text-sm text-gray-200 outline-none"
+                className="w-full pl-2 text-sm text-cf-text-secondary outline-none bg-transparent"
                 name="valor"
                 placeholder="0,00"
                 type="text"
@@ -193,13 +193,13 @@ const Modal = ({
           </div>
 
           <div className="flex flex-col gap-2">
-            <label htmlFor="data" className="text-sm font-medium text-gray-100">
+            <label htmlFor="data" className="text-sm font-medium text-cf-text-primary">
               Data
             </label>
             <input
               id="data"
               type="date"
-              className="rounded border border-gray-400 px-3 py-2 text-sm text-gray-200"
+              className="rounded border border-cf-border-input px-3 py-2 text-sm text-cf-text-secondary bg-cf-surface"
               value={transactionDate}
               onChange={(event) => {
                 setTransactionDate(event.target.value);
@@ -210,13 +210,13 @@ const Modal = ({
           </div>
 
           <div className="flex flex-col gap-2">
-            <label htmlFor="descricao" className="text-sm font-medium text-gray-100">
+            <label htmlFor="descricao" className="text-sm font-medium text-cf-text-primary">
               Descricao
             </label>
             <input
               id="descricao"
               type="text"
-              className="rounded border border-gray-400 px-3 py-2 text-sm text-gray-200"
+              className="rounded border border-cf-border-input px-3 py-2 text-sm text-cf-text-secondary bg-cf-surface"
               value={description}
               onChange={(event) => {
                 setDescription(event.target.value);
@@ -228,12 +228,12 @@ const Modal = ({
           </div>
 
           <div className="flex flex-col gap-2">
-            <label htmlFor="observacoes" className="text-sm font-medium text-gray-100">
+            <label htmlFor="observacoes" className="text-sm font-medium text-cf-text-primary">
               Observacoes
             </label>
             <textarea
               id="observacoes"
-              className="min-h-20 rounded border border-gray-400 px-3 py-2 text-sm text-gray-200"
+              className="min-h-20 rounded border border-cf-border-input px-3 py-2 text-sm text-cf-text-secondary bg-cf-surface"
               value={notes}
               onChange={(event) => {
                 setNotes(event.target.value);
@@ -245,14 +245,14 @@ const Modal = ({
           </div>
 
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <span className="text-sm font-medium text-gray-100">Tipo de valor</span>
+            <span className="text-sm font-medium text-cf-text-primary">Tipo de valor</span>
             <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
               <button
                 type="button"
                 className={`rounded border px-3.5 py-1 text-sm font-semibold transition-colors ${
                   transactionType === CATEGORY_ENTRY
                     ? "border-brand-1 bg-brand-3 text-brand-1"
-                    : "border-gray-300 bg-white text-gray-200"
+                    : "border-cf-border bg-cf-surface text-cf-text-secondary"
                 }`}
                 onClick={() => {
                   setTransactionType(CATEGORY_ENTRY);
@@ -266,7 +266,7 @@ const Modal = ({
                 className={`rounded border px-3.5 py-1 text-sm font-semibold transition-colors ${
                   transactionType === CATEGORY_EXIT
                     ? "border-brand-1 bg-brand-3 text-brand-1"
-                    : "border-gray-300 bg-white text-gray-200"
+                    : "border-cf-border bg-cf-surface text-cf-text-secondary"
                 }`}
                 onClick={() => {
                   setTransactionType(CATEGORY_EXIT);
@@ -279,12 +279,12 @@ const Modal = ({
           </div>
 
           <div className="flex flex-col gap-2">
-            <label htmlFor="categoria" className="text-sm font-medium text-gray-100">
+            <label htmlFor="categoria" className="text-sm font-medium text-cf-text-primary">
               Categoria
             </label>
             <select
               id="categoria"
-              className="rounded border border-gray-400 px-3 py-2 text-sm text-gray-200"
+              className="rounded border border-cf-border-input px-3 py-2 text-sm text-cf-text-secondary bg-cf-surface"
               value={selectedCategoryId}
               onChange={(event) => {
                 setSelectedCategoryId(event.target.value);
@@ -323,7 +323,7 @@ const Modal = ({
           <div className="flex items-center justify-end gap-3">
             <button
               type="button"
-              className="rounded border border-gray-300 bg-gray-400 px-3.5 py-1.5 text-sm font-semibold text-gray-200"
+              className="rounded border border-cf-border bg-cf-bg-subtle px-3.5 py-1.5 text-sm font-semibold text-cf-text-secondary"
               onClick={onClose}
             >
               Cancelar

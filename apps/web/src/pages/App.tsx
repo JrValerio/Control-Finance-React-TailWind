@@ -1469,12 +1469,12 @@ const App = ({
   );
 
   return (
-    <div className="App min-h-screen bg-white pb-10 dark:bg-gray-900">
-      <header className="w-full bg-gray-500 py-3 shadow-md sm:py-4 dark:bg-gray-800">
+    <div className="App min-h-screen bg-cf-bg-page pb-10">
+      <header className="w-full bg-cf-header-bg py-3 shadow-md sm:py-4">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
           <h1 className="text-4xl font-semibold">
             <span className="text-brand-1">Control</span>
-            <span className="text-gray-100">Finance</span>
+            <span className="text-cf-text-primary">Finance</span>
           </h1>
           <div className="flex flex-wrap items-center justify-end gap-2">
             {useMobileActionsMenu ? (
@@ -1486,7 +1486,7 @@ const App = ({
                   aria-controls={MOBILE_ACTIONS_MENU_ID}
                   onClick={toggleMobileActionsMenu}
                   ref={mobileActionsButtonRef}
-                  className="whitespace-nowrap rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-100 hover:bg-gray-400"
+                  className="whitespace-nowrap rounded border border-cf-border bg-cf-surface px-2.5 py-1.5 text-xs font-semibold text-cf-text-primary hover:bg-cf-bg-subtle"
                 >
                   Acoes
                 </button>
@@ -1496,7 +1496,7 @@ const App = ({
                     id={MOBILE_ACTIONS_MENU_ID}
                     aria-label="Acoes rapidas"
                     ref={mobileActionsMenuRef}
-                    className="absolute right-0 top-full z-20 mt-1 flex w-44 flex-col gap-1 rounded border border-gray-300 bg-white p-1 shadow-lg"
+                    className="absolute right-0 top-full z-20 mt-1 flex w-44 flex-col gap-1 rounded border border-cf-border bg-cf-surface p-1 shadow-lg"
                   >
                     <button
                       type="button"
@@ -1504,7 +1504,7 @@ const App = ({
                       ref={firstMobileActionsItemRef}
                       onClick={handleExportCsvFromMenu}
                       disabled={isExportingCsv}
-                      className="rounded px-2 py-2 text-left text-xs font-semibold text-gray-900 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="rounded px-2 py-2 text-left text-xs font-semibold text-cf-text-primary hover:bg-cf-bg-subtle disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {isExportingCsv ? "Exportando CSV..." : "Exportar CSV"}
                     </button>
@@ -1512,7 +1512,7 @@ const App = ({
                       type="button"
                       role="menuitem"
                       onClick={handleOpenImportModal}
-                      className="rounded px-2 py-2 text-left text-xs font-semibold text-gray-900 hover:bg-gray-100"
+                      className="rounded px-2 py-2 text-left text-xs font-semibold text-cf-text-primary hover:bg-cf-bg-subtle"
                     >
                       Importar CSV
                     </button>
@@ -1520,7 +1520,7 @@ const App = ({
                       type="button"
                       role="menuitem"
                       onClick={handleOpenImportHistoryModal}
-                      className="rounded px-2 py-2 text-left text-xs font-semibold text-gray-900 hover:bg-gray-100"
+                      className="rounded px-2 py-2 text-left text-xs font-semibold text-cf-text-primary hover:bg-cf-bg-subtle"
                     >
                       Historico de imports
                     </button>
@@ -1529,7 +1529,7 @@ const App = ({
                         type="button"
                         role="menuitem"
                         onClick={handleOpenCategoriesSettings}
-                        className="rounded px-2 py-2 text-left text-xs font-semibold text-gray-900 hover:bg-gray-100"
+                        className="rounded px-2 py-2 text-left text-xs font-semibold text-cf-text-primary hover:bg-cf-bg-subtle"
                       >
                         Categorias
                       </button>
@@ -1538,13 +1538,13 @@ const App = ({
                       type="button"
                       role="menuitem"
                       onClick={toggleTheme}
-                      className="rounded px-2 py-2 text-left text-xs font-semibold text-gray-900 hover:bg-gray-100"
+                      className="rounded px-2 py-2 text-left text-xs font-semibold text-cf-text-primary hover:bg-cf-bg-subtle"
                     >
                       {theme === "dark" ? "☀ Claro" : "☾ Escuro"}
                     </button>
                     {onLogout ? (
                       <>
-                        <div className="my-1 h-px bg-gray-200" role="separator" />
+                        <div className="my-1 h-px bg-cf-border" role="separator" />
                         <button
                           type="button"
                           role="menuitem"
@@ -1559,19 +1559,19 @@ const App = ({
                 ) : null}
               </div>
             ) : (
-              <div className="flex min-w-0 items-center gap-1 rounded border border-gray-300 bg-white/70 p-1 sm:gap-2">
+              <div className="flex min-w-0 items-center gap-1 rounded border border-cf-border bg-cf-surface/70 p-1 sm:gap-2">
                 <button
                   type="button"
                   onClick={toggleTheme}
                   aria-label={theme === "dark" ? "Mudar para tema claro" : "Mudar para tema escuro"}
-                  className="whitespace-nowrap rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-100 hover:bg-gray-400"
+                  className="whitespace-nowrap rounded border border-cf-border bg-cf-surface px-2.5 py-1.5 text-xs font-semibold text-cf-text-primary hover:bg-cf-bg-subtle"
                 >
                   {theme === "dark" ? "☀ Claro" : "☾ Escuro"}
                 </button>
                 {onLogout ? (
                   <button
                     onClick={onLogout}
-                    className="whitespace-nowrap rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-100 hover:bg-gray-400"
+                    className="whitespace-nowrap rounded border border-cf-border bg-cf-surface px-2.5 py-1.5 text-xs font-semibold text-cf-text-primary hover:bg-cf-bg-subtle"
                   >
                     Sair
                   </button>
@@ -1580,21 +1580,21 @@ const App = ({
                   type="button"
                   onClick={handleExportCsv}
                   disabled={isExportingCsv}
-                  className="whitespace-nowrap rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-100 hover:bg-gray-400 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="whitespace-nowrap rounded border border-cf-border bg-cf-surface px-2.5 py-1.5 text-xs font-semibold text-cf-text-primary hover:bg-cf-bg-subtle disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isExportingCsv ? "Exportando CSV..." : "Exportar CSV"}
                 </button>
                 <button
                   type="button"
                   onClick={handleOpenImportModal}
-                  className="whitespace-nowrap rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-100 hover:bg-gray-400"
+                  className="whitespace-nowrap rounded border border-cf-border bg-cf-surface px-2.5 py-1.5 text-xs font-semibold text-cf-text-primary hover:bg-cf-bg-subtle"
                 >
                   Importar CSV
                 </button>
                 <button
                   type="button"
                   onClick={handleOpenImportHistoryModal}
-                  className="whitespace-nowrap rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-100 hover:bg-gray-400"
+                  className="whitespace-nowrap rounded border border-cf-border bg-cf-surface px-2.5 py-1.5 text-xs font-semibold text-cf-text-primary hover:bg-cf-bg-subtle"
                 >
                   Historico de imports
                 </button>
@@ -1602,7 +1602,7 @@ const App = ({
                   <button
                     type="button"
                     onClick={handleOpenCategoriesSettings}
-                    className="whitespace-nowrap rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-100 hover:bg-gray-400"
+                    className="whitespace-nowrap rounded border border-cf-border bg-cf-surface px-2.5 py-1.5 text-xs font-semibold text-cf-text-primary hover:bg-cf-bg-subtle"
                   >
                     Categorias
                   </button>
@@ -1664,14 +1664,14 @@ const App = ({
                     {appliedChips.map((chip) => (
                       <span
                         key={chip.id}
-                        className="inline-flex whitespace-nowrap items-center gap-1 rounded-full border border-gray-300 bg-white py-1 pl-2.5 pr-1.5 text-xs font-medium text-gray-700"
+                        className="inline-flex whitespace-nowrap items-center gap-1 rounded-full border border-cf-border bg-cf-surface py-1 pl-2.5 pr-1.5 text-xs font-medium text-cf-text-primary"
                       >
                         {chip.text}
                         {chip.removable ? (
                           <button
                             type="button"
                             aria-label={`Remover filtro: ${chip.removeLabel}`}
-                            className="inline-flex h-5 w-5 items-center justify-center rounded-full text-gray-200 transition-colors hover:bg-gray-400 hover:text-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-1 focus:ring-offset-1"
+                            className="inline-flex h-5 w-5 items-center justify-center rounded-full text-cf-text-secondary transition-colors hover:bg-cf-bg-subtle hover:text-cf-text-primary focus:outline-none focus:ring-2 focus:ring-brand-1 focus:ring-offset-1"
                             onClick={() => handleRemoveAppliedChip(chip.id)}
                           >
                             <svg
