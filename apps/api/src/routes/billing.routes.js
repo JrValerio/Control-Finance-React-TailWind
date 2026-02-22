@@ -2,6 +2,7 @@ import { Router } from "express";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
 import { getSubscriptionSummaryForUser } from "../services/billing.service.js";
 import { createCheckoutSession } from "../services/stripe-checkout.service.js";
+import { createPortalSession } from "../services/stripe-portal.service.js";
 
 const router = Router();
 
@@ -23,6 +24,15 @@ router.post("/checkout", async (req, res, next) => {
       userEmail: req.user.email,
     });
     res.status(201).json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/portal", async (req, res, next) => {
+  try {
+    const result = await createPortalSession({ userId: req.user.id });
+    res.status(200).json(result);
   } catch (error) {
     next(error);
   }
