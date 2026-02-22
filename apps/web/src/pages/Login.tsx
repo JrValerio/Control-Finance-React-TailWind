@@ -276,7 +276,6 @@ const Login = (): JSX.Element => {
                 // Google's own UI surfaces errors; no additional handling needed
               }}
               text="continue_with"
-              locale="pt-BR"
               size="large"
             />
           </div>
