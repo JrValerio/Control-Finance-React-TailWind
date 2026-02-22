@@ -39,8 +39,8 @@ const TransactionList = ({ transactions, onDelete, onEdit }) => {
             <span
               className={`whitespace-nowrap rounded px-3 py-1 text-sm font-medium ${
                 transaction.type === CATEGORY_ENTRY
-                  ? "bg-brand-3 text-brand-1"
-                  : "bg-cf-bg-subtle text-cf-text-primary"
+                  ? "bg-green-100 text-green-700"
+                  : "bg-red-100 text-red-700"
               }`}
             >
               {transaction.type}

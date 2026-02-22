@@ -251,7 +251,7 @@ const Modal = ({
                 type="button"
                 className={`rounded border px-3.5 py-1 text-sm font-semibold transition-colors ${
                   transactionType === CATEGORY_ENTRY
-                    ? "border-brand-1 bg-brand-3 text-brand-1"
+                    ? "border-green-500 bg-green-50 text-green-700"
                     : "border-cf-border bg-cf-surface text-cf-text-secondary"
                 }`}
                 onClick={() => {
@@ -265,7 +265,7 @@ const Modal = ({
                 type="button"
                 className={`rounded border px-3.5 py-1 text-sm font-semibold transition-colors ${
                   transactionType === CATEGORY_EXIT
-                    ? "border-brand-1 bg-brand-3 text-brand-1"
+                    ? "border-red-500 bg-red-50 text-red-700"
                     : "border-cf-border bg-cf-surface text-cf-text-secondary"
                 }`}
                 onClick={() => {
