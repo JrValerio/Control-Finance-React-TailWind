@@ -102,6 +102,7 @@ interface AppProps {
   onLogout?: () => void;
   onOpenCategoriesSettings?: () => void;
   onOpenBillingSettings?: () => void;
+  onOpenProfileSettings?: () => void;
 }
 
 const PERIOD_OPTIONS = [
@@ -443,6 +444,7 @@ const App = ({
   onLogout = undefined,
   onOpenCategoriesSettings = undefined,
   onOpenBillingSettings = undefined,
+  onOpenProfileSettings = undefined,
 }: AppProps): JSX.Element => {
   const initialFilterState = useMemo(() => getInitialFilterState(), []);
   const initialPaginationState = useMemo(() => getInitialPaginationState(), []);
@@ -1356,6 +1358,11 @@ const App = ({
     onOpenBillingSettings?.();
   };
 
+  const handleOpenProfileSettings = () => {
+    closeMobileActionsMenu();
+    onOpenProfileSettings?.();
+  };
+
   const handleLogoutFromActionsMenu = () => {
     closeMobileActionsMenu();
     onLogout?.();
@@ -1551,6 +1558,16 @@ const App = ({
                         Assinatura
                       </button>
                     ) : null}
+                    {onOpenProfileSettings ? (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={handleOpenProfileSettings}
+                        className="rounded px-2 py-2 text-left text-xs font-semibold text-cf-text-primary hover:bg-cf-bg-subtle"
+                      >
+                        Perfil
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       role="menuitem"
@@ -1631,6 +1648,15 @@ const App = ({
                     className="whitespace-nowrap rounded border border-cf-border bg-cf-surface px-2.5 py-1.5 text-xs font-semibold text-cf-text-primary hover:bg-cf-bg-subtle"
                   >
                     Assinatura
+                  </button>
+                ) : null}
+                {onOpenProfileSettings ? (
+                  <button
+                    type="button"
+                    onClick={handleOpenProfileSettings}
+                    className="whitespace-nowrap rounded border border-cf-border bg-cf-surface px-2.5 py-1.5 text-xs font-semibold text-cf-text-primary hover:bg-cf-bg-subtle"
+                  >
+                    Perfil
                   </button>
                 ) : null}
               </div>
