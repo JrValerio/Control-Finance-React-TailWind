@@ -1,15 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PropTypes from "prop-types";
 import { transactionsService } from "../services/transactions.service";
+import { formatCurrency } from "../utils/formatCurrency";
 
 const DEFAULT_LIMIT = 20;
 
 const getApiErrorMessage = (error, fallbackMessage) => {
   return error?.response?.data?.message || error?.message || fallbackMessage;
-};
-
-const formatCurrency = (value) => {
-  return `R$ ${(Number(value) || 0).toFixed(2)}`;
 };
 
 const formatDateTime = (value) => {
