@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.25.0] - 2026-02-22
+
+### Title
+
+v1.25.0 - UX Pack (Header, Filters, Category Sort, Contrast)
+
+### Fixed
+
+- **Header compact mode** — breakpoint raised from 420 px to 640 px; action buttons
+  now remain visible on most phone orientations (PR-N2).
+- **Filter panel** — collapses by default on all viewport sizes; opens on demand
+  via "Filtros" toggle; desktop no longer forces it open on resize (PR-N3).
+- **Category expense breakdown** — "Sem categoria" entry always sorts to the bottom
+  of the list, after named categories ordered by descending spend (PR-N4).
+- **WCAG AA contrast** — five elements that failed the 4.5:1 threshold on white
+  backgrounds were corrected (PR-N5):
+  - `TrendChart`: chart hint text `text-gray-300` → `text-gray-200` (2.05:1 → 8.2:1)
+  - `App`: chip remove-button base color `text-gray-500` → `text-gray-200`; hover pair updated
+  - `ImportCsvModal` / `ImportHistoryModal`: close-button `text-gray-500` → `text-gray-200`
+  - `CategoriesSettings`: status label `text-gray-500` → `text-gray-200`
+
+### Quality
+
+- 11 existing web tests updated to open the filter panel before interacting with controls.
+- Full suite green: **156/156** (api), **112/112** (web).
+
 ## [1.24.0] - 2026-02-21
 
 ### Title
